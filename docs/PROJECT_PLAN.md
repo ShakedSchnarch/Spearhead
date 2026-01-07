@@ -8,7 +8,8 @@
 ## Current Stage
 - Stage 1 complete: aligned domain models (safe defaults, optional reporter/notes), fixed Airlock robustness, and all tests are green.
 - Stage 2 complete: adapters for platoon loadout, battalion summary, and form responses implemented with tests on the latest files.
-- Stage 3 complete: SQLite schema + ImportService (hash-based idempotency, raw field capture, JSON-safe fields) and tests. Next: deterministic queries layer.
+- Stage 3 complete: SQLite schema + ImportService (hash-based idempotency, raw field capture, JSON-safe fields) and tests.
+- Stage 4 complete: deterministic query layer (totals/gaps/ok counts) over persisted data with tests. Next: API layer.
 
 ## Target Architecture (layered)
 - Data layer (`src/iron_view/data`):
