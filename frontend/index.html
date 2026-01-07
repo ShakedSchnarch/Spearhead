@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IronView Frontend (Prototype)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>IronView</h1>
+      <p>Local prototype UI for imports and deterministic queries</p>
+    </div>
+    <div class="status" id="health">Checking...</div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Import Files</h2>
+      <div class="upload-grid">
+        <div class="card">
+          <h3>Platoon Loadout</h3>
+          <input type="file" id="file-loadout">
+          <button onclick="uploadFile('platoon-loadout', 'file-loadout')">Upload</button>
+          <div class="result" id="result-loadout"></div>
+        </div>
+        <div class="card">
+          <h3>Battalion Summary</h3>
+          <input type="file" id="file-summary">
+          <button onclick="uploadFile('battalion-summary', 'file-summary')">Upload</button>
+          <div class="result" id="result-summary"></div>
+        </div>
+        <div class="card">
+          <h3>Form Responses</h3>
+          <input type="file" id="file-form">
+          <button onclick="uploadFile('form-responses', 'file-form')">Upload</button>
+          <div class="result" id="result-form"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Queries</h2>
+      <div class="card">
+        <div class="controls">
+          <label>Section:
+            <select id="section">
+              <option value="zivud">zivud</option>
+              <option value="ammo">ammo</option>
+            </select>
+          </label>
+          <label>Top N:
+            <input type="number" id="top-n" value="5" min="1" max="50">
+          </label>
+          <button onclick="loadQueries()">Run</button>
+        </div>
+        <div class="grid">
+          <div>
+            <h4>Totals</h4>
+            <pre id="totals"></pre>
+          </div>
+          <div>
+            <h4>Gaps</h4>
+            <pre id="gaps"></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Form Status</h4>
+        <pre id="forms"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

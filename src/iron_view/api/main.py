@@ -3,7 +3,7 @@ from tempfile import NamedTemporaryFile
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Query
-from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from iron_view.config import settings
 from iron_view.data.import_service import ImportService
@@ -21,6 +21,13 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
     query_service = QueryService(db=db)
 
     app = FastAPI(title="IronView API", version=settings.app.version)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Dependency providers
     def get_import_service():
@@ -99,3 +106,7 @@ def _save_temp_file(upload: UploadFile) -> Path:
             return Path(tmp.name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+
+
+# Module-level app for uvicorn entrypoint
+app = create_app()

@@ -32,7 +32,7 @@
 3) Persistence: define SQLite schema, migrations, ImportService with idempotency and raw capture.
 4) Deterministic queries: gaps by platoon/week/item, weekly deltas, ammo/kesher status, variance vs. battalion summary.
 5) API: FastAPI upload/sync, queries, status, health; rate limits/logging. (done)
-6) Frontend: dashboard (filters, charts, tables), local assets, no CDN. (next)
+6) Frontend: dashboard (filters, charts, tables), local assets, no CDN. (in progress: prototype static UI hitting API)
 7) Google Sheets sync (optional): provider with caching and configurable credentials; fallback to local upload.
 8) AI layer (optional, later): plug-in provider; prompt hygiene and caching.
 
