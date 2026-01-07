@@ -13,7 +13,9 @@ from iron_view.exceptions import ConfigError, DataSourceError
 
 
 class SheetsProvider(Protocol):
-    def download_sheet(self, file_id: str, dest: Path, cache_path: Optional[Path] = None) -> Tuple[Path, bool]:
+    def download_sheet(
+        self, file_id: str, dest: Path, cache_path: Optional[Path] = None, etag: Optional[str] = None
+    ) -> Tuple[Path, bool, Optional[str]]:
         ...
 
 
@@ -41,7 +43,9 @@ class GoogleSheetsProvider:
                 scopes=["https://www.googleapis.com/auth/drive.readonly"],
             )
 
-    def download_sheet(self, file_id: str, dest: Path, cache_path: Optional[Path] = None) -> Tuple[Path, bool]:
+    def download_sheet(
+        self, file_id: str, dest: Path, cache_path: Optional[Path] = None, etag: Optional[str] = None
+    ) -> Tuple[Path, bool, Optional[str]]:
         if not file_id:
             raise ConfigError("Google Sheets file_id is not configured.")
 
@@ -49,18 +53,22 @@ class GoogleSheetsProvider:
         dest.parent.mkdir(parents=True, exist_ok=True)
         url = self.EXPORT_URL.format(file_id=file_id)
         params = {"format": "xlsx"}
+        headers = {}
+        if etag:
+            headers["If-None-Match"] = etag
 
         if self.creds:
             session = AuthorizedSession(self.creds)
-            requester = lambda: session.get(url, params=params)
+            requester = lambda: session.get(url, params=params, headers=headers)
         else:
             if self.api_key:
                 params["key"] = self.api_key
             elif not self.api_key:
                 raise ConfigError("No credentials or API key configured for Google Sheets.")
-            requester = lambda: requests.get(url, params=params)
+            requester = lambda: requests.get(url, params=params, headers=headers)
 
         last_error: Optional[Exception] = None
+        new_etag: Optional[str] = None
         for attempt in range(self.max_retries):
             try:
                 resp = requester()
@@ -71,12 +79,17 @@ class GoogleSheetsProvider:
                     continue
                 break
 
+            if resp.status_code == 304 and cache_path and cache_path.exists():
+                shutil.copyfile(cache_path, dest)
+                return dest, True, etag
+
             if resp.status_code == 200:
+                new_etag = resp.headers.get("ETag")
                 dest.write_bytes(resp.content)
                 if cache_path:
                     cache_path.parent.mkdir(parents=True, exist_ok=True)
                     cache_path.write_bytes(resp.content)
-                return dest, False
+                return dest, False, new_etag
 
             is_retryable = resp.status_code in {429, 500, 502, 503, 504}
             last_error = DataSourceError(f"Failed to download sheet {file_id}: {resp.status_code}")
@@ -88,7 +101,7 @@ class GoogleSheetsProvider:
         # Fallback to cache if available
         if cache_path and cache_path.exists():
             shutil.copyfile(cache_path, dest)
-            return dest, True
+            return dest, True, etag
 
         raise last_error or DataSourceError(f"Failed to download sheet {file_id}")
 
@@ -152,8 +165,14 @@ class SyncService:
         file_id = self.file_ids.get(key)
         dest = self.tmp_dir / f"{key}.xlsx"
         cache_path = self.cache_dir / f"{key}.xlsx"
+        etag = self.status.get(key, {}).get("etag")
         try:
-            return self.provider.download_sheet(file_id, dest, cache_path=cache_path)
+            path, used_cache, new_etag = self.provider.download_sheet(
+                file_id, dest, cache_path=cache_path, etag=etag
+            )
+            if new_etag:
+                self.status.setdefault(key, {})["etag"] = new_etag
+            return path, used_cache
         except Exception:
             if cache_path.exists():
                 shutil.copyfile(cache_path, dest)
@@ -161,11 +180,14 @@ class SyncService:
             raise
 
     def _update_status(self, key: str, inserted: int, used_cache: bool, error: Optional[str]):
+        existing_etag = self.status.get(key, {}).get("etag")
         self.status[key] = {
             "last_sync": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "inserted": inserted,
             "used_cache": used_cache,
             "status": "error" if error else "ok",
         }
+        if existing_etag:
+            self.status[key]["etag"] = existing_etag
         if error:
             self.status[key]["error"] = error

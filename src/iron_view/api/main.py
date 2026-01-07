@@ -144,7 +144,8 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
         if settings.security.require_auth_on_queries:
             return require_auth(authorization=authorization, x_api_key=x_api_key)
 
-    dist_path = Path(__file__).resolve().parents[2] / "frontend-app" / "dist"
+    # Locate built frontend assets relative to repo root (src/iron_view/api/main.py -> ../../.. = repo)
+    dist_path = Path(__file__).resolve().parents[3] / "frontend-app" / "dist"
     if dist_path.exists():
         app.mount("/app", StaticFiles(directory=dist_path, html=True), name="frontend")
 

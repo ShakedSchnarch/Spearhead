@@ -18,43 +18,48 @@
 - Stage 9: Google Sheets sync robustness — retry/backoff, cache fallback, sync status endpoint.
 - Stage 10: AI layer — simulated/HTTP client abstraction with safe prompt/context, caching, deterministic fallback, `/insights` endpoint and UI surface.
 
-## Next Stages (To Do)
-11) Ops/docs: update README and PROJECT_PLAN with run commands (uvicorn + npm build/dev), sample .env (google settings, api key), Docker/Docker-compose, release checklist.
+## Updated Execution Plan (Post-MVP → first customer release)
+All steps keep existing functionality; only additive improvements. Each phase ends with an approval/commit.
 
-## Execution Plan – Milestones and Subtasks
+### Phase 1: Google Sheets Sync (priority)
+- Source of truth: per-platoon Google Form responses (כפיר/סופה/מחץ). Platoon is inferred from the sheet/file id; tanks identified by צ׳ טנק (no fixed counts).
+- Week derivation: from timestamp/date column; store week_key for grouping.
+- Schema drift: tolerant parsing (new columns kept as text), no breakage on added fields.
+- ETag/304: skip unchanged downloads; log source (cache/remote), etag, last_sync, last_error in `/sync/status`.
+- Tests: provider fakes for cache/etag/failure; API tests for `/sync/google` missing/invalid config + status payload.
+- Deliverable: stable sync, week/platoon-aware ingestion, transparent status.
 
-### Stage 7: Frontend polish (UX and data rendering)
-- Filters: platoon/section/week/topN selectors wired to API params; debounce + defaults; persist selection in localStorage.
-- Tables: sortable, paginated tables for totals/gaps/delta/variance; color-coded delta/variance (up/down) and readable units.
-- Charts: trendlines for key items over time; add variance/delta cards with sparklines; keep assets local (no CDN fonts/icons).
-- UX: responsive layout for desktop/mobile; loading/error states; API base selector retained; accessibility (keyboard focus, contrast).
-- Validation: manual QA against sample data; add frontend unit/snapshot tests where feasible.
+### Phase 2: Data shaping, calculations, and seeding
+- Dynamic tank counts: derive per-platoon tank count from distinct צ׳ טנק per week; no hardcoded numbers.
+- Calculations:
+  - Zivud totals show only חוסר/בלאי (both platoon and battalion views).
+  - Battalion zivud: per-platoon gaps + battalion total.
+  - Ammo/Means: compute per-tank averages using dynamic tank counts.
+  - P’arei Tzal’mim: include צ׳ טנק + שם המט״ק as provided.
+- Exports: generate refreshed Excel outputs (platoon weekly summary and battalion summary) with the above logic (aligned/improved vs. existing examples).
+- Seeding/reset: helper to clean DB and rerun sync-all for demo/QA.
+- Tests: unit calc tests (averages/gaps), integration for two consecutive syncs (idempotent), smoke on export structure.
 
-### Stage 8: API hardening (auth, limits, logging)
-- Auth: optional API token/basic auth via settings; middleware/dependency to enforce on mutable endpoints (imports/sync) and optionally queries.
-- Limits: upload size cap; sensible timeouts/body size in FastAPI/uvicorn; reject oversize with clear error.
-- Observability: structured request/response logging with request IDs; minimal PII; health endpoint stays open.
-- Errors: unified error responses with codes; graceful handling for bad files/queries; CORS stays permissive for LAN.
-- Validation: new tests for auth/limits/error cases; update config docs for enabling/disabling.
+### Phase 3: View modes (Battalion vs. Platoon)
+- Backend: optional platoon override for UI (non-breaking).
+- Frontend: toggle Battalion/Platoon with persistent filters (platoon, section, topN); adjust KPIs/graphs per mode.
+- QA: manual smoke for both modes.
 
-### Stage 9: Google Sheets sync robustness
-- Config: document service_account_file/API key, file_ids, enable flag; sample .env values; safe defaults when disabled.
-- Resilience: retry with backoff on transient errors; caching of last-good downloads; ETag/hash checks to skip unchanged files.
-- Status: endpoint exposes last sync status/timestamps per sheet; include counts inserted/skipped; clear errors for missing config.
-- Validation: unit tests with fake provider covering retry/backoff/cache/status; doc updates on how to run sync.
+### Phase 4: UX polish and messaging
+- Clear upload/sync success/error messaging (Hebrew), KPI header (last import/sync time, cache/remote).
+- Keep visuals; tighten labels/tables as needed for the new modes/data.
 
-### Stage 10: AI layer (LLM client + integration)
-- Client: new LLM client abstraction with safe prompt template, context trimming, caching, and deterministic fallback (rule-based) when disabled or errors.
-- Data: store AI outputs linked to imports/queries; schema updates as needed with migrations/backfill path.
-- API/UI: expose AI insights endpoint; surface in UI cards/tables with confidence and provenance; allow opt-out via config.
-- Safety: guardrails for prompt inputs, token budgets, redaction of sensitive fields; offline-friendly default (simulated provider).
-- Validation: unit tests for client caching/fallback; integration test for API surface; config docs for enabling with env vars/keys.
+### Phase 5: Auth and ops
+- Token flow verified (Authorized/Unauthorized); keep token empty for local dev.
+- Maintain scripts; optionally add no-reload “prod” target.
 
-### Stage 11: Ops/docs and delivery
-- Developer flow: consolidate run commands (uvicorn, npm dev/build), one-liner for serving built UI, and watch-mode guidance.
-- Configuration: sample `.env.example` for API token, Google creds/ids, AI provider keys, size limits; reference in README.
-- Packaging: optional Dockerfile + docker-compose (API + frontend build) with volumes for data; document build/run steps.
-- QA: final test pass (unit + API + sync); lint/format if configured; cut changelog/release notes.
+### Phase 6: AI (optional)
+- If enabled: smoke with real provider, redaction/limited context, source indicator (cache/remote) in UI.
+- Otherwise remain simulated; document enablement.
+
+### Phase 7: Docs and release
+- Update README (run scripts, sync flow, modes, token usage) and keep/append release notes in this plan.
+- Final QA: clean-db → sync/import → UI smoke; `scripts/test.sh`.
 
 ## Architecture (Current)
 - Data: Adapters (xlsx), DTOs, SQLite storage, ImportService (hash idempotency), Google Sync provider/service, QueryService (deterministic).

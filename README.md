@@ -67,6 +67,13 @@ Static frontend serve (Option A):
 Dev mode (Option B):
 - Run API as above, and `npm run dev` in `frontend-app` (defaults to http://localhost:5173 with CORS).
 
+### Shortcuts (scripts/)
+- `scripts/dev-api.sh` — run API with autoreload, serves built UI at `/app` if `frontend-app/dist` exists.
+- `scripts/dev-ui.sh` — run frontend dev server (use alongside dev-api in another terminal).
+- `scripts/build-ui.sh` — build frontend for serving via API.
+- `scripts/test.sh` — run pytest with `PYTHONPATH=src` and token cleared (override `SECURITY__API_TOKEN` if needed).
+- `scripts/clean-db.sh` — remove `data/ironview.db` and sync cache/temp folders to start fresh.
+
 ### Docker (optional)
 ```bash
 docker compose build
