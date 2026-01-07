@@ -1,0 +1,103 @@
+/* Tactical Flat Theme (Operation Matte Black) */
+:root {
+    /* Palette: Gunmetal & Matte Black */
+    --bg-dark: #09090b;   /* Zinc 950 - Deepest black/grey */
+    --bg-panel: #18181b;  /* Zinc 900 - Panel background */
+    --border-color: #27272a; /* Zinc 800 */
+    
+    /* Accents: Low Saturation, High Vis */
+    --primary: #10b981;   /* Emerald 500 (kept for generic healthy state) */
+    --tactical-green: #4ade80; /* Green 400 - sharper */
+    --tactical-orange: #fb923c; /* Orange 400 */
+    --tactical-red: #f87171;    /* Red 400 */
+    --tactical-blue: #60a5fa;   /* Blue 400 */
+    
+    /* Text */
+    --text-main: #e4e4e7; /* Zinc 200 */
+    --text-muted: #a1a1aa; /* Zinc 400 */
+}
+
+body {
+    font-family: 'Assistant', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-dark);
+    /* No gradients. Pure matte. */
+    color: var(--text-main);
+    overflow-x: hidden;
+    margin: 0;
+}
+
+/* Base Card Style - Sharp & Solid */
+.tactical-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 2px; /* Sharp corners */
+    /* No shadows, or very subtle/hard shadow */
+    box-shadow: 0 1px 0 0 rgba(0,0,0,0.5); 
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Rubik', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.05em; /* Technical feel */
+}
+
+/* Data / Mono */
+.font-mono {
+    font-family: 'Courier New', Courier, monospace !important; /* Force raw look or use embedded */
+}
+
+/* AI Terminal - Distinct but Flat */
+.ai-terminal {
+    background: #0f172a; /* Slate 900 - slightly blue-ish for contrast */
+    border-right: 2px solid var(--tactical-blue); /* Left/Right border depending on RTL */
+}
+
+/* Status Badges - Outline Style preferred for Tactical */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Scrollbar - Boxy */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-dark); 
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color); 
+    border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46; 
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    border-bottom: 2px solid var(--border-color);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+}
+
+td {
+    border-bottom: 1px solid var(--border-color);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}

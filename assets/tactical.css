@@ -1,0 +1,81 @@
+/* tactical.css - Iron-View Dark Mode Theme */
+
+:root {
+    --bg-dark: #0f172a; /* Slate 900 */
+    --bg-card: #1e293b; /* Slate 800 */
+    --text-primary: #f8fafc; /* Slate 50 */
+    --text-secondary: #94a3b8; /* Slate 400 */
+    --accent-green: #10b981; /* Emerald 500 */
+    --accent-red: #f43f5e; /* Rose 500 */
+    --accent-yellow: #f59e0b; /* Amber 500 */
+    --border-color: #334155; /* Slate 700 */
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: 'Heebo', sans-serif;
+    margin: 0;
+    padding: 20px;
+    direction: rtl;
+}
+
+/* Glassmorphism Card */
+.card {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Typography */
+h1 { font-size: 1.8rem; margin: 0; }
+.subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; }
+
+/* Grid System */
+.grid { display: grid; gap: 20px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* Stats Metrics */
+.metric-value { font-size: 2rem; font-weight: bold; }
+.metric-label { font-size: 0.85rem; color: var(--text-secondary); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: right; padding: 12px; color: var(--text-secondary); font-size: 0.85rem; border-bottom: 1px solid var(--border-color); }
+td { padding: 12px; border-bottom: 1px solid var(--border-color); }
+tr:last-child td { border-bottom: none; }
+
+/* Status Badges */
+.badge {
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    display: inline-block;
+}
+.badge-operational { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+.badge-degraded { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
+.badge-unavailable { background: rgba(244, 63, 94, 0.2); color: var(--accent-red); }
+
+/* Utility */
+.text-red { color: var(--accent-red); }
+.text-green { color: var(--accent-green); }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.w-full { width: 100%; }
+.h-64 { height: 300px; } /* Chart height */

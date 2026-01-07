@@ -1,0 +1,1661 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\begin_preamble
+% ===== Pass options to hyperref that LyX loads later =====
+\PassOptionsToPackage{hidelinks}{hyperref}
+
+% ===== Core layout utilities (must load before bidi/polyglossia) =====
+\usepackage{xcolor}
+\usepackage{graphicx}
+\graphicspath{{figs/}}      % optional figures folder
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{svg}            % requires shell-escape for on-the-fly conversion
+\svgpath{{figs/}}
+
+% ===== Fonts & languages (XeLaTeX) =====
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{hebrew}
+\setotherlanguage{english}
+
+% Hebrew fonts (Culmus recommended). Change if you prefer.
+\setmainfont[Script=Hebrew,Scale=MatchLowercase]{David CLM}
+\newfontfamily\hebrewfont[Script=Hebrew,Scale=MatchLowercase]{David CLM}
+\newfontfamily\hebrewfontsf[Script=Hebrew]{David CLM}
+\newfontfamily\hebrewfonttt[Script=Hebrew]{David CLM}
+
+% Latin fonts
+\newfontfamily\englishfont{Times New Roman}
+\newfontfamily\englishfontsf{Arial}
+\newfontfamily\englishfonttt{Menlo}
+
+% ===== Math =====
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{bbm}            % \mathbbm{1} indicator
+% Script math alphabet (optional; safe with XeLaTeX)
+\DeclareMathAlphabet\EuScript{U}{eus}{m}{n}
+\SetMathAlphabet\EuScript{bold}{U}{eus}{b}{n}
+
+% Theorem environments (customizable)
+\usepackage{amsthm}
+\theoremstyle{plain}
+\newtheorem{theorem}{משפט}[section]
+\newtheorem{lemma}[theorem]{למה}
+\newtheorem{proposition}[theorem]{טענה}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{הגדרה}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{הערה}
+
+% ===== TOC / numbering =====
+\setcounter{secnumdepth}{3} % number down to subsubsection
+\setcounter{tocdepth}{2}    % show down to subsection in TOC
+
+% ===== Spacing tweaks (optional, conservative) =====
+% \linespread{1.1}          % gentle leading
+% \setlist{nosep}           % compact lists
+% Added by lyx2lyx
+\setlength{\parskip}{0bp}
+\setlength{\parindent}{0pt}
+\end_preamble
+\options titlepage
+\use_default_options true
+\begin_modules
+theorems-ams
+theorems-sec
+eqs-within-sections
+customHeadersFooters
+\end_modules
+\maintain_unincluded_children no
+\language hebrew
+\language_package default
+\inputencoding auto-legacy
+\fontencoding auto
+\font_roman "default" "David CLM"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts true
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype true
+\use_dash_ligatures true
+\graphics default
+\default_output_format pdf4
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement h
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref true
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder false
+\pdf_colorlinks false
+\pdf_backref false
+\pdf_pdfusetitle true
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date true
+\justification true
+\use_refstyle 1
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\boxbgcolor #b6b6b6
+\branch macros
+\selected 1
+\filename_suffix 0
+\color #ffffff #000000
+\end_branch
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1cm
+\topmargin 2cm
+\rightmargin 1cm
+\bottommargin 3cm
+\headheight 0cm
+\headsep 1cm
+\footskip 2cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle fancy
+\tablestyle default
+\bullet 0 2 5 -1
+\bullet 1 2 1 -1
+\bullet 2 0 0 -1
+\bullet 3 0 6 -1
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Standard
+\begin_inset Box Doublebox
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "default"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+
+\series bold
+\size giant
+\bar under
+אפיון פרויקט- דו״חות עיתיים
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+תקציר מנהלים (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Executive Summary
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+הפרויקט נועד להחליף את תהליך איסוף נתוני הכשירות הידני והמיושן בגדוד (המבוסס על קבצי 
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Excel
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ מרובים) במערכת דיגיטלית אחודה,
+ חכמה ומאובטחת.
+ המערכת תאפשר איסוף נתונים מהיר מהשטח (רמת המט
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ק),
+ עיבוד אוטומטי,
+ והצגת תמונת מצב בזמן אמת לסמג
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ד ולמג
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ד.
+ גולת הכותרת היא שילוב מנוע בינה מלאכותית (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+AI
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+) לזיהוי חריגות,
+ ניתוח מגמות שחיקה וחיזוי חוסרים לוגיסטיים בטרם יהפכו למשביתים.
+\end_layout
+
+\begin_layout Section
+הצורך המבצעי (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+The Operational Need
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+כיום,
+ תמונת הכשירות הגדודית נבנית ידנית אחת לשבוע.
+ תהליך זה סובל ממספר כשלים:
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+סרבול ואיטיות:
+
+\series default
+ איסוף ואיחוד של עשרות דוחות ידניים מבזבז זמן יקר של המפקדים.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+תמונת מצב 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+מתה
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+":
+\end_layout
+
+\end_inset
+
+
+\series default
+ הנתונים משקפים את העבר ואינם מתעדכנים בזמן אמת.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+חוסר באנליטיקה:
+
+\series default
+ אין יכולת לזהות מגמות עומק (כגון שחיקה מתמשכת בכלי ספציפי) או חוסר אמינות בדיווח (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+העתק-הדבק
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+).
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+חווית משתמש:
+
+\series default
+ עומס ויזואלי המקשה על קבלת החלטות מהירות.
+ 
+\end_layout
+
+\begin_layout Section
+הפתרון המוצע (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+The Solution
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Subsection
+תפיסת ההפעלה
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+קצה (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Input
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+):
+
+\series default
+ מט
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+קים מדווחים בטופס דיגיטלי פשוט ומהיר (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Google Forms/Web App
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+) מהנייד.
+ 
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+עיבוד (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Core
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+):
+
+\series default
+ מערכת אוטומטית מאחדת את הנתונים,
+ מנרמלת אותם ומריצה עליהם אלגוריתמים של 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+AI
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+תצוגה (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Output
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+):
+
+\series default
+ דשבורד אינטראקטיבי לסמג
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ד המציג מדדי על (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+KPIs
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+),
+ התראות חכמות וטבלאות חריגים.
+ 
+\end_layout
+
+\begin_layout Subsection
+מרכיבי המערכת
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+ממשק איסוף:
+
+\series default
+ טפסים ייעודיים לכל פלוגה,
+ ללא צורך בהתקנת אפליקציה,
+ מותאמים לנייד.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+מנוע 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Iron-Intelligence
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+:
+
+\series default
+ מודול 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+AI
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ המנתח את הנתונים ומפיק תובנות מילוליות.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+דשבורד מפקד:
+
+\series default
+ ממשק משתמש טקטי (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Tactical UI
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+) המציג כשירות באחוזים,
+ פילוח לפי מסגרות ורשימת 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+כלים אדומים
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ לטיפול מיידי.
+ 
+\end_layout
+
+\begin_layout Section
+ארכיטקטורה טכנולוגית ואבטחת מידע
+\end_layout
+
+\begin_layout Standard
+הפרויקט ייבנה בגישת 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Privacy First
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ כדי להבטיח עמידה בסטנדרטים של ביטחון מידע,
+ גם בשימוש על תשתיות אזרחיות.
+\end_layout
+
+\begin_layout Subsection
+עקרונות האבטחה
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+אנונימיזציה מלאה:
+
+\series default
+ המערכת לא תכיל שמות חיילים או מספרי טלפון.
+ הזיהוי יתבצע אך ורק ע
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+פ מספר צ' (זנב) ושם הפלוגה.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+סיווג הנתונים:
+
+\series default
+ המערכת תטפל בנתונים ברמת 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+בלמ
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ס
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ (ציוד כללי,
+ סטטוס תקין/לא תקין) בלבד.
+ נתונים רגישים (כמו סד
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+כ תחמושת מדויק) ינוהלו בנפרד או יוזנו רק בסביבה מקומית.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+עיבוד מקומי (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Local Processing
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+):
+
+\series default
+ האופציה המועדפת היא שהנתונים הגולמיים יורדו למחשב הסמג
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ד,
+ ועיבוד הנתונים והרצת הדשבורד יתבצעו מקומית (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Offline
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+) ללא העלאת תמונת המצב המלאה לענן חיצוני.
+ 
+\end_layout
+
+\begin_layout Subsection
+הטכנולוגיה (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Stack
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+איסוף:
+
+\series default
+ 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Google Forms
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ (בשל פשטות ואמינות).
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Backend:
+
+\series default
+ 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Python
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ (לעיבוד נתונים,
+ ניקוי ושימוש בספריות 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Data Science
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+).
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+Frontend:
+
+\series default
+ 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+HTML5/CSS3
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ בגישת 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Standalone
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ (ללא תלות באינטרנט להצגה),
+ מבוסס על ספריית 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Tailwind
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ לעיצוב ו-
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Chart.js
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ לגרפים.
+ 
+\end_layout
+
+\begin_layout Section
+יכולות הבינה המלאכותית (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+AI Features
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+זהו הערך המוסף הייחודי של המערכת.
+ האלגוריתם יספק שלוש שכבות של הגנה:
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+בקרת אמינות (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Integrity Check
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+):
+
+\series default
+ זיהוי אוטומטי של דיווחים החשודים כלא אמינים (למשל:
+ נתונים זהים לחלוטין לשבוע שעבר,
+ או ערכים לא הגיוניים סטטיסטית).
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+זיהוי שחיקה (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Predictive Maintenance
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+):
+
+\series default
+ זיהוי כלים שחוזרים על תקלות מסוימות לאורך זמן,
+ גם אם כרגע הם מוגדרים 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+תקינים
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+,
+ כדי להקדים תרופה למכה.
+ 
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+ניהול חוסרים חכם:
+
+\series default
+ הצפת חוסרים שחוזרים על עצמם ברמת הגדוד (למשל:
+ מחסור גורף בשמן מסוג מסוים) כדי לאפשר רכש מרוכז.
+ 
+\end_layout
+
+\begin_layout Section
+תוכנית עבודה ולוחות זמנים (
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Roadmap
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Subsection
+שלב 1:
+ 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+MVP
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ (הוכחת היתכנות) - בוצע
+\end_layout
+
+\begin_layout Itemize
+עיצוב דשבורד ויזואלי (דמו).
+ 
+\end_layout
+
+\begin_layout Itemize
+הגדרת מבנה נתונים.
+ 
+\end_layout
+
+\begin_layout Subsection
+שלב 2:
+ פיתוח הליבה (שבועיים)
+\end_layout
+
+\begin_layout Itemize
+בניית טפסי 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Google Forms
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ לכל הפלוגות.
+ 
+\end_layout
+
+\begin_layout Itemize
+כתיבת סקריפט 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Python
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ שמושך נתונים וממיר אותם לדשבורד הקיים.
+ 
+\end_layout
+
+\begin_layout Itemize
+הטמעת לוגיקה בסיסית לזיהוי חריגים.
+ 
+\end_layout
+
+\begin_layout Subsection
+שלב 3:
+ פיילוט מבצעי (חודש)
+\end_layout
+
+\begin_layout Itemize
+הרצת המערכת על פלוגה אחת בלבד למשך שבועיים.
+ 
+\end_layout
+
+\begin_layout Itemize
+קבלת פידבק מהמט
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+קים (נוחות הזנה) ומהסמ
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+פ (נוחות בקרה).
+ 
+\end_layout
+
+\begin_layout Itemize
+דיוק הדשבורד בהתאם להערות הסמג
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ד.
+ 
+\end_layout
+
+\begin_layout Subsection
+שלב 4:
+ הטמעה גדודית מלאה
+\end_layout
+
+\begin_layout Itemize
+פתיחת המערכת לכלל הגדוד.
+ 
+\end_layout
+
+\begin_layout Itemize
+הדרכה קצרה למפקדים.
+ 
+\end_layout
+
+\begin_layout Itemize
+הוספת פיצ'רים מתקדמים (ייצוא 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+PDF
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ אוטומטי,
+ גרפים היסטוריים).
+ 
+\end_layout
+
+\begin_layout Section
+סיכום
+\end_layout
+
+\begin_layout Standard
+מערכת 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+textenglish{
+\end_layout
+
+\end_inset
+
+Iron-View
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+ היא פתרון טכנולוגי 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+רזה
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+"
+\end_layout
+
+\end_inset
+
+ אך עוצמתי,
+ שנתפר בדיוק למידות של גדוד שריון.
+ היא לא דורשת משאבים יקרים או הטמעה מסובכת,
+ אך מספקת קפיצת מדרגה משמעותית ביכולת השליטה והבקרה של מפקדת הגדוד,
+ תוך חיסכון בזמן ושיפור הכשירות המבצעית.
+\end_layout
+
+\end_body
+\end_document

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iron-View | מערכת שו"ב גדודית</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #10b981; /* Emerald 500 */
+            --danger: #ef4444;  /* Red 500 */
+            --warning: #f59e0b; /* Amber 500 */
+            --bg-dark: #0f172a; /* Slate 900 */
+            --card-bg: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
+        }
+
+        body {
+            font-family: 'Assistant', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 20%),
+                              radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 20%);
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism Card Style */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* AI Section Specifics */
+        .ai-terminal {
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9));
+            border-left: 3px solid var(--primary);
+        }
+
+        .typing-effect::after {
+            content: '|';
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Status Indicators */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="glass-card m-4 mb-2 p-4 flex justify-between items-center sticky top-4 z-50">
+        <div class="flex items-center gap-4">
+            <div class="relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-emerald-600 to-blue-600 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                <div class="relative bg-slate-900 h-12 w-12 rounded-lg flex items-center justify-center text-emerald-500 text-2xl border border-emerald-500/30">
+                    <i class="fa-solid fa-crosshairs"></i>
+                </div>
+            </div>
+            <div>
+                <h1 class="font-['Rubik'] text-2xl font-bold tracking-wider text-white uppercase">Iron<span class="text-emerald-500">-</span>View</h1>
+                <div class="flex items-center gap-2 text-xs text-slate-400">
+                    <span class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">גדוד 74</span>
+                    <span>|</span>
+                    <span class="text-emerald-400 font-mono">ONLINE</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hidden md:flex items-center gap-6">
+            <div class="text-right border-l border-slate-700 pl-6">
+                <div class="text-xs text-slate-400">דיווח אחרון</div>
+                <div class="text-sm font-mono text-white">09:42 | 05/01/24</div>
+            </div>
+            <div class="flex gap-3">
+                <button class="bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-lg transition border border-slate-700">
+                    <i class="fa-regular fa-bell"></i>
+                    <span class="absolute top-5 left-5 h-2 w-2 bg-rose-500 rounded-full"></span>
+                </button>
+                <div class="bg-gradient-to-r from-emerald-600 to-emerald-500 h-10 w-10 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 cursor-pointer">
+                    <span class="font-bold text-sm">סמג"ד</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 grid grid-cols-1 xl:grid-cols-4 gap-6">
+
+        <!-- Left Column: KPI & Charts (3/4 width on large screens) -->
+        <div class="xl:col-span-3 space-y-6">
+            
+            <!-- KPI Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- KPI 1: Readiness -->
+                <div class="glass-card p-5 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 h-24 w-24 bg-emerald-500/10 rounded-full blur-xl"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+                            <i class="fa-solid fa-shield-heart text-lg"></i>
+                        </div>
+                        <span class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">+2.4% <i class="fa-solid fa-arrow-trend-up"></i></span>
+                    </div>
+                    <div class="mb-1 text-slate-400 text-sm font-medium">כשירות מבצעית</div>
+                    <div class="text-3xl font-bold text-white font-['Rubik']">88.5%</div>
+                    <div class="w-full bg-slate-700 h-1.5 rounded-full mt-4 overflow-hidden">
+                        <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 88.5%"></div>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Critical Faults -->
+                <div class="glass-card p-5 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 h-24 w-24 bg-rose-500/10 rounded-full blur-xl"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2 bg-rose-500/10 rounded-lg text-rose-500">
+                            <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                        </div>
+                        <span class="text-xs font-mono text-rose-400 bg-rose-500/10 px-2 py-1 rounded">+2 <i class="fa-solid fa-arrow-up"></i></span>
+                    </div>
+                    <div class="mb-1 text-slate-400 text-sm font-medium">מושבתים קריטי</div>
+                    <div class="text-3xl font-bold text-white font-['Rubik']">5</div>
+                    <div class="text-xs text-slate-500 mt-4">מתוך 45 כלים</div>
+                </div>
+
+                <!-- KPI 3: Logistics -->
+                <div class="glass-card p-5 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 h-24 w-24 bg-amber-500/10 rounded-full blur-xl"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2 bg-amber-500/10 rounded-lg text-amber-500">
+                            <i class="fa-solid fa-boxes-stacked text-lg"></i>
+                        </div>
+                        <span class="text-xs font-mono text-slate-400 bg-slate-700/50 px-2 py-1 rounded">ללא שינוי</span>
+                    </div>
+                    <div class="mb-1 text-slate-400 text-sm font-medium">חוסרי ציוד</div>
+                    <div class="text-3xl font-bold text-white font-['Rubik']">12</div>
+                    <div class="text-xs text-amber-500 mt-4">בעיקר זקו"ם ושמנים</div>
+                </div>
+
+                <!-- KPI 4: Completion -->
+                <div class="glass-card p-5 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 h-24 w-24 bg-blue-500/10 rounded-full blur-xl"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                            <i class="fa-solid fa-list-check text-lg"></i>
+                        </div>
+                        <span class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">הושלם <i class="fa-solid fa-check"></i></span>
+                    </div>
+                    <div class="mb-1 text-slate-400 text-sm font-medium">סטטוס דיווח</div>
+                    <div class="text-3xl font-bold text-white font-['Rubik']">100%</div>
+                    <div class="text-xs text-slate-500 mt-4">כל הפלוגות הזינו נתונים</div>
+                </div>
+            </div>
+
+            <!-- Charts & Table Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Main Chart -->
+                <div class="glass-card p-6 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-simple text-emerald-500"></i> כשירות פלוגתית
+                        </h3>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1 text-xs rounded-md bg-slate-700 text-white hover:bg-slate-600 transition">צ"מ</button>
+                            <button class="px-3 py-1 text-xs rounded-md bg-transparent text-slate-400 hover:text-white transition">מלאי</button>
+                        </div>
+                    </div>
+                    <div class="h-64 w-full">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Secondary Chart / Breakdown -->
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                        <i class="fa-solid fa-pie-chart text-blue-500"></i> פילוח תקלות
+                    </h3>
+                    <div class="h-48 relative flex justify-center items-center">
+                        <canvas id="doughnutChart"></canvas>
+                        <!-- Center Text -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span class="text-2xl font-bold text-white">42</span>
+                            <span class="text-xs text-slate-400">סה"כ תקלות</span>
+                        </div>
+                    </div>
+                    <div class="mt-6 space-y-3">
+                        <div class="flex justify-between items-center text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                                <span class="text-slate-300">הנעה ותמסורת</span>
+                            </div>
+                            <span class="font-mono text-white">45%</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                                <span class="text-slate-300">בקרת אש</span>
+                            </div>
+                            <span class="font-mono text-white">30%</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                                <span class="text-slate-300">קשר ושו"ב</span>
+                            </div>
+                            <span class="font-mono text-white">25%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table -->
+            <div class="glass-card p-6 overflow-hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> חריגים לטיפול (Priority List)
+                    </h3>
+                    <div class="relative">
+                        <input type="text" placeholder="חיפוש מס' טנק..." class="bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500 w-48">
+                        <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right border-collapse">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-700">
+                                <th class="pb-3 pr-4 font-normal">מס' טנק</th>
+                                <th class="pb-3 pr-4 font-normal">פלוגה</th>
+                                <th class="pb-3 pr-4 font-normal">סטטוס</th>
+                                <th class="pb-3 pr-4 font-normal">חוסרים / תקלות עיקריות</th>
+                                <th class="pb-3 pr-4 font-normal">הערת AI</th>
+                                <th class="pb-3 pr-4 font-normal">פעולה</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-300">
+                            <!-- Row 1 -->
+                            <tr class="group hover:bg-slate-700/30 transition-colors border-b border-slate-700/50">
+                                <td class="py-4 px-4 font-mono font-bold text-white">3א</td>
+                                <td class="py-4 px-4">להב (ג')</td>
+                                <td class="py-4 px-4"><span class="status-badge bg-rose-500/10 text-rose-500 border border-rose-500/20">מושבת</span></td>
+                                <td class="py-4 px-4">מנוע מתחמם, חוסר זביל</td>
+                                <td class="py-4 px-4 text-amber-400 text-xs"><i class="fa-solid fa-robot ml-1"></i>שבוע שני ברצף</td>
+                                <td class="py-4 px-4"><button class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-left"></i></button></td>
+                            </tr>
+                             <!-- Row 2 -->
+                             <tr class="group hover:bg-slate-700/30 transition-colors border-b border-slate-700/50">
+                                <td class="py-4 px-4 font-mono font-bold text-white">2ב</td>
+                                <td class="py-4 px-4">להב (ג')</td>
+                                <td class="py-4 px-4"><span class="status-badge bg-rose-500/10 text-rose-500 border border-rose-500/20">מושבת</span></td>
+                                <td class="py-4 px-4">מדף מפקד תקול</td>
+                                <td class="py-4 px-4 text-slate-500 text-xs">-</td>
+                                <td class="py-4 px-4"><button class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-left"></i></button></td>
+                            </tr>
+                            <!-- Row 3 -->
+                            <tr class="group hover:bg-slate-700/30 transition-colors border-b border-slate-700/50">
+                                <td class="py-4 px-4 font-mono font-bold text-white">1ג</td>
+                                <td class="py-4 px-4">מחץ (ב')</td>
+                                <td class="py-4 px-4"><span class="status-badge bg-amber-500/10 text-amber-500 border border-amber-500/20">מוגבל</span></td>
+                                <td class="py-4 px-4">קשר פנים, ג'ריקן</td>
+                                <td class="py-4 px-4 text-slate-500 text-xs">-</td>
+                                <td class="py-4 px-4"><button class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-left"></i></button></td>
+                            </tr>
+                            <!-- Row 4 -->
+                            <tr class="group hover:bg-slate-700/30 transition-colors">
+                                <td class="py-4 px-4 font-mono font-bold text-white">11א</td>
+                                <td class="py-4 px-4">חוד (א')</td>
+                                <td class="py-4 px-4"><span class="status-badge bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">תקין</span></td>
+                                <td class="py-4 px-4 text-slate-500">ללא חוסרים</td>
+                                <td class="py-4 px-4 text-slate-500 text-xs">-</td>
+                                <td class="py-4 px-4"><button class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-left"></i></button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column (Desktop) / Bottom (Mobile): Intelligence Feed (1/4 width) -->
+        <div class="xl:col-span-1 space-y-6">
+            
+            <!-- AI Terminal Box -->
+            <div class="glass-card ai-terminal p-6 relative h-full flex flex-col">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 opacity-70"></div>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="bg-indigo-500/20 p-2 rounded-lg text-indigo-400 animate-pulse">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white">Iron-Intelligence</h3>
+                        <p class="text-xs text-indigo-400 font-mono">AI Analysis Module v4.0</p>
+                    </div>
+                </div>
+
+                <!-- Feed Items -->
+                <div class="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                    
+                    <!-- Item 1 -->
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2 text-rose-400 text-xs font-bold uppercase tracking-wider">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            אמינות דיווח
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            זוהתה תבנית חריגה בפלוגה <span class="text-white font-bold">להב (ג')</span>. 
+                            <br>
+                            <span class="text-xs text-slate-500 mt-1 block border-t border-slate-700/50 pt-1">
+                                טנקים 3א, 3ב, 2ג הזינו נתונים זהים לשבוע שעבר (Variance=0). נדרש אימות מ"פ.
+                            </span>
+                        </p>
+                    </div>
+
+                    <!-- Item 2 -->
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                            <i class="fa-solid fa-arrow-trend-down"></i>
+                            מגמת שחיקה
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            עלייה של <span class="font-mono text-white">25%</span> בדיווחי זקו"ם בפלוגת חוד.
+                            <br>
+                            <span class="typing-effect text-emerald-400 text-xs mt-2 block font-mono">
+                                > המלצה: תעדוף טיפול שבועי ביום ה' הקרוב.
+                            </span>
+                        </p>
+                    </div>
+
+                    <!-- Item 3 -->
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2 text-blue-400 text-xs font-bold uppercase tracking-wider">
+                            <i class="fa-solid fa-warehouse"></i>
+                            לוגיסטיקה חזויה
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            צפי לחוסר בשמן הידראולי 10W בתוך 10 ימים ע"פ קצב הצריכה הנוכחי.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Action Button -->
+                <button class="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    צור דוח מנהלים מפורט
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Scripts for Charts -->
+    <script>
+        // Setup Charts
+        const ctxMain = document.getElementById('mainChart').getContext('2d');
+        const ctxDoughnut = document.getElementById('doughnutChart').getContext('2d');
+
+        // Global Defaults
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Assistant', sans-serif";
+
+        // 1. Main Bar Chart
+        new Chart(ctxMain, {
+            type: 'bar',
+            data: {
+                labels: ['חוד (א)', 'מחץ (ב)', 'להב (ג)', 'מפקדה'],
+                datasets: [{
+                    label: 'כשירות',
+                    data: [92, 85, 76, 98],
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)', // Emerald
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(244, 63, 94, 0.8)',  // Rose (Problematic)
+                        'rgba(59, 130, 246, 0.8)'  // Blue
+                    ],
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barThickness: 30
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleColor: '#fff',
+                        bodyColor: '#cbd5e1',
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                        ticks: { callback: function(value) { return value + '%' } }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                animation: {
+                    duration: 2000,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+
+        // 2. Doughnut Chart
+        new Chart(ctxDoughnut, {
+            type: 'doughnut',
+            data: {
+                labels: ['הנעה', 'בקרת אש', 'קשר'],
+                datasets: [{
+                    data: [45, 30, 25],
+                    backgroundColor: [
+                        '#f43f5e', // Rose
+                        '#f59e0b', // Amber
+                        '#3b82f6'  // Blue
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: { display: false }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+    </script>
+</body>
+</html>

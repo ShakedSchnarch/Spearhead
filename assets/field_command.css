@@ -1,0 +1,140 @@
+/* field_command.css - Rugged Military Field Theme */
+
+:root {
+    --bg-main: #e5e5e5;      /* Industrial Grey */
+    --bg-card: #ffffff;      
+    --text-primary: #111827; /* Near Black */
+    --text-secondary: #4b5563;
+    
+    --military-olive: #4f5d2f; 
+    --military-sand: #d2b48c;
+    
+    --accent-good: #15803d;  /* Green 700 */
+    --accent-bad: #b91c1c;   /* Red 700 */
+    --accent-warn: #b45309;  /* Amber 700 */
+    
+    --border-color: #374151; /* Grey 700 - Strong borders */
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Heebo', sans-serif;
+    margin: 0;
+    padding: 20px;
+    direction: rtl;
+    background-image: repeating-linear-gradient(
+        45deg,
+        #e5e5e5,
+        #e5e5e5 10px,
+        #dedede 10px,
+        #dedede 20px
+    );
+}
+
+/* Rugged Card Style - No Glass, Hard Borders */
+.card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+    border-radius: 2px; /* Nearly square */
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 3px solid var(--military-olive);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Metrics */
+.metric-value {
+    font-family: 'Courier New', monospace; /* Data look */
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--text-primary);
+}
+
+.metric-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+/* Tables - Industrial Look */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+th {
+    background-color: var(--border-color);
+    color: #fff;
+    padding: 10px;
+    text-align: right;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+}
+
+td {
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    background-color: #fff;
+}
+
+tr:nth-child(even) td {
+    background-color: #f9fafb;
+}
+
+/* Badges - Solid colors, no gradients */
+.badge {
+    padding: 0.25em 0.6em;
+    border-radius: 0px;
+    font-weight: 700;
+    font-size: 0.85em;
+    border: 1px solid currentColor;
+}
+
+.badge-operational {
+    background-color: #ecfdf5;
+    color: var(--accent-good);
+    border-color: var(--accent-good);
+}
+
+.badge-degraded {
+    background-color: #fffbeb;
+    color: var(--accent-warn);
+    border-color: var(--accent-warn);
+}
+
+.badge-unavailable {
+    background-color: #fef2f2;
+    color: var(--accent-bad);
+    border-color: var(--accent-bad);
+}
+
+/* Text Colors */
+.text-green { color: var(--accent-good); }
+.text-red { color: var(--accent-bad); }
+.text-yellow { color: var(--accent-warn); }
+
+/* Layout Grid Utilities (re-used) */
+.grid { display: grid; gap: 1.5rem; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+/* Header Special */
+h1 {
+    font-weight: 900;
+    color: var(--text-primary);
+    text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+}

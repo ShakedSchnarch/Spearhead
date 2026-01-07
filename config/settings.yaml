@@ -1,0 +1,12 @@
+app:
+  name: "Iron-View"
+  version: "1.0.0"
+
+paths:
+  input_dir: "./data/input"
+  output_dir: "./reports"
+  templates_dir: "./templates"
+  assets_dir: "./assets"
+
+thresholds:
+  erosion_alert: 0.75 # Example threshold
