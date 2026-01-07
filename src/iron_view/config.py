@@ -13,6 +13,14 @@ class PathSettings(BaseSettings):
     output_dir: Path = Path("./reports")
     templates_dir: Path = Path("./templates")
     assets_dir: Path = Path("./assets")
+    db_path: Path = Path("./data/ironview.db")
+
+
+class ImportSettings(BaseSettings):
+    # Configurable import keys; can be used later for Google Sheets IDs.
+    platoon_loadout_label: str = "platoon_loadout"
+    battalion_summary_label: str = "battalion_summary"
+    form_responses_label: str = "form_responses"
 
 class ThresholdSettings(BaseSettings):
     erosion_alert: float = 0.5
@@ -20,6 +28,7 @@ class ThresholdSettings(BaseSettings):
 class Settings(BaseSettings):
     app: AppSettings = AppSettings()
     paths: PathSettings = PathSettings()
+    imports: ImportSettings = ImportSettings()
     thresholds: ThresholdSettings = ThresholdSettings()
 
     @classmethod
