@@ -27,6 +27,9 @@ class Airlock:
         for row in raw_data:
             clean_row = {}
             for key, value in row.items():
+                if key is None:
+                    # DictReader can produce None for extra columns; skip safely.
+                    continue
                 if key in cls.FORBIDDEN_COLUMNS:
                     dropped_columns_log.add(key)
                     continue

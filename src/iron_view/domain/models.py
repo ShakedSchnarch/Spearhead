@@ -30,6 +30,8 @@ class VehicleReport(BaseModel):
     vehicle_id: str = Field(..., description="Unique identifier for the vehicle")
     timestamp: datetime = Field(..., description="Time of the report")
     readiness: ReadinessStatus = Field(..., description="Current readiness status")
+    reporter: Optional[str] = Field(None, description="Optional reporter name/id (sanitized upstream)")
+    notes: Optional[str] = Field(None, description="Optional free-text notes (may be stripped for privacy)")
     location: Optional[str] = Field(None, description="Current location shorthand")
     company: Optional[str] = Field(None, description="Company/Platoon")
     fault_codes: List[str] = Field(default_factory=list, description="List of technical fault codes")
@@ -47,6 +49,14 @@ class VehicleReport(BaseModel):
             return v
         return v.strip()
 
+    @field_validator("notes")
+    @classmethod
+    def normalize_notes(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        stripped = v.strip()
+        return stripped if stripped else None
+
     @field_validator("vehicle_id")
     @classmethod
     def check_vehicle_id_not_empty(cls, v: str) -> str:
@@ -63,5 +73,5 @@ class BattalionData(BaseModel):
     vehicle_scores: dict[str, float] = Field(default_factory=dict, description="Erosion status per vehicle")
     
     # Phase 5 Enrichment
-    logistics_summary: Dict[str, int] = {} # Map item -> count
-    system_alerts: List[str] = [] # List of system-wide alerts
+    logistics_summary: Dict[str, int] = Field(default_factory=dict) # Map item -> count
+    system_alerts: List[str] = Field(default_factory=list) # List of system-wide alerts
