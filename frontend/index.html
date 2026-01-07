@@ -1,79 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IronView Frontend (Prototype)</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header>
-    <div>
-      <h1>IronView</h1>
-      <p>Local prototype UI for imports and deterministic queries</p>
-    </div>
-    <div class="status" id="health">Checking...</div>
-  </header>
-
-  <main>
-    <section>
-      <h2>Import Files</h2>
-      <div class="upload-grid">
-        <div class="card">
-          <h3>Platoon Loadout</h3>
-          <input type="file" id="file-loadout">
-          <button onclick="uploadFile('platoon-loadout', 'file-loadout')">Upload</button>
-          <div class="result" id="result-loadout"></div>
-        </div>
-        <div class="card">
-          <h3>Battalion Summary</h3>
-          <input type="file" id="file-summary">
-          <button onclick="uploadFile('battalion-summary', 'file-summary')">Upload</button>
-          <div class="result" id="result-summary"></div>
-        </div>
-        <div class="card">
-          <h3>Form Responses</h3>
-          <input type="file" id="file-form">
-          <button onclick="uploadFile('form-responses', 'file-form')">Upload</button>
-          <div class="result" id="result-form"></div>
-        </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IronView Dashboard Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="../assets/chart.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>IronView</h1>
+        <p>Local prototype UI for imports and deterministic queries</p>
       </div>
-    </section>
+      <div class="header-actions">
+        <label class="api-label">
+          API:
+          <input id="api-base" type="text" value="http://localhost:8000" />
+        </label>
+        <button onclick="saveApiBase()">Save</button>
+        <div class="status" id="health">Checking...</div>
+      </div>
+    </header>
 
-    <section>
-      <h2>Queries</h2>
-      <div class="card">
-        <div class="controls">
-          <label>Section:
-            <select id="section">
-              <option value="zivud">zivud</option>
-              <option value="ammo">ammo</option>
-            </select>
-          </label>
-          <label>Top N:
-            <input type="number" id="top-n" value="5" min="1" max="50">
-          </label>
-          <button onclick="loadQueries()">Run</button>
+    <main>
+      <section>
+        <div class="section-header">
+          <h2>Import Files</h2>
+          <p>Upload the latest weekly spreadsheets to refresh the local DB.</p>
         </div>
-        <div class="grid">
-          <div>
-            <h4>Totals</h4>
+        <div class="upload-grid">
+          <div class="card">
+            <div class="card-title">Platoon Loadout</div>
+            <input type="file" id="file-loadout" />
+            <button onclick="uploadFile('platoon-loadout', 'file-loadout', 'result-loadout')">Upload</button>
+            <div class="result" id="result-loadout"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Battalion Summary</div>
+            <input type="file" id="file-summary" />
+            <button onclick="uploadFile('battalion-summary', 'file-summary', 'result-summary')">Upload</button>
+            <div class="result" id="result-summary"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Form Responses</div>
+            <input type="file" id="file-form" />
+            <button onclick="uploadFile('form-responses', 'file-form', 'result-form')">Upload</button>
+            <div class="result" id="result-form"></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <h2>Readiness Snapshots</h2>
+          <div class="controls">
+            <label>Section:
+              <select id="section">
+                <option value="zivud">zivud</option>
+                <option value="ammo">ammo</option>
+              </select>
+            </label>
+            <label>Top N:
+              <input type="number" id="top-n" value="5" min="1" max="50" />
+            </label>
+            <button onclick="loadQueries()">Run</button>
+          </div>
+        </div>
+
+        <div class="grid two-col">
+          <div class="card">
+            <div class="card-title">Totals (Top N)</div>
+            <canvas id="chart-totals" height="120"></canvas>
             <pre id="totals"></pre>
           </div>
-          <div>
-            <h4>Gaps</h4>
+          <div class="card">
+            <div class="card-title">Gaps (Top N)</div>
+            <canvas id="chart-gaps" height="120"></canvas>
             <pre id="gaps"></pre>
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <h4>Form Status</h4>
-        <pre id="forms"></pre>
-      </div>
-    </section>
-  </main>
+        <div class="card">
+          <div class="card-title">Form Status</div>
+          <div class="grid two-col">
+            <div>
+              <h4>OK</h4>
+              <pre id="forms-ok"></pre>
+            </div>
+            <div>
+              <h4>Gaps</h4>
+              <pre id="forms-gaps"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
 
-  <script src="app.js"></script>
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>

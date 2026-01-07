@@ -14,6 +14,7 @@ header {
   padding: 20px 28px;
   background: linear-gradient(135deg, #111827, #0b1220);
   border-bottom: 1px solid #1f2937;
+  gap: 12px;
 }
 h1 {
   margin: 0;
@@ -21,8 +22,8 @@ h1 {
   letter-spacing: 0.05em;
 }
 h2 {
-  margin-top: 0;
-  margin-bottom: 12px;
+  margin: 0;
+  margin-bottom: 6px;
 }
 h3 {
   margin: 0 0 8px;
@@ -37,6 +38,15 @@ h4 {
   color: #10b981;
   border: 1px solid #1f2937;
   font-size: 13px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.api-label input {
+  width: 220px;
 }
 main {
   padding: 24px;
@@ -61,6 +71,19 @@ section {
   border: 1px solid #1f2937;
   border-radius: 10px;
   padding: 14px;
+}
+.card-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #e5e7eb;
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 .controls {
   display: flex;
@@ -105,6 +128,9 @@ button:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
+}
+.grid.two-col {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 pre {
   background: #0b1220;
