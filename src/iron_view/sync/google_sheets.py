@@ -135,7 +135,12 @@ class SyncService:
         return inserted
 
     def sync_form_responses(self) -> int:
-        inserted, _ = self._sync("form_responses", self.import_service.import_form_responses)
+        inserted, _ = self._sync(
+            "form_responses",
+            lambda path: self.import_service.import_form_responses(
+                path, source_id=self.file_ids.get("form_responses")
+            ),
+        )
         return inserted
 
     def sync_all(self) -> dict[str, int]:
@@ -153,15 +158,15 @@ class SyncService:
 
     def _sync(self, key: str, import_fn) -> tuple[int, bool]:
         try:
-            path, used_cache = self._download(key)
+            path, used_cache, etag = self._download(key)
             inserted = import_fn(path)
-            self._update_status(key, inserted=inserted, used_cache=used_cache, error=None)
+            self._update_status(key, inserted=inserted, used_cache=used_cache, etag=etag, error=None)
             return inserted, used_cache
         except Exception as exc:
-            self._update_status(key, inserted=0, used_cache=False, error=str(exc))
+            self._update_status(key, inserted=0, used_cache=False, etag=None, error=str(exc))
             raise
 
-    def _download(self, key: str) -> Tuple[Path, bool]:
+    def _download(self, key: str) -> Tuple[Path, bool, Optional[str]]:
         file_id = self.file_ids.get(key)
         dest = self.tmp_dir / f"{key}.xlsx"
         cache_path = self.cache_dir / f"{key}.xlsx"
@@ -172,22 +177,29 @@ class SyncService:
             )
             if new_etag:
                 self.status.setdefault(key, {})["etag"] = new_etag
-            return path, used_cache
+            return path, used_cache, new_etag or etag
         except Exception:
             if cache_path.exists():
                 shutil.copyfile(cache_path, dest)
-                return dest, True
+                return dest, True, etag
             raise
 
-    def _update_status(self, key: str, inserted: int, used_cache: bool, error: Optional[str]):
-        existing_etag = self.status.get(key, {}).get("etag")
+    def _update_status(self, key: str, inserted: int, used_cache: bool, etag: Optional[str], error: Optional[str]):
+        existing_etag = etag or self.status.get(key, {}).get("etag")
         self.status[key] = {
             "last_sync": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "inserted": inserted,
             "used_cache": used_cache,
             "status": "error" if error else "ok",
+            "source": "cache" if used_cache else "remote",
         }
         if existing_etag:
             self.status[key]["etag"] = existing_etag
         if error:
             self.status[key]["error"] = error
+        try:
+            schema = self.import_service.db.latest_schema_snapshot(source_type=key)
+            if schema:
+                self.status[key]["schema"] = schema
+        except Exception:
+            pass

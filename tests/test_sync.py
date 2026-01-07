@@ -31,9 +31,9 @@ def test_sync_service(tmp_path):
     fixture_dir = BASE / "docs/Files"
     provider = FakeSheetsProvider(fixture_dir)
     file_ids = {
-        "platoon_loadout": "דוחות פלוגת כפיר (1).xlsx",
-        "battalion_summary": "מסמך דוחות גדודי (1).xlsx",
-        "form_responses": "טופס דוחות סמפ כפיר. (תגובות) (1).xlsx",
+        "platoon_loadout": "דוחות פלוגת כפיר.xlsx",
+        "battalion_summary": "מסמך דוחות גדודי.xlsx",
+        "form_responses": "טופס דוחות סמפ כפיר. (תגובות).xlsx",
     }
 
     sync_service = SyncService(import_service=import_service, provider=provider, file_ids=file_ids)
@@ -41,10 +41,13 @@ def test_sync_service(tmp_path):
 
     assert result["platoon_loadout"] > 0
     assert result["form_responses"] > 0
+    status = sync_service.get_status()
+    assert status["files"]["form_responses"]["schema"]["raw_headers"]
 
     # Idempotent: second run should insert zero because hashes match
     result2 = sync_service.sync_all()
     assert result2["platoon_loadout"] == 0
+    assert result2["form_responses"] == 0
 
 
 class FlakyProvider:
@@ -77,7 +80,7 @@ def test_sync_status_and_cache_fallback(tmp_path, monkeypatch):
     # Prepare cache so fallback works when provider fails.
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cached_src = fixture_dir / "דוחות פלוגת כפיר (1).xlsx"
+    cached_src = fixture_dir / "דוחות פלוגת כפיר.xlsx"
     cached_target = cache_dir / "platoon_loadout.xlsx"
     shutil.copyfile(cached_src, cached_target)
 
@@ -87,9 +90,9 @@ def test_sync_status_and_cache_fallback(tmp_path, monkeypatch):
 
     provider = AlwaysFailProvider()
     file_ids = {
-        "platoon_loadout": "דוחות פלוגת כפיר (1).xlsx",
-        "battalion_summary": "מסמך דוחות גדודי (1).xlsx",
-        "form_responses": "טופס דוחות סמפ כפיר. (תגובות) (1).xlsx",
+        "platoon_loadout": "דוחות פלוגת כפיר.xlsx",
+        "battalion_summary": "מסמך דוחות גדודי.xlsx",
+        "form_responses": "טופס דוחות סמפ כפיר. (תגובות).xlsx",
     }
 
     sync_service = SyncService(
@@ -166,9 +169,9 @@ def test_sync_service_etag_tracked(tmp_path):
 
     provider = EtagProvider(fixture_dir)
     file_ids = {
-        "platoon_loadout": "דוחות פלוגת כפיר (1).xlsx",
-        "battalion_summary": "מסמך דוחות גדודי (1).xlsx",
-        "form_responses": "טופס דוחות סמפ כפיר. (תגובות) (1).xlsx",
+        "platoon_loadout": "דוחות פלוגת כפיר.xlsx",
+        "battalion_summary": "מסמך דוחות גדודי.xlsx",
+        "form_responses": "טופס דוחות סמפ כפיר. (תגובות).xlsx",
     }
 
     sync_service = SyncService(import_service=import_service, provider=provider, file_ids=file_ids)

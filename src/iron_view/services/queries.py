@@ -3,8 +3,9 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, UTC
 from typing import Dict, List, Optional, Tuple
 
-from iron_view.data.storage import Database
 from iron_view.config import settings
+from iron_view.config_fields import field_config
+from iron_view.data.storage import Database
 
 
 class QueryService:
@@ -15,8 +16,10 @@ class QueryService:
 
     def __init__(self, db: Database):
         self.db = db
-        self.gap_tokens = tuple(settings.status_tokens.gap_tokens)
-        self.ok_tokens = tuple(settings.status_tokens.ok_tokens)
+        gap_source = settings.status_tokens.gap_tokens + field_config.gap_tokens
+        ok_source = settings.status_tokens.ok_tokens + field_config.ok_tokens
+        self.gap_tokens = tuple(dict.fromkeys(gap_source))
+        self.ok_tokens = tuple(dict.fromkeys(ok_source))
 
     def tabular_totals(
         self,

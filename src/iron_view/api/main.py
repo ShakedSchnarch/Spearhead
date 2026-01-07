@@ -13,9 +13,10 @@ from fastapi.staticfiles import StaticFiles
 
 from iron_view.config import settings
 from iron_view.ai import build_ai_client, InsightService
+from iron_view.exceptions import DataSourceError
 from iron_view.data.import_service import ImportService
 from iron_view.data.storage import Database
-from iron_view.services import QueryService
+from iron_view.services import QueryService, FormAnalytics
 from iron_view.sync.google_sheets import GoogleSheetsProvider, SyncService
 
 logger = logging.getLogger("iron_view.api")
@@ -95,6 +96,9 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
 
     def get_query_service():
         return query_service
+
+    def get_form_analytics():
+        return FormAnalytics(db=db)
 
     def get_sync_service():
         provider = GoogleSheetsProvider(
@@ -240,6 +244,31 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
     ):
         return qs.tabular_trends(section=section, top_n=top_n, platoon=platoon, window_weeks=weeks)
 
+    @app.get("/queries/forms/summary")
+    def form_summary(
+        mode: str = Query("battalion", description="battalion|platoon"),
+        week: Optional[str] = Query(None, description="Week label YYYY-Www"),
+        platoon: Optional[str] = Query(None, description="Target platoon when mode=platoon"),
+        platoon_override: Optional[str] = Query(
+            None, description="Force all rows to be grouped under this platoon name"
+        ),
+        analytics: FormAnalytics = Depends(get_form_analytics),
+        _auth=Depends(require_query_auth),
+    ):
+        summary = analytics.summarize(week=week, platoon_override=platoon_override, prefer_latest=True)
+        serialized = analytics.serialize_summary(summary)
+
+        if mode == "platoon":
+            target = platoon_override or platoon
+            if not target:
+                raise HTTPException(status_code=400, detail="platoon is required when mode=platoon")
+            platoon_data = serialized.get("platoons", {}).get(target)
+            if not platoon_data:
+                raise HTTPException(status_code=404, detail=f"No data found for platoon '{target}'")
+            return {"mode": "platoon", "platoon": target, "week": serialized.get("week"), "summary": platoon_data}
+
+        return {"mode": "battalion", **serialized}
+
     @app.get("/insights")
     def insights(
         section: str = Query("zivud", description="Section to analyze"),
@@ -301,6 +330,14 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
             payload["request_id"] = rid
         return JSONResponse(status_code=500, content=payload)
 
+    @app.exception_handler(DataSourceError)
+    async def datasource_exception_handler(request: Request, exc: DataSourceError):
+        rid = getattr(request.state, "request_id", None)
+        payload = {"error": "invalid_source", "detail": str(exc)}
+        if rid:
+            payload["request_id"] = rid
+        return JSONResponse(status_code=422, content=payload)
+
     return app
 
 
@@ -308,7 +345,9 @@ def _save_temp_file(upload: UploadFile) -> Path:
     try:
         max_bytes = settings.security.max_upload_mb * 1024 * 1024
         suffix = Path(upload.filename or "").suffix or ".xlsx"
-        with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        prefix_raw = Path(upload.filename or "upload").stem or "upload"
+        safe_prefix = prefix_raw.replace("/", "_").replace("\\", "_") + "_"
+        with NamedTemporaryFile(delete=False, suffix=suffix, prefix=safe_prefix) as tmp:
             content = upload.file.read()
             if max_bytes and len(content) > max_bytes:
                 raise HTTPException(

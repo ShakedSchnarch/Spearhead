@@ -12,7 +12,7 @@ def test_import_service_idempotent(tmp_path):
     svc = ImportService(db_path=db_path)
 
     # Use small test file (form responses) to validate idempotency
-    form_path = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות) (1).xlsx"
+    form_path = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
     inserted = svc.import_form_responses(form_path)
     assert inserted > 0
 
@@ -24,15 +24,17 @@ def test_import_service_idempotent(tmp_path):
     with sqlite3.connect(db_path) as conn:
         count_imports = conn.execute("SELECT COUNT(*) FROM imports").fetchone()[0]
         count_responses = conn.execute("SELECT COUNT(*) FROM form_responses").fetchone()[0]
+        week_label = conn.execute("SELECT week_label FROM form_responses LIMIT 1").fetchone()[0]
     assert count_imports == 1
     assert count_responses == inserted
+    assert week_label is None or isinstance(week_label, str)
 
 
 def test_import_service_tabular(tmp_path):
     db_path = tmp_path / "ironview.db"
     svc = ImportService(db_path=db_path)
 
-    loadout_path = BASE / "docs/Files/דוחות פלוגת כפיר (1).xlsx"
+    loadout_path = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"
     inserted = svc.import_platoon_loadout(loadout_path)
     assert inserted > 0
 

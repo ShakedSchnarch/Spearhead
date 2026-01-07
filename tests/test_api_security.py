@@ -32,7 +32,7 @@ def test_import_requires_token_when_configured(tmp_path):
     app = create_app(db_path=db_path)
     client = TestClient(app)
 
-    loadout = BASE / "docs/Files/דוחות פלוגת כפיר (1).xlsx"
+    loadout = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"
     with open(loadout, "rb") as f:
         resp = client.post(
             "/imports/platoon-loadout",
@@ -75,7 +75,7 @@ def test_upload_rejected_when_too_large(tmp_path):
     app = create_app(db_path=db_path)
     client = TestClient(app)
 
-    loadout = BASE / "docs/Files/דוחות פלוגת כפיר (1).xlsx"
+    loadout = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"
     with open(loadout, "rb") as f:
         resp = client.post(
             "/imports/platoon-loadout",

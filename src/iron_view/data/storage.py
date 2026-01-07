@@ -57,13 +57,34 @@ class Database:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     import_id INTEGER,
                     row_index INTEGER,
+                    platoon TEXT,
                     tank_id TEXT,
                     timestamp TEXT,
+                    week_label TEXT,
                     fields_json TEXT,
                     FOREIGN KEY (import_id) REFERENCES imports(id)
                 );
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS import_schemas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    import_id INTEGER UNIQUE,
+                    source_type TEXT,
+                    schema_json TEXT,
+                    created_at TEXT,
+                    FOREIGN KEY (import_id) REFERENCES imports(id)
+                );
+                """
+            )
+            # Add week_label if missing (for existing DBs)
+            cur.execute("PRAGMA table_info(form_responses);")
+            existing_cols = [row[1] for row in cur.fetchall()]
+            if "week_label" not in existing_cols:
+                cur.execute("ALTER TABLE form_responses ADD COLUMN week_label TEXT;")
+            if "platoon" not in existing_cols:
+                cur.execute("ALTER TABLE form_responses ADD COLUMN platoon TEXT;")
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS ai_insights (
@@ -133,6 +154,7 @@ class Database:
         to_insert = []
         for r in responses:
             ts = r.timestamp.isoformat() if r.timestamp else None
+            week_label = r.week_label
             # Ensure JSON-serializable payload
             serializable_fields = {}
             for k, v in r.fields.items():
@@ -146,8 +168,10 @@ class Database:
                 (
                     import_id,
                     r.row_index,
+                    r.platoon,
                     r.tank_id,
                     ts,
+                    week_label,
                     json.dumps(serializable_fields, ensure_ascii=False),
                 )
             )
@@ -158,8 +182,8 @@ class Database:
             cur.executemany(
                 """
                 INSERT INTO form_responses
-                    (import_id, row_index, tank_id, timestamp, fields_json)
-                VALUES (?, ?, ?, ?, ?)
+                    (import_id, row_index, platoon, tank_id, timestamp, week_label, fields_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 to_insert,
             )
@@ -189,6 +213,39 @@ class Database:
                 (cache_key, prompt, response, metadata_json, datetime.now(UTC).isoformat()),
             )
             conn.commit()
+
+    def insert_schema_snapshot(self, import_id: int, source_type: str, snapshot: dict) -> None:
+        payload = json.dumps(snapshot, ensure_ascii=False)
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT OR REPLACE INTO import_schemas (import_id, source_type, schema_json, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (import_id, source_type, payload, datetime.now(UTC).isoformat()),
+            )
+            conn.commit()
+
+    def latest_schema_snapshot(self, source_type: str) -> Optional[dict]:
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT schema_json FROM import_schemas
+                WHERE source_type = ?
+                ORDER BY datetime(created_at) DESC
+                LIMIT 1
+                """,
+                (source_type,),
+            )
+            row = cur.fetchone()
+        if not row or not row[0]:
+            return None
+        try:
+            return json.loads(row[0])
+        except json.JSONDecodeError:
+            return None
 
     @staticmethod
     def _as_text(value):

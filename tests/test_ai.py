@@ -17,8 +17,8 @@ class FailingAIClient(BaseAIClient):
 def bootstrap_db(tmp_path):
     db_path = tmp_path / "ironview.db"
     svc = ImportService(db_path=db_path)
-    svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר (1).xlsx")
-    svc.import_battalion_summary(BASE / "docs/Files/מסמך דוחות גדודי (1).xlsx")
+    svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר.xlsx")
+    svc.import_battalion_summary(BASE / "docs/Files/מסמך דוחות גדודי.xlsx")
     return svc.db
 
 

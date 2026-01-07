@@ -15,6 +15,7 @@ The system replaces manual Excel crunching with immediate operational insights.
 
 - Adapters for platoon loadout, battalion summary, and Google Form responses (xlsx).
 - SQLite persistence with hash-based idempotent imports and raw capture.
+- Form analytics from Google Form responses: dynamic tank counts, zivud gap aggregation, ammo per-tank averages, and Excel exports for platoon/battalion snapshots.
 - Deterministic queries: totals, gaps, by-platoon, delta (last two imports), variance vs battalion summary, form status counts.
 - FastAPI endpoints for uploads, queries, Google Sheets sync (with retry/cache), and AI insights.
 - React (Vite) dashboard consuming the API, with filters, sortable tables for delta/variance, trends, and AI insight panel.
@@ -44,6 +45,7 @@ Endpoints:
 - GET `/sync/status`
 - GET `/queries/tabular/totals|gaps|by-platoon|delta|variance`
 - GET `/queries/trends`
+- GET `/queries/forms/summary`
 - GET `/queries/forms/status`
 - GET `/insights`
 - GET `/health`
@@ -53,7 +55,8 @@ Endpoints:
 cd frontend-app
 npm install
 npm run dev   # open http://localhost:5173
-# set API base in the header (defaults to http://localhost:8000). Filters include section/platoon/sort.
+# Set API base in the header field (defaults to http://localhost:8000). Token/Basic can be entered there and is stored locally.
+# Sync button will attempt Google Sheets; or upload files from the dashboard. Choose Battalion/Platoon mode and apply filters (week/platoon/section).
 ```
 To build static assets:
 ```bash
@@ -73,6 +76,9 @@ Dev mode (Option B):
 - `scripts/build-ui.sh` — build frontend for serving via API.
 - `scripts/test.sh` — run pytest with `PYTHONPATH=src` and token cleared (override `SECURITY__API_TOKEN` if needed).
 - `scripts/clean-db.sh` — remove `data/ironview.db` and sync cache/temp folders to start fresh.
+- `scripts/seed-and-export.sh` — reset DB, import sample fixtures from `docs/Files/`, and emit platoon/battalion Excel reports into `reports/`.
+- `scripts/sync-and-export.sh` — reset DB, sync from Google Sheets when enabled (fallback to local samples), then export platoon/battalion reports.
+- Suggested QA: `scripts/clean-db.sh` → import/upload or `scripts/sync-and-export.sh` → UI smoke (Battalion/Platoon views, filters) → `scripts/test.sh`.
 
 ### Docker (optional)
 ```bash
@@ -99,12 +105,24 @@ iron-view/
 
 ## 🛠️ Configuration
 - Copy `.env.example` to `.env` and adjust:
-  - `SECURITY__API_TOKEN` or `SECURITY__BASIC_USER/BASIC_PASS` to require auth (imports/sync always enforce when set; queries opt-in via `REQUIRE_AUTH_ON_QUERIES`).
+  - `SECURITY__API_TOKEN` or `SECURITY__BASIC_USER/BASIC_PASS` to require auth (imports/sync always enforce when set; queries opt-in via `REQUIRE_AUTH_ON_QUERIES`). UI includes a local token field.
   - `GOOGLE__ENABLED` + `SERVICE_ACCOUNT_FILE` or `API_KEY` + `FILE_IDS` for Sheets sync; cache and retry settings included.
   - `AI__ENABLED` + provider settings; defaults to offline simulated insights.
   - `PATHS__DB_PATH` to override DB location (default `data/ironview.db`).
 - Config uses nested env keys with `__` delimiter (Pydantic Settings).
 - Frontend API base: header input stored in `localStorage` (`IRONVIEW_API`).
+- Field aliases/normalization live in `config/fields.yaml` (gap/ok tokens, header wildcards, platoon inference). Per-import schema snapshots are stored in DB + `data/input/schema_snapshots/`.
+
+### Auth
+- When `SECURITY__API_TOKEN` is set, all imports/sync/queries require `Authorization: Bearer <token>` (or `X-API-Key`). Basic auth is also supported via `SECURITY__BASIC_USER/BASIC_PASS`.
+- The frontend shows a banner on unauthorized responses; set the token in the header field or in your HTTP client (curl/Postman).
+- Smoke: without token, `/imports/*` and `/sync/google` should 401; with `SECURITY__API_TOKEN=secret`, `curl -H "Authorization: Bearer secret" ...` should succeed.
+
+Auth smoke checklist (manual):
+- Start the API with `SECURITY__API_TOKEN=secret`.
+- `curl -f -H "Authorization: Bearer secret" -F file=@docs/Files/דוחות\ פלוגת\ כפיר.xlsx http://localhost:8000/imports/platoon-loadout` → expect 200.
+- `curl -f http://localhost:8000/imports/platoon-loadout` → expect 401.
+- UI: set the token in the header field, upload a file, run sync; clear token to confirm unauthorized banner.
 
 ## 📄 License
 Internal Use Only - Battalion 74.

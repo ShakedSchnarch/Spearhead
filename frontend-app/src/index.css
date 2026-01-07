@@ -8,6 +8,8 @@
 }
 body {
   margin: 0;
+  direction: rtl;
+  text-align: right;
 }
 h1, h2, h3, h4, p {
   margin: 0;
@@ -100,6 +102,11 @@ section {
   border-radius: 10px;
   padding: 14px;
   position: relative;
+}
+.empty-hint {
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: 6px;
 }
 .card-title {
   font-weight: 700;
@@ -223,4 +230,131 @@ pre {
 }
 .pill.danger .dot {
   background: #ef4444;
+}
+.banner {
+  margin: 10px 18px 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.banner .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.banner.warning .dot {
+  background: #f59e0b;
+}
+.banner.danger .dot {
+  background: #ef4444;
+}
+.banner-close {
+  margin-left: auto;
+  background: none;
+  color: #94a3b8;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+.banner-close:hover {
+  color: #e2e8f0;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.segmented button {
+  background: none;
+  color: #cbd5e1;
+  border-radius: 0;
+  border: none;
+  padding: 8px 12px;
+}
+.segmented button.active {
+  background: linear-gradient(135deg, #22c55e33, #0ea5e933);
+  color: #e2e8f0;
+}
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+.kpi {
+  padding: 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  border: 1px solid #1f2937;
+}
+.kpi-label {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.kpi-value {
+  font-weight: 700;
+  color: #e5e7eb;
+}
+.nav-quick {
+  display: flex;
+  gap: 12px;
+  padding: 0 18px;
+  flex-wrap: wrap;
+}
+.nav-quick a {
+  color: #a5b4fc;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #1f2937;
+  background: #0f172a;
+}
+.nav-quick a:hover {
+  border-color: #3b82f6;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.segmented button {
+  background: none;
+  color: #cbd5e1;
+  border-radius: 0;
+  border: none;
+  padding: 8px 12px;
+}
+.segmented button.active {
+  background: linear-gradient(135deg, #22c55e33, #0ea5e933);
+  color: #e2e8f0;
+}
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+.kpi {
+  padding: 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  border: 1px solid #1f2937;
+}
+.kpi-label {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.kpi-value {
+  font-weight: 700;
+  color: #e5e7eb;
 }

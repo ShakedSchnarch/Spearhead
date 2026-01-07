@@ -11,8 +11,8 @@ BASE = Path(__file__).resolve().parents[1]
 def bootstrap_db(tmp_path):
     db_path = tmp_path / "ironview.db"
     svc = ImportService(db_path=db_path)
-    svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר (1).xlsx")
-    svc.import_form_responses(BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות) (1).xlsx")
+    svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר.xlsx")
+    svc.import_form_responses(BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx")
     return db_path
 
 

@@ -25,7 +25,9 @@ class FormResponseRow(BaseModel):
     Keeps all fields for later normalization.
     """
     source_file: Path
+    platoon: Optional[str]
     row_index: int
     tank_id: Optional[str]
     timestamp: Optional[datetime]
+    week_label: Optional[str] = Field(default=None, description="Derived week label YYYY-Www")
     fields: Dict[str, Any]
