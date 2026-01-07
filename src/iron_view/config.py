@@ -22,6 +22,11 @@ class ImportSettings(BaseSettings):
     battalion_summary_label: str = "battalion_summary"
     form_responses_label: str = "form_responses"
 
+
+class StatusTokens(BaseSettings):
+    gap_tokens: list[str] = ["חוסר", "בלאי"]
+    ok_tokens: list[str] = ["קיים", "יש"]
+
 class ThresholdSettings(BaseSettings):
     erosion_alert: float = 0.5
 
@@ -29,6 +34,7 @@ class Settings(BaseSettings):
     app: AppSettings = AppSettings()
     paths: PathSettings = PathSettings()
     imports: ImportSettings = ImportSettings()
+    status_tokens: StatusTokens = StatusTokens()
     thresholds: ThresholdSettings = ThresholdSettings()
 
     @classmethod

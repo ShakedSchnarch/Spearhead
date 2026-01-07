@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 from typing import Dict, List, Optional
 
 from iron_view.data.storage import Database
+from iron_view.config import settings
 
 
 class QueryService:
@@ -11,11 +12,10 @@ class QueryService:
     Focused on gaps/availability for equipment and ammo plus form status analysis.
     """
 
-    GAP_TOKENS = ("חוסר", "בלאי")
-    OK_TOKENS = ("קיים", "יש")
-
     def __init__(self, db: Database):
         self.db = db
+        self.gap_tokens = tuple(settings.status_tokens.gap_tokens)
+        self.ok_tokens = tuple(settings.status_tokens.ok_tokens)
 
     def tabular_totals(self, section: str, top_n: int = 20) -> List[Dict]:
         """
@@ -53,7 +53,7 @@ class QueryService:
             )
             for item, value_text in cur.fetchall():
                 text = value_text.strip()
-                if any(token in text for token in self.GAP_TOKENS):
+                if any(token in text for token in self.gap_tokens):
                     counts[item] += 1
         return [{"item": item, "gaps": cnt} for item, cnt in counts.most_common(top_n)]
 
@@ -76,9 +76,9 @@ class QueryService:
                     if not isinstance(value, str):
                         continue
                     val = value.strip()
-                    if any(token in val for token in self.GAP_TOKENS):
+                    if any(token in val for token in self.gap_tokens):
                         gap_counts[key] += 1
-                    elif any(token in val for token in self.OK_TOKENS):
+                    elif any(token in val for token in self.ok_tokens):
                         ok_counts[key] += 1
 
         return {

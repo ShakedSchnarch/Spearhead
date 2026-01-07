@@ -55,8 +55,12 @@ To build static assets:
 npm run build   # outputs to frontend-app/dist
 ```
 
-### Legacy runner
-`run_iron_view.sh` still exists for the older HTML generator pipeline.
+Static frontend serve (Option A):
+- Build: `cd frontend-app && npm run build`
+- API will serve the built UI at `/app` when `frontend-app/dist` exists.
+
+Dev mode (Option B):
+- Run API as above, and `npm run dev` in `frontend-app` (defaults to http://localhost:5173 with CORS).
 
 ## 🏗️ Architecture
 
@@ -68,11 +72,10 @@ iron-view/
 │   ├── etl/            # Adapters & loader
 │   ├── data/           # DTOs, storage (SQLite), import service
 │   ├── services/       # Query service (deterministic)
-│   ├── api/            # FastAPI app factory
-│   └── logic/renderer  # legacy renderer/templates
-├── frontend-app/       # Vite React dashboard (consumes API)
-├── templates/          # legacy Jinja dashboard
-└── run_iron_view.sh    # legacy runner
+│   ├── api/            # FastAPI app factory (serves /app if built)
+│   └── logic/          # analyzers/rule-based AI
+├── frontend-app/       # Vite React dashboard (consumes API, build -> /app)
+└── tests/              # unit/integration tests
 ```
 
 ## 🛠️ Configuration

@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from iron_view.config import settings
 from iron_view.data.import_service import ImportService
@@ -35,6 +36,10 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
 
     def get_query_service():
         return query_service
+
+    dist_path = Path(__file__).resolve().parents[2] / "frontend-app" / "dist"
+    if dist_path.exists():
+        app.mount("/app", StaticFiles(directory=dist_path, html=True), name="frontend")
 
     @app.post("/imports/platoon-loadout")
     async def import_platoon_loadout(
