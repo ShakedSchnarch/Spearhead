@@ -4,3 +4,4 @@ __pycache__/
 src/iron_view.egg-info/
 frontend-app/node_modules/
 frontend-app/dist/
+.env

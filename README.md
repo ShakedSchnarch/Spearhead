@@ -16,8 +16,8 @@ The system replaces manual Excel crunching with immediate operational insights.
 - Adapters for platoon loadout, battalion summary, and Google Form responses (xlsx).
 - SQLite persistence with hash-based idempotent imports and raw capture.
 - Deterministic queries: totals, gaps, by-platoon, delta (last two imports), variance vs battalion summary, form status counts.
-- FastAPI endpoints for uploads and queries.
-- React (Vite) dashboard consuming the API, with Chart.js visuals and simple JSON panels (prototype).
+- FastAPI endpoints for uploads, queries, Google Sheets sync (with retry/cache), and AI insights.
+- React (Vite) dashboard consuming the API, with filters, sortable tables for delta/variance, trends, and AI insight panel.
 - Offline-first: all assets local; CORS enabled for local dev.
 
 ## 🚀 Quick Start
@@ -25,13 +25,14 @@ The system replaces manual Excel crunching with immediate operational insights.
 ### Prerequisites
 - Python 3.10+
 - Node 18+ (for frontend dev/build)
+- Optional: Docker/Docker Compose
 
 ### Backend (API + ingestion)
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-# run API (default db: data/ironview.db)
+# configure env (copy .env.example -> .env and adjust)
 uvicorn iron_view.api.main:app --reload --port 8000
 ```
 
@@ -39,8 +40,12 @@ Endpoints:
 - POST `/imports/platoon-loadout` (file)
 - POST `/imports/battalion-summary` (file)
 - POST `/imports/form-responses` (file)
+- POST `/sync/google?target=all|platoon_loadout|battalion_summary|form_responses`
+- GET `/sync/status`
 - GET `/queries/tabular/totals|gaps|by-platoon|delta|variance`
+- GET `/queries/trends`
 - GET `/queries/forms/status`
+- GET `/insights`
 - GET `/health`
 
 ### Frontend (React dashboard)
@@ -48,7 +53,7 @@ Endpoints:
 cd frontend-app
 npm install
 npm run dev   # open http://localhost:5173
-# set API base in the header (defaults to http://localhost:8000)
+# set API base in the header (defaults to http://localhost:8000). Filters include section/platoon/sort.
 ```
 To build static assets:
 ```bash
@@ -61,6 +66,13 @@ Static frontend serve (Option A):
 
 Dev mode (Option B):
 - Run API as above, and `npm run dev` in `frontend-app` (defaults to http://localhost:5173 with CORS).
+
+### Docker (optional)
+```bash
+docker compose build
+docker compose up
+# API at http://localhost:8000 , UI at http://localhost:8000/app (after build)
+```
 
 ## 🏗️ Architecture
 
@@ -79,7 +91,12 @@ iron-view/
 ```
 
 ## 🛠️ Configuration
-- `src/iron_view/config.py`: paths (db), import labels, thresholds.
+- Copy `.env.example` to `.env` and adjust:
+  - `SECURITY__API_TOKEN` or `SECURITY__BASIC_USER/BASIC_PASS` to require auth (imports/sync always enforce when set; queries opt-in via `REQUIRE_AUTH_ON_QUERIES`).
+  - `GOOGLE__ENABLED` + `SERVICE_ACCOUNT_FILE` or `API_KEY` + `FILE_IDS` for Sheets sync; cache and retry settings included.
+  - `AI__ENABLED` + provider settings; defaults to offline simulated insights.
+  - `PATHS__DB_PATH` to override DB location (default `data/ironview.db`).
+- Config uses nested env keys with `__` delimiter (Pydantic Settings).
 - Frontend API base: header input stored in `localStorage` (`IRONVIEW_API`).
 
 ## 📄 License

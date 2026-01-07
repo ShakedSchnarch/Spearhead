@@ -64,6 +64,18 @@ class Database:
                 );
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ai_insights (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cache_key TEXT UNIQUE,
+                    prompt TEXT,
+                    response TEXT,
+                    metadata_json TEXT,
+                    created_at TEXT
+                );
+                """
+            )
             conn.commit()
 
     def upsert_import(self, import_key: str, source_file: Path, source_type: str) -> tuple[int, bool]:
@@ -153,6 +165,30 @@ class Database:
             )
             conn.commit()
             return cur.rowcount
+
+    def get_ai_insight(self, cache_key: str) -> Optional[dict]:
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT cache_key, response, metadata_json, created_at FROM ai_insights WHERE cache_key = ?",
+                (cache_key,),
+            )
+            row = cur.fetchone()
+        if not row:
+            return None
+        return {"cache_key": row[0], "response": row[1], "metadata_json": row[2], "created_at": row[3]}
+
+    def insert_ai_insight(self, cache_key: str, prompt: str, response: str, metadata_json: str) -> None:
+        with self._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT OR REPLACE INTO ai_insights (cache_key, prompt, response, metadata_json, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (cache_key, prompt, response, metadata_json, datetime.now(UTC).isoformat()),
+            )
+            conn.commit()
 
     @staticmethod
     def _as_text(value):

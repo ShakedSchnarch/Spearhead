@@ -52,3 +52,12 @@ def test_api_imports_and_queries(tmp_path):
     resp = client.get("/queries/tabular/variance", params={"section": "zivud"})
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+    resp = client.get("/queries/trends", params={"section": "zivud", "top_n": 3, "weeks": 12})
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+    resp = client.get("/insights", params={"section": "zivud"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "content" in body and "source" in body

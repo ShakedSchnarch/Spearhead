@@ -85,11 +85,16 @@ function App() {
   const [health, setHealth] = useState("Checking...");
   const [section, setSection] = useState("zivud");
   const [topN, setTopN] = useState(5);
+  const [platoon, setPlatoon] = useState("");
   const [totals, setTotals] = useState([]);
   const [gaps, setGaps] = useState([]);
   const [delta, setDelta] = useState([]);
   const [variance, setVariance] = useState([]);
   const [forms, setForms] = useState({ ok: [], gaps: [] });
+  const [insight, setInsight] = useState({ content: "", source: "" });
+  const [trends, setTrends] = useState([]);
+  const [sortField, setSortField] = useState("delta");
+  const [sortDir, setSortDir] = useState("desc");
 
   useEffect(() => {
     localStorage.setItem("IRONVIEW_API", apiBase);
@@ -132,22 +137,71 @@ function App() {
 
   const loadQueries = async () => {
     try {
-      const [t, g, d, v, f] = await Promise.all([
-        fetch(`${apiBase}/queries/tabular/totals?section=${section}&top_n=${topN}`).then((r) => r.json()),
-        fetch(`${apiBase}/queries/tabular/gaps?section=${section}&top_n=${topN}`).then((r) => r.json()),
+      const platoonParam = platoon ? `&platoon=${encodeURIComponent(platoon)}` : "";
+      const [t, g, d, v, f, ai, tr] = await Promise.all([
+        fetch(`${apiBase}/queries/tabular/totals?section=${section}&top_n=${topN}${platoonParam}`).then((r) => r.json()),
+        fetch(`${apiBase}/queries/tabular/gaps?section=${section}&top_n=${topN}${platoonParam}`).then((r) => r.json()),
         fetch(`${apiBase}/queries/tabular/delta?section=${section}&top_n=${topN}`).then((r) => r.json()),
         fetch(`${apiBase}/queries/tabular/variance?section=${section}&top_n=${topN}`).then((r) => r.json()),
         fetch(`${apiBase}/queries/forms/status`).then((r) => r.json()),
+        fetch(`${apiBase}/insights?section=${section}&top_n=${topN}${platoonParam}`).then((r) => r.json()),
+        fetch(`${apiBase}/queries/trends?section=${section}&top_n=5${platoonParam}`).then((r) => r.json()),
       ]);
       setTotals(t);
       setGaps(g);
       setDelta(d);
       setVariance(v);
       setForms(f);
+      setInsight(ai);
+      setTrends(tr);
     } catch (err) {
       console.error(err);
     }
   };
+
+  const sortedDelta = useMemo(() => {
+    const data = [...delta];
+    return data.sort((a, b) => {
+      const field = sortField || "delta";
+      const dir = sortDir === "asc" ? 1 : -1;
+      return (a[field] ?? 0) > (b[field] ?? 0) ? dir : -dir;
+    });
+  }, [delta, sortField, sortDir]);
+
+  const sortedVariance = useMemo(() => {
+    const data = [...variance];
+    return data.sort((a, b) => {
+      const field = sortField === "delta" ? "variance" : sortField;
+      const dir = sortDir === "asc" ? 1 : -1;
+      return (a[field] ?? 0) > (b[field] ?? 0) ? dir : -dir;
+    });
+  }, [variance, sortField, sortDir]);
+
+  const TrendTable = ({ title, data }) => (
+    <div className="card">
+      <div className="card-title">{title}</div>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Week</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) =>
+            (row.points || []).map((p) => (
+              <tr key={`${row.item}-${p.week}`}>
+                <td>{row.item}</td>
+                <td>{p.week}</td>
+                <td>{p.total}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
   const deltaText = useMemo(() => JSON.stringify(delta, null, 2), [delta]);
   const varianceText = useMemo(() => JSON.stringify(variance, null, 2), [variance]);
@@ -183,7 +237,7 @@ function App() {
         <section>
           <SectionHeader
             title="Readiness Snapshots"
-            subtitle="Totals, gaps, delta, and variance for the selected section"
+          subtitle="Totals, gaps, delta, and variance for the selected section"
           >
             <div className="controls">
               <label>
@@ -197,6 +251,25 @@ function App() {
                 Top N:
                 <input type="number" value={topN} min={1} max={50} onChange={(e) => setTopN(Number(e.target.value))} />
               </label>
+              <label>
+                Platoon (optional):
+                <input type="text" value={platoon} onChange={(e) => setPlatoon(e.target.value)} placeholder="e.g. Dov" />
+              </label>
+              <label>
+                Sort by:
+                <select value={sortField} onChange={(e) => setSortField(e.target.value)}>
+                  <option value="delta">delta</option>
+                  <option value="pct_change">pct change</option>
+                  <option value="variance">variance</option>
+                </select>
+              </label>
+              <label>
+                Direction:
+                <select value={sortDir} onChange={(e) => setSortDir(e.target.value)}>
+                  <option value="desc">desc</option>
+                  <option value="asc">asc</option>
+                </select>
+              </label>
               <button onClick={loadQueries}>Run</button>
             </div>
           </SectionHeader>
@@ -209,11 +282,63 @@ function App() {
           <div className="grid two-col">
             <div className="card">
               <div className="card-title">Delta vs Previous Import</div>
-              <pre>{deltaText}</pre>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Current</th>
+                    <th>Prev</th>
+                    <th>Δ</th>
+                    <th>Pct</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedDelta.slice(0, 20).map((row) => (
+                    <tr key={row.item}>
+                      <td>{row.item}</td>
+                      <td>{row.current}</td>
+                      <td>{row.previous}</td>
+                      <td>
+                        <span className={`trend-chip ${row.direction}`}>
+                          <span className="arrow" />
+                          {row.delta?.toFixed(1)}
+                        </span>
+                      </td>
+                      <td>{row.pct_change != null ? `${row.pct_change.toFixed(1)}%` : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <div className="card">
               <div className="card-title">Variance vs Battalion Summary</div>
-              <pre>{varianceText}</pre>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Current</th>
+                    <th>Summary</th>
+                    <th>Var</th>
+                    <th>Pct</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedVariance.slice(0, 20).map((row) => (
+                    <tr key={row.item}>
+                      <td>{row.item}</td>
+                      <td>{row.current}</td>
+                      <td>{row.summary}</td>
+                      <td>
+                        <span className={`trend-chip ${row.direction}`}>
+                          <span className="arrow" />
+                          {row.variance?.toFixed(1)}
+                        </span>
+                      </td>
+                      <td>{row.pct_change != null ? `${row.pct_change.toFixed(1)}%` : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -228,6 +353,18 @@ function App() {
                 <h4>Gaps</h4>
                 <pre>{formsGaps}</pre>
               </div>
+            </div>
+          </div>
+
+          <div className="grid two-col">
+            <TrendTable title="Trends (top items, recent weeks)" data={trends} />
+            <div className="card">
+              <div className="card-title">AI Insight</div>
+              <div className="pill">
+                <span className="dot" />
+                Source: {insight.source || "n/a"} {insight.cached ? "(cached)" : ""}
+              </div>
+              <pre>{insight.content || "No insight yet."}</pre>
             </div>
           </div>
         </section>

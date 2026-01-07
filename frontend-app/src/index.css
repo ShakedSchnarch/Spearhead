@@ -1,7 +1,7 @@
 :root {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif;
   color: #e2e8f0;
-  background-color: #0f172a;
+  background-color: #0b1220;
 }
 * {
   box-sizing: border-box;
@@ -11,6 +11,23 @@ body {
 }
 h1, h2, h3, h4, p {
   margin: 0;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #111827;
+  border: 1px solid #1f2937;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+.pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
 }
 .page {
   min-height: 100vh;
@@ -82,6 +99,7 @@ section {
   border: 1px solid #1f2937;
   border-radius: 10px;
   padding: 14px;
+  position: relative;
 }
 .card-title {
   font-weight: 700;
@@ -125,6 +143,15 @@ button {
 button:hover {
   opacity: 0.92;
 }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0b1220;
+  background: #22c55e;
+}
 .result {
   margin-top: 6px;
   font-size: 13px;
@@ -148,4 +175,52 @@ pre {
   font-size: 13px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+.table th, .table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #1f2937;
+}
+.table th {
+  text-align: left;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.table tr:hover {
+  background: #0c1626;
+}
+.trend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #0c1626;
+  border: 1px solid #1f2937;
+}
+.trend-chip .arrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+.trend-chip.up .arrow {
+  border-bottom: 8px solid #22c55e;
+}
+.trend-chip.down .arrow {
+  border-top: 8px solid #ef4444;
+}
+.trend-chip.flat .arrow {
+  border-top: 6px solid #94a3b8;
+}
+.pill.warning .dot {
+  background: #f59e0b;
+}
+.pill.danger .dot {
+  background: #ef4444;
 }

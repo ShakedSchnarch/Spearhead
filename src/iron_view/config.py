@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 
 class AppSettings(BaseSettings):
@@ -36,17 +36,47 @@ class GoogleSettings(BaseSettings):
         "battalion_summary": "",
         "form_responses": "",
     }
+    cache_dir: Path = Path("./data/sync_cache")
+    max_retries: int = 3
+    backoff_seconds: float = 1.0
 
 class ThresholdSettings(BaseSettings):
     erosion_alert: float = 0.5
 
+class SecuritySettings(BaseSettings):
+    """
+    Optional auth and request guardrails.
+    """
+    api_token: Optional[str] = None  # Bearer token or X-API-Key
+    basic_user: Optional[str] = None
+    basic_pass: Optional[str] = None
+    require_auth_on_queries: bool = False
+    max_upload_mb: int = 15  # Hard cap for uploads (Content-Length guard)
+
+class LoggingSettings(BaseSettings):
+    log_requests: bool = True
+
+class AISettings(BaseSettings):
+    enabled: bool = False
+    provider: str = "offline"  # offline|http
+    base_url: Optional[str] = None  # used when provider=http
+    api_key: Optional[str] = None
+    model: str = "gpt-4o-mini"
+    max_tokens: int = 256
+    cache_ttl_minutes: int = 60
+    temperature: float = 0.2
+
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_nested_delimiter="__", env_file=".env", extra="ignore")
     app: AppSettings = AppSettings()
     paths: PathSettings = PathSettings()
     imports: ImportSettings = ImportSettings()
     status_tokens: StatusTokens = StatusTokens()
     google: GoogleSettings = GoogleSettings()
     thresholds: ThresholdSettings = ThresholdSettings()
+    security: SecuritySettings = SecuritySettings()
+    logging: LoggingSettings = LoggingSettings()
+    ai: AISettings = AISettings()
 
     @classmethod
     def load(cls, config_path: Optional[Path] = None) -> "Settings":

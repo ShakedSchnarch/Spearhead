@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, UTC
 
 from iron_view.data.import_service import ImportService
 from iron_view.services import QueryService
@@ -44,7 +45,30 @@ def test_variance_and_delta(tmp_path):
 
     variance = qs.tabular_variance_vs_summary("zivud")
     assert isinstance(variance, list)
+    if variance:
+        assert "direction" in variance[0]
 
     delta = qs.tabular_delta("zivud")
     # With a single import, delta will be empty but should not error
     assert isinstance(delta, list)
+    if delta:
+        assert "direction" in delta[0]
+
+
+def test_filtered_queries_and_trends(tmp_path):
+    db_path = bootstrap_db(tmp_path)
+    qs = QueryService(db=ImportService(db_path).db)
+
+    platoon_name = "דוחות פלוגת כפיר (1)"
+    current_week = qs._week_label_from_datetime(datetime.now(UTC))
+
+    totals_filtered = qs.tabular_totals("zivud", platoon=platoon_name, week=current_week)
+    assert isinstance(totals_filtered, list)
+
+    gaps_filtered = qs.tabular_gaps("zivud", platoon=platoon_name, week=current_week)
+    assert isinstance(gaps_filtered, list)
+
+    trends = qs.tabular_trends("zivud", top_n=3, platoon=platoon_name, window_weeks=12)
+    assert isinstance(trends, list)
+    if trends:
+        assert "points" in trends[0]
