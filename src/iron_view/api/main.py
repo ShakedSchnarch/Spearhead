@@ -87,6 +87,22 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
     ):
         return qs.tabular_by_platoon(section=section, top_n=top_n)
 
+    @app.get("/queries/tabular/delta")
+    def tabular_delta(
+        section: str = Query(..., description="Section name, e.g., zivud or ammo"),
+        top_n: int = 20,
+        qs: QueryService = Depends(get_query_service),
+    ):
+        return qs.tabular_delta(section=section, top_n=top_n)
+
+    @app.get("/queries/tabular/variance")
+    def tabular_variance(
+        section: str = Query(..., description="Section name, e.g., zivud or ammo"),
+        top_n: int = 20,
+        qs: QueryService = Depends(get_query_service),
+    ):
+        return qs.tabular_variance_vs_summary(section=section, top_n=top_n)
+
     @app.get("/queries/forms/status")
     def form_status(qs: QueryService = Depends(get_query_service)):
         return qs.form_status_counts()

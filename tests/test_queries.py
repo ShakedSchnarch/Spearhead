@@ -36,3 +36,15 @@ def test_form_status_counts(tmp_path):
     assert "gaps" in status and "ok" in status
     assert isinstance(status["gaps"], list)
     assert isinstance(status["ok"], list)
+
+
+def test_variance_and_delta(tmp_path):
+    db_path = bootstrap_db(tmp_path)
+    qs = QueryService(db=ImportService(db_path).db)
+
+    variance = qs.tabular_variance_vs_summary("zivud")
+    assert isinstance(variance, list)
+
+    delta = qs.tabular_delta("zivud")
+    # With a single import, delta will be empty but should not error
+    assert isinstance(delta, list)

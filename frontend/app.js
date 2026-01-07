@@ -55,15 +55,20 @@ async function loadQueries() {
   const section = document.getElementById("section").value;
   const topN = document.getElementById("top-n").value || 5;
   try {
-    const [totals, gaps, forms] = await Promise.all([
+    const [totals, gaps, delta, variance, forms] = await Promise.all([
       fetch(`${API_BASE}/queries/tabular/totals?section=${section}&top_n=${topN}`).then(r => r.json()),
       fetch(`${API_BASE}/queries/tabular/gaps?section=${section}&top_n=${topN}`).then(r => r.json()),
+      fetch(`${API_BASE}/queries/tabular/delta?section=${section}&top_n=${topN}`).then(r => r.json()),
+      fetch(`${API_BASE}/queries/tabular/variance?section=${section}&top_n=${topN}`).then(r => r.json()),
       fetch(`${API_BASE}/queries/forms/status`).then(r => r.json()),
     ]);
+
     renderChart("chart-totals", totals.map(t => t.item), totals.map(t => t.total), "Totals", (chart) => chartTotals = chart, chartTotals);
     renderChart("chart-gaps", gaps.map(g => g.item), gaps.map(g => g.gaps), "Gaps", (chart) => chartGaps = chart, chartGaps, "#ef4444");
     document.getElementById("totals").textContent = JSON.stringify(totals, null, 2);
     document.getElementById("gaps").textContent = JSON.stringify(gaps, null, 2);
+    document.getElementById("delta").textContent = JSON.stringify(delta, null, 2);
+    document.getElementById("variance").textContent = JSON.stringify(variance, null, 2);
     document.getElementById("forms-ok").textContent = JSON.stringify(forms.ok.slice(0, topN), null, 2);
     document.getElementById("forms-gaps").textContent = JSON.stringify(forms.gaps.slice(0, topN), null, 2);
   } catch (err) {

@@ -110,3 +110,88 @@ class QueryService:
         for platoon, items in platoon_map.items():
             results.append({"platoon": platoon, "items": items[:top_n]})
         return results
+
+    def tabular_delta(self, section: str, top_n: int = 20) -> List[Dict]:
+        """
+        Delta between the latest two imports for a given section.
+        Returns item, current, previous, delta.
+        """
+        import_ids = self._latest_imports_for_section(section, 2)
+        if len(import_ids) < 2:
+            return []
+        current_id, prev_id = import_ids[0], import_ids[1]
+
+        current_totals = self._totals_for_import(section, current_id)
+        prev_totals = self._totals_for_import(section, prev_id)
+
+        items = set(current_totals) | set(prev_totals)
+        deltas = []
+        for item in items:
+            cur = current_totals.get(item, 0.0)
+            prev = prev_totals.get(item, 0.0)
+            delta = cur - prev
+            deltas.append({"item": item, "current": cur, "previous": prev, "delta": delta})
+
+        deltas.sort(key=lambda x: abs(x["delta"]), reverse=True)
+        return deltas[:top_n]
+
+    def tabular_variance_vs_summary(self, section: str, top_n: int = 20) -> List[Dict]:
+        """
+        Compare latest platoon section totals to latest battalion summary totals.
+        """
+        summary_map = {"zivud": "summary_zivud", "ammo": "summary_ammo"}
+        summary_section = summary_map.get(section)
+        if not summary_section:
+            return []
+
+        import_ids_section = self._latest_imports_for_section(section, 1)
+        import_ids_summary = self._latest_imports_for_section(summary_section, 1)
+        if not import_ids_section or not import_ids_summary:
+            return []
+
+        cur_totals = self._totals_for_import(section, import_ids_section[0])
+        sum_totals = self._totals_for_import(summary_section, import_ids_summary[0])
+
+        items = set(cur_totals) | set(sum_totals)
+        diffs = []
+        for item in items:
+            cur = cur_totals.get(item, 0.0)
+            summary_val = sum_totals.get(item, 0.0)
+            diff = cur - summary_val
+            diffs.append({"item": item, "current": cur, "summary": summary_val, "variance": diff})
+
+        diffs.sort(key=lambda x: abs(x["variance"]), reverse=True)
+        return diffs[:top_n]
+
+    def _latest_imports_for_section(self, section: str, limit: int) -> List[int]:
+        with self.db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT imports.id
+                FROM imports
+                JOIN tabular_records ON tabular_records.import_id = imports.id
+                WHERE tabular_records.section = ?
+                GROUP BY imports.id
+                ORDER BY imports.created_at DESC
+                LIMIT ?
+                """,
+                (section, limit),
+            )
+            rows = cur.fetchall()
+        return [row[0] for row in rows]
+
+    def _totals_for_import(self, section: str, import_id: int) -> Dict[str, float]:
+        with self.db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT item, SUM(COALESCE(value_num, 0)) as total_num
+                FROM tabular_records
+                WHERE section = ? AND import_id = ?
+                GROUP BY item
+                """,
+                (section, import_id),
+            )
+            rows = cur.fetchall()
+        return {item: total for item, total in rows}

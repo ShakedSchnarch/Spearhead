@@ -43,3 +43,12 @@ def test_api_imports_and_queries(tmp_path):
     assert resp.status_code == 200
     data = resp.json()
     assert "gaps" in data and "ok" in data
+
+    # Delta and variance endpoints should respond (even if empty)
+    resp = client.get("/queries/tabular/delta", params={"section": "zivud"})
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+    resp = client.get("/queries/tabular/variance", params={"section": "zivud"})
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
