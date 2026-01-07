@@ -2,3 +2,5 @@
 __pycache__/
 .pytest_cache/
 src/iron_view.egg-info/
+frontend-app/node_modules/
+frontend-app/dist/
