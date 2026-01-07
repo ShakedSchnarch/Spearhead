@@ -7,68 +7,77 @@
 
 ## 🎯 Overview
 
-Iron-View is a Python-based tactical report generator designed for the IDF field environment. It processes raw Excel questionnaires (Kfir format) and transforms them into a **professional, interactive HTML dashboard**.
+Iron-View ingests the weekly company/battalion spreadsheets (platoon loadout, battalion summary, form responses), normalizes them into SQLite, exposes deterministic queries via FastAPI, and serves a local dashboard (React + Chart.js). Offline-first by default; optional future sync from Google Sheets.
 
 The system replaces manual Excel crunching with immediate operational insights.
 
-### Key Logic: The "Two-Brain" System
-The analysis engine is built on two distinct layers:
-1.  **The Iron Brain (Deterministic)**: Hard-coded, rule-based queries found in `src/iron_view/logic/queries.py`.
-    *   *Role*: 100% accurate calculation of Operational Status, Critical Faults, and Logistics Gaps.
-    *   *Output*: Priority Lists and KPIs.
-2.  **The Creative Brain (Generative)**: AI logic found in `src/iron_view/logic/llm_client.py`.
-    *   *Role*: Strategic analysis, anomaly detection, and trend prediction.
-    *   *Output*: The strictly formatted "Intelligence Feed" sidebar.
-    *   *Note*: Falls back to "Training Scenario" mode if no API key is present.
-
 ## ✨ Features
 
-- **Tactical Flat UI**: A "Matte Black" design system built for low-light command environments.
-- **Zero-Dependency Runner**: A single shell script automates the entire ETL pipeline.
-- **Excel Adapter (Kfir)**: Robust parsing of Hebrew column names and non-standard input formats.
-- **Vehicle Inspector**: Clickable drill-down into specific tanks for granular technical history.
-- **Offline First**: Generates a self-contained HTML file that works without internet.
+- Adapters for platoon loadout, battalion summary, and Google Form responses (xlsx).
+- SQLite persistence with hash-based idempotent imports and raw capture.
+- Deterministic queries: totals, gaps, by-platoon, delta (last two imports), variance vs battalion summary, form status counts.
+- FastAPI endpoints for uploads and queries.
+- React (Vite) dashboard consuming the API, with Chart.js visuals and simple JSON panels (prototype).
+- Offline-first: all assets local; CORS enabled for local dev.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.10+
-- Modern Web Browser (Chrome/Edge)
+- Node 18+ (for frontend dev/build)
 
-### Installation
-1.  Clone the repository.
-2.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-### Usage
-Simply run the master script. It will auto-detect the latest Excel file in `mvp/files` or `data/input`.
-
+### Backend (API + ingestion)
 ```bash
-./run_iron_view.sh
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+# run API (default db: data/ironview.db)
+uvicorn iron_view.api.main:app --reload --port 8000
 ```
 
-The report will open automatically in your browser.
+Endpoints:
+- POST `/imports/platoon-loadout` (file)
+- POST `/imports/battalion-summary` (file)
+- POST `/imports/form-responses` (file)
+- GET `/queries/tabular/totals|gaps|by-platoon|delta|variance`
+- GET `/queries/forms/status`
+- GET `/health`
+
+### Frontend (React dashboard)
+```bash
+cd frontend-app
+npm install
+npm run dev   # open http://localhost:5173
+# set API base in the header (defaults to http://localhost:8000)
+```
+To build static assets:
+```bash
+npm run build   # outputs to frontend-app/dist
+```
+
+### Legacy runner
+`run_iron_view.sh` still exists for the older HTML generator pipeline.
 
 ## 🏗️ Architecture
 
 ```
 iron-view/
-├── assets/             # CSS/JS Themes (Tactical Flat)
 ├── src/iron_view/
-│   ├── domain/         # Pydantic Models (VehicleReport)
-│   ├── etl/            # Adapters (Kfir) & Loaders
-│   ├── logic/          # The Two-Brain System
-│   └── renderer/       # Jinja2 Builders
-├── templates/          # HTML Templates (dashboard.j2)
-└── run_iron_view.sh    # Operational Runner
+│   ├── config.py       # settings (paths, imports, thresholds)
+│   ├── domain/         # Pydantic models
+│   ├── etl/            # Adapters & loader
+│   ├── data/           # DTOs, storage (SQLite), import service
+│   ├── services/       # Query service (deterministic)
+│   ├── api/            # FastAPI app factory
+│   └── logic/renderer  # legacy renderer/templates
+├── frontend-app/       # Vite React dashboard (consumes API)
+├── templates/          # legacy Jinja dashboard
+└── run_iron_view.sh    # legacy runner
 ```
 
 ## 🛠️ Configuration
-Edit `src/iron_view/config.py` to adjust:
-- **Theme**: Switch between `tactical_flat.css` and `iron_glass.css`.
-- **Thresholds**: Adjust severity scoring weights.
+- `src/iron_view/config.py`: paths (db), import labels, thresholds.
+- Frontend API base: header input stored in `localStorage` (`IRONVIEW_API`).
 
 ## 📄 License
 Internal Use Only - Battalion 74.
