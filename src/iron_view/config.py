@@ -27,6 +27,16 @@ class StatusTokens(BaseSettings):
     gap_tokens: list[str] = ["חוסר", "בלאי"]
     ok_tokens: list[str] = ["קיים", "יש"]
 
+class GoogleSettings(BaseSettings):
+    enabled: bool = False
+    service_account_file: Optional[Path] = None
+    api_key: Optional[str] = None
+    file_ids: dict[str, str] = {
+        "platoon_loadout": "",
+        "battalion_summary": "",
+        "form_responses": "",
+    }
+
 class ThresholdSettings(BaseSettings):
     erosion_alert: float = 0.5
 
@@ -35,6 +45,7 @@ class Settings(BaseSettings):
     paths: PathSettings = PathSettings()
     imports: ImportSettings = ImportSettings()
     status_tokens: StatusTokens = StatusTokens()
+    google: GoogleSettings = GoogleSettings()
     thresholds: ThresholdSettings = ThresholdSettings()
 
     @classmethod

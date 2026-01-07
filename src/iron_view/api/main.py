@@ -10,6 +10,7 @@ from iron_view.config import settings
 from iron_view.data.import_service import ImportService
 from iron_view.data.storage import Database
 from iron_view.services import QueryService
+from iron_view.sync.google_sheets import GoogleSheetsProvider, SyncService
 
 
 def create_app(db_path: Optional[Path] = None) -> FastAPI:
@@ -36,6 +37,17 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
 
     def get_query_service():
         return query_service
+
+    def get_sync_service():
+        provider = GoogleSheetsProvider(
+            service_account_file=settings.google.service_account_file,
+            api_key=settings.google.api_key,
+        )
+        return SyncService(
+            import_service=import_service,
+            provider=provider,
+            file_ids=settings.google.file_ids,
+        )
 
     dist_path = Path(__file__).resolve().parents[2] / "frontend-app" / "dist"
     if dist_path.exists():
@@ -111,6 +123,24 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
     @app.get("/queries/forms/status")
     def form_status(qs: QueryService = Depends(get_query_service)):
         return qs.form_status_counts()
+
+    @app.post("/sync/google")
+    def sync_google(
+        target: str = Query("all", description="all|platoon_loadout|battalion_summary|form_responses"),
+        sync_service: SyncService = Depends(get_sync_service),
+    ):
+        if not settings.google.enabled:
+            raise HTTPException(status_code=400, detail="Google sync is disabled in settings.")
+
+        if target == "all":
+            return sync_service.sync_all()
+        if target == "platoon_loadout":
+            return {"platoon_loadout": sync_service.sync_platoon_loadout()}
+        if target == "battalion_summary":
+            return {"battalion_summary": sync_service.sync_battalion_summary()}
+        if target == "form_responses":
+            return {"form_responses": sync_service.sync_form_responses()}
+        raise HTTPException(status_code=400, detail="Invalid target")
 
     @app.get("/health")
     def health():
