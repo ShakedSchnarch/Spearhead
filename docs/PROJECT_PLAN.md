@@ -9,7 +9,8 @@
 - Stage 1 complete: aligned domain models (safe defaults, optional reporter/notes), fixed Airlock robustness, and all tests are green.
 - Stage 2 complete: adapters for platoon loadout, battalion summary, and form responses implemented with tests on the latest files.
 - Stage 3 complete: SQLite schema + ImportService (hash-based idempotency, raw field capture, JSON-safe fields) and tests.
-- Stage 4 complete: deterministic query layer (totals/gaps/ok counts) over persisted data with tests. Next: API layer.
+- Stage 4 complete: deterministic query layer (totals/gaps/ok counts) over persisted data with tests.
+- Stage 5 complete: FastAPI layer exposing imports and deterministic queries with integration tests. Next: frontend consumption and UX.
 
 ## Target Architecture (layered)
 - Data layer (`src/iron_view/data`):
@@ -30,8 +31,8 @@
 2) Parsers: implement and test the three adapters against `דוחות פלוגת כפיר (1).xlsx`, `מסמך דוחות גדודי (1).xlsx`, `טופס דוחות סמפ כפיר. (תגובות) (1).xlsx`.
 3) Persistence: define SQLite schema, migrations, ImportService with idempotency and raw capture.
 4) Deterministic queries: gaps by platoon/week/item, weekly deltas, ammo/kesher status, variance vs. battalion summary.
-5) API: FastAPI upload/sync, queries, status, health; rate limits/logging.
-6) Frontend: dashboard (filters, charts, tables), local assets, no CDN.
+5) API: FastAPI upload/sync, queries, status, health; rate limits/logging. (done)
+6) Frontend: dashboard (filters, charts, tables), local assets, no CDN. (next)
 7) Google Sheets sync (optional): provider with caching and configurable credentials; fallback to local upload.
 8) AI layer (optional, later): plug-in provider; prompt hygiene and caching.
 
