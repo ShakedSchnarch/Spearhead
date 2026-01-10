@@ -87,7 +87,7 @@ class FormAnalytics:
 
         filters = []
         params: List[str] = []
-        target_week = week or (self.latest_week() if prefer_latest else None) or self._current_week_label()
+        target_week = week or (self.latest_week() if prefer_latest else None)
         if target_week:
             filters.append("week_label = ?")
             params.append(target_week)
