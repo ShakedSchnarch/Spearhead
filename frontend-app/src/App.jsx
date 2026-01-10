@@ -4,7 +4,8 @@ import "./index.css";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
-const defaultApi = localStorage.getItem("IRONVIEW_API") || "http://localhost:8000";
+const fallbackApi = typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : "http://localhost:8000";
+const defaultApi = localStorage.getItem("IRONVIEW_API") || fallbackApi || "http://localhost:8000";
 const persisted = (key, fallback) => {
   const raw = localStorage.getItem(key);
   if (raw === null) return fallback;
@@ -20,6 +21,22 @@ const friendlyImportName = (kind) => {
   if (kind === "battalion-summary") return "דוח גדודי";
   if (kind === "form-responses") return "טופס תגובות";
   return kind;
+};
+
+const platoonLogos = {
+  "כפיר": "/logos/Kfir_logo.JPG",
+  "סופה": "/logos/Sufa_logo.JPG",
+  "מחץ": "/logos/Machatz_logo.JPG",
+  "פלסם": "/logos/Palsam_logo.JPG",
+  romach: "/logos/Romach_75_logo.JPG",
+};
+
+const knownPlatoons = ["כפיר", "סופה", "מחץ", "פלסם"];
+
+const anomalyLabels = {
+  no_reports: "אין דיווחים",
+  low_volume: "נפח דיווח נמוך",
+  stale: "לא דווח זמן רב",
 };
 
 const handleAuthBanner = (status, setBannerFn) => {
@@ -83,8 +100,8 @@ function ChartCard({ title, data, color = "#22c55e" }) {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: "#cbd5e1" } },
-          y: { ticks: { color: "#cbd5e1" } },
+          x: { ticks: { color: "#475569" }, grid: { display: false } },
+          y: { ticks: { color: "#475569" }, grid: { color: "#e2e8f0" } },
         },
       },
     });
@@ -127,6 +144,50 @@ function SummaryTable({ title, headers, rows }) {
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function PlatoonCard({ name, coverage, onSelect, isActive }) {
+  const logo = platoonLogos[name] || platoonLogos.romach;
+  const anomaly = coverage?.anomaly;
+  const anomalyText = anomaly ? anomalyLabels[anomaly] || anomaly : null;
+  return (
+    <button className={`platoon-card ${isActive ? "active" : ""}`} onClick={() => onSelect(name)}>
+      <div className="platoon-card__header">
+        <div className="platoon-card__title">
+          <span className="platoon-name">{name}</span>
+          {anomaly && <span className="badge warn">אנומליה</span>}
+        </div>
+        <img src={logo} alt={name} className="platoon-logo" />
+      </div>
+      <div className="platoon-card__metrics">
+        <div>
+          <div className="metric-label">טפסים</div>
+          <div className="metric-value">{coverage?.forms ?? 0}</div>
+        </div>
+        <div>
+          <div className="metric-label">טנקים מדווחים</div>
+          <div className="metric-value">{coverage?.distinct_tanks ?? 0}</div>
+        </div>
+        <div>
+          <div className="metric-label">ימים ללא דיווח</div>
+          <div className="metric-value">{coverage?.days_since_last ?? "-"}</div>
+        </div>
+      </div>
+      <div className="platoon-card__footer">
+        {anomaly ? <span className="muted">סיבה: {anomalyText}</span> : <span className="muted">מצב תקין</span>}
+      </div>
+    </button>
+  );
+}
+
+function KpiCard({ label, value, hint, tone = "neutral" }) {
+  return (
+    <div className={`kpi-card ${tone}`}>
+      <div className="kpi-card__label">{label}</div>
+      <div className="kpi-card__value">{value}</div>
+      {hint && <div className="kpi-card__hint">{hint}</div>}
     </div>
   );
 }
@@ -439,7 +500,7 @@ function App() {
         c.forms ?? 0,
         c.distinct_tanks ?? 0,
         c.days_since_last ?? "-",
-        c.anomaly ? c.anomaly : "תקין",
+        c.anomaly ? anomalyLabels[c.anomaly] || c.anomaly : "תקין",
       ],
     }));
   }, [coverage]);
@@ -448,8 +509,39 @@ function App() {
     if (!coverage?.anomalies?.length) return [];
     return coverage.anomalies.map((a, idx) => ({
       key: `${a.platoon}-${idx}`,
-      cells: [a.platoon, a.reason, a.forms ?? 0, a.avg_forms_recent ?? "-", a.days_since_last ?? "-"],
+      cells: [
+        a.platoon,
+        anomalyLabels[a.reason] || a.reason,
+        a.forms ?? 0,
+        a.avg_forms_recent ?? "-",
+        a.days_since_last ?? "-",
+      ],
     }));
+  }, [coverage]);
+
+  const platoonCards = useMemo(() => {
+    return knownPlatoons.map((name) => ({
+      name,
+      coverage: coverage?.platoons?.[name],
+    }));
+  }, [coverage]);
+
+  const syncInfo = useMemo(() => {
+    const forms = syncStatus?.files?.form_responses;
+    return {
+      status: forms?.status || (syncStatus?.enabled ? "enabled" : "disabled"),
+      last: forms?.last_sync || "n/a",
+      source: forms?.source || "n/a",
+      etag: forms?.etag || "n/a",
+    };
+  }, [syncStatus]);
+
+  const coverageTotals = useMemo(() => {
+    const platoons = coverage?.platoons || {};
+    const formsTotal = Object.values(platoons).reduce((acc, p) => acc + (p.forms || 0), 0);
+    const tanksTotal = Object.values(platoons).reduce((acc, p) => acc + (p.distinct_tanks || 0), 0);
+    const anomaliesCount = coverage?.anomalies?.length || 0;
+    return { formsTotal, tanksTotal, anomaliesCount };
   }, [coverage]);
 
   const zivudRows = useMemo(
@@ -510,26 +602,30 @@ function App() {
   return (
     <div className="page">
       <header className="topbar">
-        <div>
-          <h1>דשבורד מוכנות למלחמה · IronView</h1>
-          <p className="muted">ייבוא קבצי שבוע, סנכרון, וניתוח זיווד/תחמושת/אמצעים</p>
-        </div>
-        <div className="header-actions">
-          <label className="api-label">
-            API:
-            <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} placeholder="http://localhost:8000" />
-          </label>
-          <label className="api-label">
-            טוקן:
-            <input
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Bearer token (אם נדרש)"
-            />
-          </label>
-          <div className="status">{health}</div>
-          <div className="pill">{syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}</div>
+        <div className="hero">
+          <div className="hero-text">
+            <div className="pill brand">קצה הרומח · רומח 75</div>
+            <h1>דשבורד מוכנות גדודי</h1>
+            <p className="muted">סקירה פלוגתית/גדודית, סנכרון ידני מגוגל, כיסוי ואנומליות.</p>
+            <div className="header-actions">
+              <label className="api-label">
+                API:
+                <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} placeholder={fallbackApi} />
+              </label>
+              <label className="api-label">
+                טוקן:
+                <input
+                  type="password"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Bearer token (אם נדרש)"
+                />
+              </label>
+              <div className="status">{health}</div>
+              <div className="pill">{syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}</div>
+            </div>
+          </div>
+          <img src={platoonLogos.romach} alt="רומח 75" className="hero-logo" />
         </div>
       </header>
 
@@ -544,8 +640,30 @@ function App() {
       )}
 
       <main>
+        <div className="kpi-strip">
+          <KpiCard label="שבוע נוכחי" value={summary?.latest_week || summary?.week || coverage?.week || "n/a"} />
+          <KpiCard
+            label="דיווחים השבוע"
+            value={coverageTotals.formsTotal || 0}
+            hint="סך טפסים מכל הפלוגות"
+          />
+          <KpiCard label="טנקים מדווחים" value={coverageTotals.tanksTotal || 0} />
+          <KpiCard
+            label="סנכרון אחרון"
+            value={syncInfo.last}
+            hint={`מקור: ${syncInfo.source} · ETag: ${syncInfo.etag}`}
+            tone={syncInfo.status === "error" ? "danger" : "neutral"}
+          />
+          <KpiCard
+            label="אנומליות פעילות"
+            value={coverageTotals.anomaliesCount}
+            tone={coverageTotals.anomaliesCount ? "warn" : "neutral"}
+          />
+        </div>
+
         <nav className="nav-quick">
           <a href="#import">ייבוא וסנכרון</a>
+          <a href="#platoons">ניווט פלוגות</a>
           <a href="#views">גדוד/פלוגה</a>
           <a href="#analytics">מדדי זיווד/תחמושת</a>
         </nav>
@@ -559,6 +677,39 @@ function App() {
           </div>
           <div className="actions" style={{ marginTop: 10 }}>
             <button onClick={triggerSync}>סנכרון מ-Google Sheets</button>
+          </div>
+        </section>
+
+        <section id="platoons">
+          <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים">
+            <div className="controls">
+              <div className="segmented">
+                <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
+                  גדוד
+                </button>
+                <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
+                  פלוגה
+                </button>
+              </div>
+              <label>
+                שבוע (YYYY-Www):
+                <input type="text" placeholder="לדוגמה 2026-W01" value={week} onChange={(e) => setWeek(e.target.value)} />
+              </label>
+            </div>
+          </SectionHeader>
+          <div className="platoon-grid">
+            {platoonCards.map((card) => (
+              <PlatoonCard
+                key={card.name}
+                name={card.name}
+                coverage={card.coverage}
+                onSelect={(name) => {
+                  setPlatoon(name);
+                  setViewMode("platoon");
+                }}
+                isActive={platoon === card.name}
+              />
+            ))}
           </div>
         </section>
 
