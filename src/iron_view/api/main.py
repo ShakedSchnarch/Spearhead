@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from iron_view.config import settings
@@ -152,6 +152,9 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
     dist_path = Path(__file__).resolve().parents[3] / "frontend-app" / "dist"
     if dist_path.exists():
         app.mount("/app", StaticFiles(directory=dist_path, html=True), name="frontend")
+        @app.get("/")
+        async def root_redirect():
+            return RedirectResponse(url="/app", status_code=307)
 
     @app.post("/imports/platoon-loadout")
     async def import_platoon_loadout(
