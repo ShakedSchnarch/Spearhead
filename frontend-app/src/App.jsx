@@ -640,6 +640,23 @@ function App() {
       )}
 
       <main>
+        <div className="actions-bar">
+          <div className="button-group">
+            <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
+              מצב גדודי
+            </button>
+            <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
+              מצב פלוגה
+            </button>
+          </div>
+          <div className="button-group gap">
+            <button onClick={() => document.getElementById("import")?.scrollIntoView({ behavior: "smooth" })}>
+              ייבוא/סנכרון
+            </button>
+            <button onClick={triggerSync}>סנכרון מ-Google</button>
+          </div>
+        </div>
+
         <div className="kpi-strip">
           <KpiCard label="שבוע נוכחי" value={summary?.latest_week || summary?.week || coverage?.week || "n/a"} />
           <KpiCard
@@ -710,6 +727,11 @@ function App() {
                 isActive={platoon === card.name}
               />
             ))}
+          </div>
+          <div className="actions" style={{ marginTop: 10 }}>
+            <button className="ghost" onClick={() => setViewMode("battalion")}>
+              חזרה לתצוגת גדוד
+            </button>
           </div>
         </section>
 

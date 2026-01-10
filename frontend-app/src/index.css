@@ -348,6 +348,30 @@ pre {
 .nav-quick a:hover {
   border-color: #0ea5e9;
 }
+.actions-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.button-group {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.button-group button.active {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+.button-group.gap {
+  gap: 10px;
+}
+.ghost {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
 .kpi-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
