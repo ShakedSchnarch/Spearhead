@@ -23,12 +23,15 @@ const friendlyImportName = (kind) => {
   return kind;
 };
 
+const assetBase = typeof window !== "undefined" && window.location.pathname.startsWith("/app") ? "/app" : "";
+const logoPath = (file) => `${assetBase}/logos/${file}`;
+
 const platoonLogos = {
-  "כפיר": "/logos/Kfir_logo.JPG",
-  "סופה": "/logos/Sufa_logo.JPG",
-  "מחץ": "/logos/Machatz_logo.JPG",
-  "פלסם": "/logos/Palsam_logo.JPG",
-  romach: "/logos/Romach_75_logo.JPG",
+  "כפיר": logoPath("Kfir_logo.JPG"),
+  "סופה": logoPath("Sufa_logo.JPG"),
+  "מחץ": logoPath("Machatz_logo.JPG"),
+  "פלסם": logoPath("Palsam_logo.JPG"),
+  romach: logoPath("Romach_75_logo.JPG"),
 };
 
 const knownPlatoons = ["כפיר", "סופה", "מחץ", "פלסם"];
