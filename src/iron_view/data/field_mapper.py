@@ -28,6 +28,7 @@ class HeaderMatch:
 
 @dataclass
 class SchemaSnapshot:
+    config_version: Optional[str]
     raw_headers: List[str]
     mapped: List[HeaderMatch]
     unmapped: List[str]
@@ -35,6 +36,7 @@ class SchemaSnapshot:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "config_version": self.config_version,
             "raw_headers": self.raw_headers,
             "mapped": [m.to_dict() for m in self.mapped],
             "unmapped": self.unmapped,
@@ -118,6 +120,7 @@ class FieldMapper:
 
         missing_required = self._missing_required(normalized_headers)
         return SchemaSnapshot(
+            config_version=getattr(self.config, "version", None),
             raw_headers=[str(h) for h in headers if h],
             mapped=mapped,
             unmapped=unmapped,

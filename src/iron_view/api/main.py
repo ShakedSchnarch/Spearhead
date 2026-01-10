@@ -269,6 +269,15 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
 
         return {"mode": "battalion", **serialized}
 
+    @app.get("/queries/forms/coverage")
+    def form_coverage(
+        week: Optional[str] = Query(None, description="Week label YYYY-Www; defaults to latest/current"),
+        window_weeks: int = Query(4, ge=1, le=12, description="Recent weeks to compare for anomalies"),
+        analytics: FormAnalytics = Depends(get_form_analytics),
+        _auth=Depends(require_query_auth),
+    ):
+        return analytics.coverage(week=week, window_weeks=window_weeks, prefer_latest=True)
+
     @app.get("/insights")
     def insights(
         section: str = Query("zivud", description="Section to analyze"),

@@ -36,6 +36,7 @@ class FormFieldConfig(BaseModel):
 
 class FieldConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
+    version: Optional[str] = None
     gap_tokens: List[str] = Field(default_factory=lambda: ["חוסר", "בלאי", "אין"])
     ok_tokens: List[str] = Field(default_factory=lambda: ["קיים", "יש", "תקין"])
     form: FormFieldConfig = Field(default_factory=FormFieldConfig)

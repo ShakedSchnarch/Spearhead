@@ -1,3 +1,5 @@
+version: "1.0"
+
 gap_tokens:
   - "חוסר"
   - "בלאי"
@@ -31,6 +33,9 @@ form:
         platoon: "סופה"
       - match: "מחץ"
         platoon: "מחץ"
+      # פלס"ם לעתיד — השארנו כאן כדי להוסיף בקלות כשיתחילו לשלוח טפסים
+      - match: "פלסם"
+        platoon: "פלסם"
     sheet_ids: {}
   families:
     zivud:

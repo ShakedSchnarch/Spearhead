@@ -162,12 +162,18 @@ class SyncService:
             inserted = import_fn(path)
             self._update_status(key, inserted=inserted, used_cache=used_cache, etag=etag, error=None)
             return inserted, used_cache
+        except ConfigError as exc:
+            # Missing configuration: mark as skipped and do not raise to allow partial sync
+            self._update_status(key, inserted=0, used_cache=False, etag=None, error=str(exc), status="skipped")
+            return 0, False
         except Exception as exc:
             self._update_status(key, inserted=0, used_cache=False, etag=None, error=str(exc))
             raise
 
     def _download(self, key: str) -> Tuple[Path, bool, Optional[str]]:
         file_id = self.file_ids.get(key)
+        if not file_id:
+            raise ConfigError(f"Google Sheets file_id is not configured for '{key}'.")
         dest = self.tmp_dir / f"{key}.xlsx"
         cache_path = self.cache_dir / f"{key}.xlsx"
         etag = self.status.get(key, {}).get("etag")
@@ -184,13 +190,22 @@ class SyncService:
                 return dest, True, etag
             raise
 
-    def _update_status(self, key: str, inserted: int, used_cache: bool, etag: Optional[str], error: Optional[str]):
+    def _update_status(
+        self,
+        key: str,
+        inserted: int,
+        used_cache: bool,
+        etag: Optional[str],
+        error: Optional[str],
+        status: str = "ok",
+    ):
         existing_etag = etag or self.status.get(key, {}).get("etag")
+        status_value = status or ("error" if error else "ok")
         self.status[key] = {
             "last_sync": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "inserted": inserted,
             "used_cache": used_cache,
-            "status": "error" if error else "ok",
+            "status": status_value if not error else status_value,
             "source": "cache" if used_cache else "remote",
         }
         if existing_etag:

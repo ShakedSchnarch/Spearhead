@@ -1,7 +1,8 @@
 import json
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Any
+from datetime import datetime, UTC
+from typing import Dict, List, Optional, Any, Set
 
 from iron_view.config import settings
 from iron_view.config_fields import field_config
@@ -49,6 +50,10 @@ class FormAnalytics:
             row = cur.fetchone()
         return row[0] if row else None
 
+    @staticmethod
+    def _current_week_label() -> str:
+        return datetime.now(UTC).strftime("%Y-W%W")
+
     def platoons(self, week: Optional[str] = None) -> List[str]:
         filters = []
         params: List[str] = []
@@ -82,7 +87,7 @@ class FormAnalytics:
 
         filters = []
         params: List[str] = []
-        target_week = week or (self.latest_week() if prefer_latest else None)
+        target_week = week or (self.latest_week() if prefer_latest else None) or self._current_week_label()
         if target_week:
             filters.append("week_label = ?")
             params.append(target_week)
@@ -201,6 +206,8 @@ class FormAnalytics:
 
         return {
             "week": target_week,
+            "latest_week": self.latest_week() or self._current_week_label(),
+            "available_weeks": self.available_weeks(),
             "platoons": platoon_summaries,
             "battalion": {
                 "zivud_gaps": battalion_zivud,
@@ -230,8 +237,102 @@ class FormAnalytics:
         platoons_serialized = {name: self.serialize_platoon(ps) for name, ps in summary.get("platoons", {}).items()}
         return {
             "week": summary.get("week"),
+            "latest_week": summary.get("latest_week"),
+            "available_weeks": summary.get("available_weeks"),
             "platoons": platoons_serialized,
             "battalion": summary.get("battalion"),
+        }
+
+    def available_weeks(self) -> List[str]:
+        with self.db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT week_label FROM form_responses WHERE week_label IS NOT NULL")
+            rows = cur.fetchall()
+        weeks = [r[0] for r in rows if r[0]]
+        return sorted(set(weeks), reverse=True)
+
+    def coverage(
+        self,
+        week: Optional[str] = None,
+        window_weeks: int = 4,
+        prefer_latest: bool = True,
+    ) -> Dict[str, Any]:
+        target_week = week or (self.latest_week() if prefer_latest else None) or self._current_week_label()
+
+        with self.db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT platoon, tank_id, timestamp, week_label FROM form_responses")
+            rows = cur.fetchall()
+
+        available_weeks = sorted({r[3] for r in rows if r[3]}, reverse=True)
+        week_forms: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        week_tanks: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
+        last_seen: Dict[str, Optional[datetime]] = defaultdict(lambda: None)
+
+        for platoon, tank_id, ts_raw, week_label in rows:
+            platoon = platoon or "unknown"
+            if week_label:
+                week_forms[platoon][week_label] += 1
+                if tank_id:
+                    week_tanks[platoon][week_label].add(str(tank_id))
+            if ts_raw:
+                try:
+                    ts = datetime.fromisoformat(ts_raw)
+                except Exception:
+                    ts = None
+                if ts and (last_seen[platoon] is None or ts > last_seen[platoon]):
+                    last_seen[platoon] = ts
+
+        coverage: Dict[str, Dict[str, Any]] = {}
+        anomalies: List[Dict[str, Any]] = []
+        now = datetime.now(UTC)
+
+        for platoon in week_forms.keys():
+            forms_current = week_forms[platoon].get(target_week, 0)
+            tanks_current = len(week_tanks[platoon].get(target_week, set()))
+            platoon_last_seen = last_seen.get(platoon)
+            days_since_last = (now - platoon_last_seen).days if platoon_last_seen else None
+
+            recent_weeks = [w for w in available_weeks if w != target_week][:window_weeks]
+            recent_counts = [week_forms[platoon].get(w, 0) for w in recent_weeks]
+            avg_forms_recent = sum(recent_counts) / len(recent_counts) if recent_counts else None
+
+            anomaly_reason = None
+            if forms_current == 0:
+                anomaly_reason = "no_reports"
+            elif avg_forms_recent is not None and forms_current < 0.7 * avg_forms_recent:
+                anomaly_reason = "low_volume"
+            elif days_since_last is not None and days_since_last > 7:
+                anomaly_reason = "stale"
+
+            entry = {
+                "week": target_week,
+                "forms": forms_current,
+                "distinct_tanks": tanks_current,
+                "last_seen": platoon_last_seen.isoformat() if platoon_last_seen else None,
+                "days_since_last": days_since_last,
+                "avg_forms_recent": avg_forms_recent,
+                "anomaly": anomaly_reason,
+            }
+            coverage[platoon] = entry
+            if anomaly_reason:
+                anomalies.append(
+                    {
+                        "platoon": platoon,
+                        "week": target_week,
+                        "reason": anomaly_reason,
+                        "forms": forms_current,
+                        "avg_forms_recent": avg_forms_recent,
+                        "days_since_last": days_since_last,
+                    }
+                )
+
+        return {
+            "week": target_week,
+            "latest_week": self.latest_week() or self._current_week_label(),
+            "available_weeks": available_weeks,
+            "platoons": coverage,
+            "anomalies": anomalies,
         }
 
     def _is_gap(self, value) -> bool:

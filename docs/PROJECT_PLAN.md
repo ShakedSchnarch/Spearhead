@@ -120,3 +120,47 @@ All steps keep existing functionality; only additive improvements. Each phase en
 ## Maintenance Notes
 - Update this document at each stage boundary (done → next), and when standards/architecture shift.
 - Prefer local assets, deterministic builds, and reproducible tests (no live network unless explicitly configured for sync/AI).
+
+## Upcoming Release Plan — "קצה הרומח"
+Roadmap for the next release with manual Google sync, improved analytics, Hebrew rebrand, and AI enablement (OpenAI key provided via `.env`). Each phase ends with approval and a commit after validation.
+
+### Phase A: Google Sheets sync (manual trigger, placeholders)
+- Configure `config/settings.yaml` with the supplied כפיר sheet ID; set placeholders for סופה/מחץ and keep uploads as fallback.
+- Keep sync manual (UI button + script); surface source/etag/cache/error/schema summary in `/sync/status`.
+- Tests: unit (sync/cache/etag), integration (sync → import → DB), and manual smoke via upload fallback.
+
+### Phase B: Week defaults, coverage, anomalies
+- Auto-derive `week_label` from form timestamp; API exposes “current/latest week” default.
+- Add coverage KPIs per platoon/week (reported tanks/forms, days without reports); detect weekly anomalies vs. history.
+- Separate battalion vs. platoon KPIs in queries; default filters to latest week in API/UI.
+- Tests: unit for coverage/anomaly math and missing-field handling; integration for new KPIs.
+- Status: Implemented. API now returns `latest_week`/`available_weeks`; coverage endpoint `/queries/forms/coverage` with anomalies; UI auto-fills latest week and shows coverage/anomalies tables. Pending: broader test run and user acceptance.
+
+### Phase C: Exports and schema drift
+- Support HQ platoon and any discovered platoon names (no hardcoding) in platoon/battalion exports.
+- Dynamic filenames (week/platoon) and tolerant columns for new fields.
+- Smoke: sync/upload → export platoon/battalion with detected platoons.
+
+### Phase D: Dashboard rebrand "קצה הרומח"
+- Brand: rename UI, apply battalion/companies logos from `assets/logos/` (Romach_75, Kfir, Sufa, Machatz, Palsam), RTL-first.
+- Defaults: auto API base from host, auto-select latest week, platoon choice via cards/list with logos; no IP/week typing.
+- Views: clear Battalion/Platoon screens with KPIs (coverage, anomalies, sync status, etag), simple tables/charts, easy platoon navigation.
+- Tests: UI build, RTL smoke, default autofill, sync status display.
+
+### Phase E: AI (OpenAI)
+- Use OpenAI provider with key from `.env`; show source (remote/cache/simulated) and a refresh action.
+- Focus on current-week insights with trends/anomalies context; keep deterministic fallback.
+- Tests: cache TTL unit, integration with real provider, fallback path.
+
+### Phase F: Docs & QA
+- Update README and this plan with flows (manual sync, defaults, AI config), scripts, and checkpoints.
+- Run `scripts/sync-and-export.sh` (manual sync path), `scripts/test.sh`, and UI smoke.
+- Commit at phase end after validation and user approval.
+
+## Editing and Delivery Policy
+- Code and docs: concise, English for code; Hebrew UI copy where appropriate. Keep ASCII unless existing file uses otherwise.
+- Process: work phase-by-phase; share progress and await approval before moving to the next phase. One commit per approved phase.
+- Quality: no shortcuts—prove correctness end-to-end (tests + manual smoke when relevant) before requesting approval.
+- Style: follow existing patterns; add comments only where logic is non-obvious. Keep deterministic, offline-friendly defaults.
+- Auth/Secrets: use `.env` for tokens/keys; do not hardcode secrets; preserve manual sync by default.
+- Communication: reflect status/banners in UI; log meaningful errors; surface sync/etag/source info clearly.

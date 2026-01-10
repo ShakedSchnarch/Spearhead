@@ -151,6 +151,7 @@ function App() {
   const [delta, setDelta] = useState([]);
   const [variance, setVariance] = useState([]);
   const [forms, setForms] = useState({ ok: [], gaps: [] });
+  const [coverage, setCoverage] = useState(null);
   const [insight, setInsight] = useState({ content: "", source: "" });
   const [trends, setTrends] = useState([]);
   const [sortField, setSortField] = useState("delta");
@@ -169,6 +170,7 @@ function App() {
     loadStatus();
     loadSummary();
     loadQueries();
+    loadCoverage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
 
@@ -177,6 +179,22 @@ function App() {
     loadSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, week, platoon]);
+
+  useEffect(() => {
+    loadCoverage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [week]);
+
+  useEffect(() => {
+    loadQueries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [week, platoon]);
+
+  useEffect(() => {
+    if (!week && summary?.week) {
+      setWeek(summary.week);
+    }
+  }, [summary, week]);
 
   const pingHealth = async () => {
     try {
@@ -265,6 +283,26 @@ function App() {
     } catch (err) {
       console.error(err);
       setSummary(null);
+    }
+  };
+
+  const loadCoverage = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (week) params.append("week", week);
+      const res = await fetch(`${apiBase}/queries/forms/coverage?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (handleAuthBanner(res.status, setBanner)) return;
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setCoverage(data);
+      if (!week && data.week) {
+        setWeek(data.week);
+      }
+    } catch (err) {
+      console.error(err);
+      setCoverage(null);
     }
   };
 
@@ -384,13 +422,35 @@ function App() {
   const battalionKpi = useMemo(() => {
     if (!summary?.battalion) return null;
     return {
-      week: summary.week || "latest",
+      week: summary.week || summary.latest_week || "latest",
       tanks: summary.battalion.tank_count,
       source: syncStatus?.files?.form_responses?.source || "n/a",
       lastSync: syncStatus?.files?.form_responses?.last_sync || "n/a",
       etag: syncStatus?.files?.form_responses?.etag || "n/a",
     };
   }, [summary, syncStatus]);
+
+  const coverageRows = useMemo(() => {
+    if (!coverage?.platoons) return [];
+    return Object.entries(coverage.platoons).map(([name, c]) => ({
+      key: name,
+      cells: [
+        name,
+        c.forms ?? 0,
+        c.distinct_tanks ?? 0,
+        c.days_since_last ?? "-",
+        c.anomaly ? c.anomaly : "תקין",
+      ],
+    }));
+  }, [coverage]);
+
+  const anomalyRows = useMemo(() => {
+    if (!coverage?.anomalies?.length) return [];
+    return coverage.anomalies.map((a, idx) => ({
+      key: `${a.platoon}-${idx}`,
+      cells: [a.platoon, a.reason, a.forms ?? 0, a.avg_forms_recent ?? "-", a.days_since_last ?? "-"],
+    }));
+  }, [coverage]);
 
   const zivudRows = useMemo(
     () => Object.entries(platoonSummary?.zivud_gaps || {}).map(([item, count]) => ({ key: item, cells: [item, count] })),
@@ -451,7 +511,7 @@ function App() {
     <div className="page">
       <header className="topbar">
         <div>
-          <h1>IronView · דשבורד מוכנות למלחמה</h1>
+          <h1>דשבורד מוכנות למלחמה · IronView</h1>
           <p className="muted">ייבוא קבצי שבוע, סנכרון, וניתוח זיווד/תחמושת/אמצעים</p>
         </div>
         <div className="header-actions">
@@ -591,6 +651,19 @@ function App() {
               <SummaryTable title="פערי צלמים" headers={["פריט", "צ טנק", "מט\"ק", "דגשים"]} rows={issueRows} />
             </div>
           )}
+
+          <div className="grid two-col">
+            <SummaryTable
+              title="כיסוי ודיווחים"
+              headers={["פלוגה", "מספר טפסים", "טנקים מדווחים", "ימים מאז דיווח", "אנומליה"]}
+              rows={coverageRows}
+            />
+            <SummaryTable
+              title="אנומליות"
+              headers={["פלוגה", "סיבה", "טפסים שבוע נוכחי", "ממוצע אחרון", "ימים ללא דיווח"]}
+              rows={anomalyRows}
+            />
+          </div>
         </section>
 
         <section id="analytics">
