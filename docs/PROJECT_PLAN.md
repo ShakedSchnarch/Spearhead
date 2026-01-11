@@ -64,7 +64,7 @@ All steps keep existing functionality; only additive improvements. Each phase en
 ## Architecture (Current)
 - Data: Adapters (xlsx), DTOs, SQLite storage, ImportService (hash idempotency), Google Sync provider/service, QueryService (deterministic).
 - API: FastAPI app factory; imports, queries, sync/google, health; static serve of `frontend-app/dist` at `/app` if present.
-- Frontend: `frontend-app/` (Vite React) consuming API; builds to dist.
+- Frontend: `frontend-app/` (Vite React with Mantine for UI, Chart.js lazily loaded for charts) consuming API; builds to dist.
 - Tests: unit/integration across adapters, import service, queries, API, sync.
 
 ## Engineering Standards & Context
@@ -114,7 +114,7 @@ All steps keep existing functionality; only additive improvements. Each phase en
 
 ## Design/UX Standards
 - Clear RTL support where needed; typographic pairing (non-default fonts) and purposeful color system; avoid CDN fonts/icons in offline mode.
-- Dashboard patterns: prominent KPIs, trends over time, gap tables with sorting/filtering, drill-down modals.
+- Dashboard patterns: prominent KPIs, trends over time, gap tables with sorting/filtering, drill-down modals. Mantine components (Cards/Badges/Grids) for consistency; Chart.js lazily loaded; empty states and notifications for success/error.
 - Accessibility: readable contrast, keyboard navigation for filters and tables; avoid text embedded in images.
 
 ## Maintenance Notes
@@ -148,7 +148,7 @@ Roadmap for the next release with manual Google sync, improved analytics, Hebrew
 - Views: clear Battalion/Platoon screens with KPIs (coverage, anomalies, sync status, etag), simple tables/charts, easy platoon navigation.
 - UX polish: consolidated action bar (import/sync/refresh), reduced duplicate toggles, compact hero, empty states instead of empty graphs.
 - Tests: UI build, RTL smoke, default autofill, sync status display.
-- Status: Implemented; dark theme, login gating with saved state, tabbed dashboard/export shell, and logo-based navigation are in place. Further polish for exports/AI will follow in later phases.
+- Status: Implemented; dark theme, login gating with saved state, tabbed dashboard/export shell, and logo-based navigation are in place. Mantine adopted for shell/login/cards, notifications added, empty states improved, Chart.js lazy-loaded to reduce bundle. Further polish for exports/AI will follow in later phases.
 
 ### Phase E: AI (OpenAI)
 - Use OpenAI provider with key from `.env`; show source (remote/cache/simulated) and a refresh action.
