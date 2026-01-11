@@ -74,7 +74,7 @@ h1, h2, h3, h4, p {
   color: #e2e8f0;
 }
 .pill.brand {
-  background: #22c55e;
+  background: linear-gradient(135deg, #22c55e, #10b981);
   color: #0b1220;
   border-color: #16a34a;
 }
@@ -439,14 +439,15 @@ pre {
   padding: 20px;
 }
 .login-card {
-  background: #ffffff;
-  border-radius: 16px;
+  background: radial-gradient(circle at 30% 20%, rgba(14,165,233,0.08), transparent 40%), #0c1525;
+  border-radius: 18px;
   padding: 28px;
-  width: min(420px, 100%);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+  width: min(430px, 100%);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border: 1px solid #19253a;
 }
 .login-form {
   display: flex;
@@ -460,21 +461,39 @@ pre {
   font-size: 12px;
 }
 .primary {
-  background: #0ea5e9;
+  background: linear-gradient(135deg, #0ea5e9, #22d3ee);
   color: #0b1220;
-  border: none;
+  border: 1px solid #0ea5e9;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
 }
 .login-card h1 {
   margin: 0;
   font-size: 24px;
-  color: #0f172a;
+  color: #e2e8f0;
 }
 .login-card .muted {
-  color: #475569;
+  color: #9fb3d0;
+}
+.login-logo {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 4px auto;
+  padding: 8px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+  border: 1px solid #1f2a3d;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.38);
+}
+.login-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+  background: #0f172a;
+  border: 1px solid #1f293b;
 }
 .empty-card {
   text-align: center;
@@ -541,10 +560,12 @@ pre {
   cursor: pointer;
   text-align: right;
   box-shadow: var(--shadow);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .platoon-card.active {
   border-color: #0ea5e9;
   box-shadow: 0 8px 22px rgba(14, 165, 233, 0.28);
+  transform: translateY(-2px);
 }
 .platoon-card__header {
   display: flex;

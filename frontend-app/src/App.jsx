@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Badge, Button, Card, Collapse, Group, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from "chart.js";
 import "./index.css";
 
@@ -87,60 +88,93 @@ const handleAuthBanner = (status, setBannerFn) => {
   return false;
 };
 
-function LoginOverlay({ onLogin, onReset, defaultPlatoon }) {
-  const [platoon, setPlatoon] = useState(defaultPlatoon || "כפיר");
+function LoginOverlay({ onLogin, defaultPlatoon }) {
+  const [target, setTarget] = useState(defaultPlatoon || "battalion");
   const [email, setEmail] = useState("");
   const [tokenInput, setTokenInput] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const logoSrc = target === "battalion" ? platoonLogos.romach : platoonLogos[target] || platoonLogos.romach;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onLogin({ platoon, email, token: tokenInput });
+    const viewMode = target === "battalion" ? "battalion" : "platoon";
+    const platoon = target === "battalion" ? "" : target;
+    onLogin({ platoon, email, token: tokenInput, viewMode });
   };
 
   const handleGoogle = () => {
+    const viewMode = target === "battalion" ? "battalion" : "platoon";
+    const platoon = target === "battalion" ? "" : target;
     if (oauthUrl) {
       const params = new URLSearchParams();
       params.append("platoon", platoon);
+      params.append("viewMode", viewMode);
       if (email) params.append("email", email);
       if (tokenInput) params.append("token", tokenInput);
       const sep = oauthUrl.includes("?") ? "&" : "?";
       window.location.href = `${oauthUrl}${sep}${params.toString()}`;
       return;
     }
-    onLogin({ platoon, email: email || "guest@spearhead.local", token: tokenInput });
+    onLogin({ platoon, email: email || "guest@spearhead.local", token: tokenInput, viewMode });
   };
 
   return (
     <div className="login-overlay">
-      <div className="login-card">
-        <div className="pill brand">קצה הרומח · Spearhead</div>
-        <h1>כניסה</h1>
-        <p className="muted">בחר פלוגה, הזדהה עם חשבון Google, והמשך לסנכרון אוטומטי.</p>
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label>
-            פלוגה:
-            <select value={platoon} onChange={(e) => setPlatoon(e.target.value)}>
-              <option value="כפיר">כפיר</option>
-              <option value="סופה">סופה</option>
-              <option value="מחץ">מחץ</option>
-            </select>
-          </label>
-          <label>
-            מייל Google:
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@domain" required />
-          </label>
-          <label>
-            טוקן (אם נדרש):
-            <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder="Bearer/Basic" />
-          </label>
-          <button type="submit" className="primary">המשך וסנכרן</button>
-          <button type="button" className="ghost" onClick={handleGoogle}>כניסה עם Google</button>
-          <button type="button" className="ghost danger" onClick={onReset}>איפוס הגדרות</button>
-        </form>
-        <div className="login-note muted">
-          סנכרון ינסה לרוץ אוטומטית לאחר הכניסה. ניתן להעלות קובץ טפסים ידנית במקרה של כשל.
+      <Paper shadow="xl" radius="lg" className="login-card" withBorder>
+        <Group justify="center" align="center">
+          <Badge color="teal" radius="xl" variant="gradient" gradient={{ from: "green", to: "teal" }}>
+            קצה הרומח · Spearhead
+          </Badge>
+        </Group>
+        <div className="login-logo">
+          <img src={logoSrc} alt={target === "battalion" ? "רומח" : target} />
         </div>
-      </div>
+        <Title order={2} ta="center">כניסה</Title>
+        <Text ta="center" c="dimmed" size="sm">בחר מצב (גדוד/פלוגה), הזדהה עם חשבון Google, והמשך לסנכרון אוטומטי.</Text>
+        <Stack gap="xs" mt="sm" component="form" onSubmit={handleSubmit}>
+          <Select
+            label="מצב"
+            value={target}
+            onChange={(value) => setTarget(value || "battalion")}
+            data={[
+              { value: "battalion", label: "גדוד (רומח)" },
+              { value: "כפיר", label: "כפיר" },
+              { value: "סופה", label: "סופה" },
+              { value: "מחץ", label: "מחץ" },
+            ]}
+            required
+          />
+          <TextInput
+            label="מייל Google"
+            placeholder="name@domain"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <Collapse in={showAdvanced}>
+            <TextInput
+              label="טוקן (מתקדם/דב)"
+              placeholder="Bearer/Basic"
+              type="password"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+            />
+          </Collapse>
+          <Button type="submit" color="cyan" radius="md" fullWidth>
+            המשך וסנכרן
+          </Button>
+          <Button type="button" variant="light" radius="md" fullWidth onClick={handleGoogle}>
+            כניסה עם Google
+          </Button>
+          <Button type="button" variant="subtle" radius="md" fullWidth onClick={() => setShowAdvanced((v) => !v)}>
+            {showAdvanced ? "הסתר מתקדם" : "שדות מתקדמים (דב)"}
+          </Button>
+        </Stack>
+        <Text size="xs" c="dimmed" ta="center" mt="xs">
+          סנכרון ינסה לרוץ אוטומטית לאחר הכניסה. ניתן להעלות קובץ טפסים ידנית במקרה של כשל.
+        </Text>
+      </Paper>
     </div>
   );
 }
@@ -157,14 +191,23 @@ function SectionHeader({ title, subtitle, children }) {
   );
 }
 
-function UploadCard({ title, inputId, onUpload }) {
+function UploadCard({ title, inputId, onUpload, disabled }) {
   return (
-    <div className="card">
-      <div className="card-title">{title}</div>
-      <input type="file" id={inputId} />
-      <button onClick={() => onUpload(inputId)}>העלה</button>
+    <Card withBorder shadow="md" padding="md" radius="md">
+      <Text fw={700} mb="xs">{title}</Text>
+      <input type="file" id={inputId} disabled={disabled} />
+      <Button
+        fullWidth
+        mt="sm"
+        radius="md"
+        onClick={() => onUpload(inputId)}
+        disabled={disabled}
+        loading={disabled}
+      >
+        העלה
+      </Button>
       <div className="result" id={`result-${inputId}`} />
-    </div>
+    </Card>
   );
 }
 
@@ -206,17 +249,17 @@ function ChartCard({ title, data, color = "#22c55e" }) {
   }, [data, title, color]);
 
   return (
-    <div className="card">
+    <Card withBorder shadow="sm" padding="md" radius="md">
       <div className="card-title">{title}</div>
       <canvas ref={ref} height="120" />
       {!hasData && <div className="empty-hint">אין נתונים להצגה</div>}
-    </div>
+    </Card>
   );
 }
 
 function SummaryTable({ title, headers, rows }) {
   return (
-    <div className="card">
+    <Card withBorder shadow="sm" padding="md" radius="md">
       <div className="card-title">{title}</div>
       <table className="table">
         <thead>
@@ -242,7 +285,7 @@ function SummaryTable({ title, headers, rows }) {
           )}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
 
@@ -282,11 +325,17 @@ function PlatoonCard({ name, coverage, onSelect, isActive }) {
 
 function KpiCard({ label, value, hint, tone = "neutral" }) {
   return (
-    <div className={`kpi-card ${tone}`}>
+    <Paper
+      className={`kpi-card ${tone}`}
+      withBorder
+      shadow="sm"
+      padding="md"
+      radius="md"
+    >
       <div className="kpi-card__label">{label}</div>
       <div className="kpi-card__value">{value}</div>
       {hint && <div className="kpi-card__hint">{hint}</div>}
-    </div>
+    </Paper>
   );
 }
 
@@ -326,6 +375,9 @@ function App() {
   const [trends, setTrends] = useState([]);
   const [sortField, setSortField] = useState("delta");
   const [sortDir, setSortDir] = useState("desc");
+  const [syncing, setSyncing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -431,6 +483,7 @@ function App() {
       resultEl.textContent = "בחר/י קובץ";
       return;
     }
+    setUploading(true);
     const form = new FormData();
     form.append("file", file);
     resultEl.textContent = "מעלה...";
@@ -455,6 +508,7 @@ function App() {
       resultEl.textContent = `שגיאה: ${err}`;
       setBanner({ text: `שגיאה בהעלאה (${friendlyImportName(kind)}): ${err}`, tone: "danger" });
     }
+    setUploading(false);
   };
 
   const loadSummary = async () => {
@@ -503,7 +557,9 @@ function App() {
   };
 
   const triggerSync = async () => {
+    if (syncing) return;
     setBanner({ text: "סנכרון מתבצע...", tone: "warning" });
+    setSyncing(true);
     try {
       const res = await fetch(`${apiBase}/sync/google?target=all`, {
         method: "POST",
@@ -519,6 +575,7 @@ function App() {
     } catch (err) {
       setBanner({ text: `שגיאה בסנכרון: ${err}`, tone: "danger" });
     }
+    setSyncing(false);
   };
 
   const loadQueries = async () => {
@@ -682,38 +739,10 @@ function App() {
     return { formsTotal, tanksTotal, anomaliesCount };
   }, [coverage]);
 
-  const resetClientState = () => {
-    setUser(null);
-    setToken("");
-    setPlatoon("");
-    setWeek("");
-    setViewMode("battalion");
-    setActiveTab("dashboard");
-    setSection("zivud");
-    setTopN(5);
-    setBanner(null);
-    setSummary(null);
-    setSyncStatus(null);
-    setTotals([]);
-    setGaps([]);
-    setDelta([]);
-    setVariance([]);
-    setForms({ ok: [], gaps: [] });
-    setCoverage(null);
-    setInsight({ content: "", source: "" });
-    setTrends([]);
-    setAutoSyncDone(false);
-    setLastUpdated(null);
-    clearStoredState();
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
-  };
-
   const handleLogin = (payload) => {
     setUser({ platoon: payload.platoon, email: payload.email, token: payload.token || "" });
     setToken(payload.token || "");
-    setViewMode("battalion");
+    setViewMode(payload.viewMode || (payload.platoon ? "platoon" : "battalion"));
     setActiveTab("dashboard");
   };
 
@@ -773,7 +802,7 @@ function App() {
   );
 
   if (!user) {
-    return <LoginOverlay onLogin={handleLogin} onReset={resetClientState} defaultPlatoon={platoon || "כפיר"} />;
+    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "battalion"} />;
   }
 
   return (
@@ -781,18 +810,33 @@ function App() {
       <header className="topbar">
         <div className="hero">
           <div className="hero-text">
-            <div className="pill brand">קצה הרומח · רומח 75</div>
-            <h1>קצה הרומח · דשבורד מוכנות</h1>
-            <p className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</p>
-            <div className="header-actions">
-              <div className="pill small">משתמש: {user.email || "לא צוין"}</div>
-              <div className="pill small">פלוגה: {user.platoon || "n/a"}</div>
-              <div className="status">{health}</div>
-              <div className="pill">{syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}</div>
-              <button className="pill ghost" onClick={resetClientState}>התנתק / איפוס</button>
-            </div>
+            <Badge color="teal" size="lg" radius="md" variant="gradient" gradient={{ from: "green", to: "teal" }}>
+              קצה הרומח · רומח 75
+            </Badge>
+            <Title order={2} mt="xs">דשבורד מוכנות</Title>
+            <Text className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</Text>
+            <Group gap="xs" mt="sm" wrap="wrap" className="header-actions">
+              <Badge variant="light" color="gray">משתמש: {user.email || "לא צוין"}</Badge>
+              <Badge variant="light" color="cyan">מצב: {viewMode === "battalion" ? "גדוד" : "פלוגה"} {user.platoon ? `· ${user.platoon}` : ""}</Badge>
+              <Badge variant="outline" color="green">{health}</Badge>
+              <Badge variant="outline" color={syncStatus?.enabled ? "teal" : "gray"}>
+                {syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}
+              </Badge>
+              <Button
+                variant="light"
+                size="xs"
+                color="red"
+                onClick={() => { setUser(null); setToken(""); if (storage) storage.removeItem("IRONVIEW_USER"); }}
+              >
+                התנתק
+              </Button>
+            </Group>
           </div>
-          <img src={platoonLogos.romach} alt="רומח 75" className="hero-logo" />
+          <img
+            src={viewMode === "battalion" || !user.platoon ? platoonLogos.romach : platoonLogos[user.platoon] || platoonLogos.romach}
+            alt={viewMode === "battalion" ? "רומח 75" : user.platoon}
+            className="hero-logo"
+          />
         </div>
       </header>
 
@@ -808,21 +852,34 @@ function App() {
 
       <main>
         <div className="actions-bar">
-          <div className="tabs">
-            <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>
-              דשבורד
-            </button>
-            <button className={activeTab === "export" ? "active" : ""} onClick={() => setActiveTab("export")}>
-              הפקת דוחות
-            </button>
-          </div>
-          <div className="button-group gap">
-            <button onClick={triggerSync}>סנכרון מ-Google</button>
-            <button onClick={() => { loadQueries(); loadSummary(); loadStatus(); loadCoverage(); }}>רענון נתונים</button>
-          </div>
+          <Group gap="xs" wrap="wrap">
+            <Group gap={4} className="tabs">
+              <Button variant={activeTab === "dashboard" ? "filled" : "light"} onClick={() => setActiveTab("dashboard")}>
+                דשבורד
+              </Button>
+              <Button variant={activeTab === "export" ? "filled" : "light"} onClick={() => setActiveTab("export")}>
+                הפקת דוחות
+              </Button>
+            </Group>
+            <Group gap="xs" className="button-group">
+              <Button onClick={triggerSync} loading={syncing} variant="filled" color="cyan">סנכרון מ-Google</Button>
+              <Button
+                onClick={async () => {
+                  if (refreshing) return;
+                  setRefreshing(true);
+                  await Promise.all([loadQueries(), loadSummary(), loadStatus(), loadCoverage()]);
+                  setRefreshing(false);
+                }}
+                loading={refreshing}
+                variant="light"
+              >
+                רענון נתונים
+              </Button>
+            </Group>
+          </Group>
         </div>
 
-        <div className="kpi-strip">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" className="kpi-strip">
           <KpiCard label="שבוע נוכחי" value={summary?.latest_week || summary?.week || coverage?.week || "n/a"} />
           <KpiCard
             label="דיווחים השבוע"
@@ -831,34 +888,39 @@ function App() {
           />
           <KpiCard label="טנקים מדווחים" value={coverageTotals.tanksTotal || 0} />
           <KpiCard
-            label="סנכרון אחרון"
-            value={syncInfo.last}
-            hint={`מקור: ${syncInfo.source} · ETag: ${syncInfo.etag}`}
-            tone={syncInfo.status === "error" ? "danger" : "neutral"}
-          />
-          <KpiCard
             label="אנומליות פעילות"
             value={coverageTotals.anomaliesCount}
             tone={coverageTotals.anomaliesCount ? "warn" : "neutral"}
           />
-        </div>
+        </SimpleGrid>
 
         {activeTab === "dashboard" && (
           <>
             <section id="import">
-              <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
-              <div className="upload-grid">
-                <UploadCard title="Form Responses" inputId="file-form" onUpload={(id) => uploadFile("form-responses", id)} />
-              </div>
-              {!syncStatus && (
-                <div className="empty-state">
-                  אין נתונים עדיין. התחבר/י וסנכרן מגוגל או העלה קובץ טפסים ידנית כדי לטעון את הדאטה.
-                </div>
-              )}
-              <div className="actions" style={{ marginTop: 10 }}>
-                <button onClick={triggerSync}>סנכרון מ-Google Sheets</button>
-              </div>
-            </section>
+          <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
+          <div className="upload-grid">
+            <UploadCard title="Form Responses" inputId="file-form" onUpload={(id) => uploadFile("form-responses", id)} disabled={uploading} />
+          </div>
+          {!syncStatus && (
+            <div className="empty-state">
+              אין נתונים עדיין. התחבר/י וסנכרן מגוגל או העלה קובץ טפסים ידנית כדי לטעון את הדאטה.
+            </div>
+            )}
+            <div className="actions" style={{ marginTop: 10 }}>
+              <button onClick={triggerSync} disabled={syncing}>{syncing ? "מסנכרן..." : "סנכרון מ-Google Sheets"}</button>
+              <button
+                onClick={async () => {
+                  if (refreshing) return;
+                  setRefreshing(true);
+                  await Promise.all([loadQueries(), loadSummary(), loadStatus(), loadCoverage()]);
+                  setRefreshing(false);
+                }}
+                disabled={refreshing}
+              >
+                {refreshing ? "מרענן..." : "רענון נתונים"}
+              </button>
+            </div>
+          </section>
 
             <section id="platoons">
               <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים" />
