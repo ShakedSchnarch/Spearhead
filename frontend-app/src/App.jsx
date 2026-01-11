@@ -86,7 +86,7 @@ const handleAuthBanner = (status, setBannerFn) => {
   return false;
 };
 
-function LoginOverlay({ onLogin, defaultPlatoon }) {
+function LoginOverlay({ onLogin, defaultPlatoon, oauthReady }) {
   const [target, setTarget] = useState(defaultPlatoon || "battalion");
   const [email, setEmail] = useState("");
   const [tokenInput, setTokenInput] = useState("");
@@ -910,7 +910,7 @@ function App() {
   );
 
   if (!user) {
-    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "battalion"} />;
+    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "battalion"} oauthReady={oauthReady} />;
   }
 
   return (
