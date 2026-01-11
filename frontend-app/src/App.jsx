@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, Collapse, Group, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from "chart.js";
 import "./index.css";
-
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
 const storage = typeof window !== "undefined" ? window.localStorage : null;
 const oauthUrl = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_GOOGLE_OAUTH_URL || "") : "";
@@ -216,43 +213,56 @@ function ChartCard({ title, data, color = "#22c55e" }) {
   const ref = useRef(null);
   const chartRef = useRef(null);
   const hasData = (data?.length || 0) > 0;
+  const [chartReady, setChartReady] = useState(false);
+  const chartModule = useRef(null);
 
   useEffect(() => {
-    if (!ref.current) return;
-    if (chartRef.current) chartRef.current.destroy();
+    let mounted = true;
+    const loadChart = async () => {
+      if (!ref.current) return;
+      const { default: Chart } = chartModule.current || (chartModule.current = await import("chart.js/auto"));
+      if (!mounted) return;
+      if (chartRef.current) chartRef.current.destroy();
 
-    const labels = data?.map((d) => d.item) || [];
-    const values = data?.map((d) => d.value ?? d.total ?? d.gaps ?? 0) || [];
+      const labels = data?.map((d) => d.item) || [];
+      const values = data?.map((d) => d.value ?? d.total ?? d.gaps ?? 0) || [];
 
-    chartRef.current = new Chart(ref.current, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: title,
-            data: values,
-            backgroundColor: `${color}99`,
-            borderColor: color,
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: "#475569" }, grid: { display: false } },
-          y: { ticks: { color: "#475569" }, grid: { color: "#e2e8f0" } },
+      chartRef.current = new Chart(ref.current, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: title,
+              data: values,
+              backgroundColor: `${color}99`,
+              borderColor: color,
+              borderWidth: 1,
+            },
+          ],
         },
-      },
-    });
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#9fb3d0" }, grid: { display: false } },
+            y: { ticks: { color: "#9fb3d0" }, grid: { color: "#1f293b" } },
+          },
+        },
+      });
+      setChartReady(true);
+    };
+    loadChart();
+    return () => {
+      mounted = false;
+      if (chartRef.current) chartRef.current.destroy();
+    };
   }, [data, title, color]);
 
   return (
     <Card withBorder shadow="sm" padding="md" radius="md">
       <div className="card-title">{title}</div>
-      <canvas ref={ref} height="120" />
+      <canvas ref={ref} height="120" style={{ opacity: chartReady && hasData ? 1 : 0.3 }} />
       {!hasData && <div className="empty-hint">אין נתונים להצגה</div>}
     </Card>
   );
