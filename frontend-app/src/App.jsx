@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, Collapse, Group, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, Legend, CartesianGrid } from "recharts";
 import "./index.css";
 
 const storage = typeof window !== "undefined" ? window.localStorage : null;
@@ -212,10 +211,33 @@ function UploadCard({ title, inputId, onUpload, disabled }) {
 
 function ChartCard({ title, data, color = "#22c55e" }) {
   const hasData = (data?.length || 0) > 0;
+  const [recharts, setRecharts] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const mod = await import("recharts");
+      if (!mounted) return;
+      setRecharts({
+        ResponsiveContainer: mod.ResponsiveContainer,
+        BarChart: mod.BarChart,
+        Bar: mod.Bar,
+        XAxis: mod.XAxis,
+        YAxis: mod.YAxis,
+        RTooltip: mod.Tooltip,
+        Legend: mod.Legend,
+        CartesianGrid: mod.CartesianGrid,
+      });
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, RTooltip, Legend, CartesianGrid } = recharts || {};
   return (
     <Card withBorder shadow="sm" padding="md" radius="md">
       <div className="card-title">{title}</div>
-      {hasData ? (
+      {hasData && recharts ? (
         <div style={{ width: "100%", height: 240 }}>
           <ResponsiveContainer>
             <BarChart data={data}>
