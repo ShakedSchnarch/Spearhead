@@ -114,6 +114,7 @@ function LoginOverlay({ onLogin, defaultPlatoon }) {
       window.location.href = `${oauthUrl}${sep}${params.toString()}`;
       return;
     }
+    notifications.show({ title: "OAuth לא מוגדר", message: "לא הוגדר VITE_GOOGLE_OAUTH_URL. משתמש בפלואו הידני.", color: "yellow" });
     onLogin({ platoon, email: email || "guest@spearhead.local", token: tokenInput, viewMode });
   };
 
@@ -332,6 +333,33 @@ function EmptyCard({ title, message }) {
   );
 }
 
+function FormStatusTables({ formsOk, formsGaps }) {
+  const okRows = (formsOk || []).map((f, idx) => ({ key: idx, cells: [f.platoon || f.item || "?", f.week || "?", f.total || f.count || 0] }));
+  const gapRows = (formsGaps || []).map((f, idx) => ({ key: idx, cells: [f.platoon || f.item || "?", f.week || "?", f.total || f.count || 0] }));
+  return (
+    <div className="grid two-col">
+      {okRows.length ? (
+        <SummaryTable
+          title="טפסים תקינים"
+          headers={["פלוגה", "שבוע", "סה\"כ"]}
+          rows={okRows}
+        />
+      ) : (
+        <EmptyCard title="אין טפסים תקינים" message="לא נמצאו טפסים תקינים לנתונים שהועלו." />
+      )}
+      {gapRows.length ? (
+        <SummaryTable
+          title="פערי טפסים"
+          headers={["פלוגה", "שבוע", "סה\"כ"]}
+          rows={gapRows}
+        />
+      ) : (
+        <EmptyCard title="אין פערי טפסים" message="לא נמצאו פערים ברשומות הטפסים." />
+      )}
+    </div>
+  );
+}
+
 function KpiCard({ label, value, hint, tone = "neutral" }) {
   return (
     <Paper
@@ -388,6 +416,7 @@ function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [oauthReady] = useState(Boolean(oauthUrl));
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -656,7 +685,16 @@ function App() {
       const res = await fetch(`${apiBase}${endpoint}?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const errJson = await res.json();
+          detail = errJson.detail || JSON.stringify(errJson);
+        } catch {
+          detail = await res.text();
+        }
+        throw new Error(detail || "Export failed");
+      }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -1226,17 +1264,8 @@ function App() {
               </div>
 
               <div className="card">
-                <div className="card-title">Form Status</div>
-                <div className="grid two-col">
-                  <div>
-                    <h4>OK</h4>
-                    <pre>{formsOk}</pre>
-                  </div>
-                  <div>
-                    <h4>Gaps</h4>
-                    <pre>{formsGaps}</pre>
-                  </div>
-                </div>
+                <div className="card-title">מצב טפסים</div>
+                <FormStatusTables formsOk={forms.ok} formsGaps={forms.gaps} />
               </div>
 
               <div className="grid two-col">
