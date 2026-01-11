@@ -50,6 +50,47 @@ const handleAuthBanner = (status, setBannerFn) => {
   return false;
 };
 
+function LoginOverlay({ onLogin, defaultPlatoon }) {
+  const [platoon, setPlatoon] = useState(defaultPlatoon || "כפיר");
+  const [email, setEmail] = useState("");
+  const [tokenInput, setTokenInput] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onLogin({ platoon, email, token: tokenInput });
+  };
+
+  return (
+    <div className="login-overlay">
+      <div className="login-card">
+        <div className="pill brand">קצה הרומח · Spearhead</div>
+        <h1>כניסה</h1>
+        <p className="muted">בחר פלוגה, הזדהה עם חשבון Google, והמשך לסנכרון.</p>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <label>
+            פלוגה:
+            <select value={platoon} onChange={(e) => setPlatoon(e.target.value)}>
+              <option value="כפיר">כפיר</option>
+              <option value="סופה">סופה</option>
+              <option value="מחץ">מחץ</option>
+            </select>
+          </label>
+          <label>
+            מייל Google:
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@domain" required />
+          </label>
+          <label>
+            טוקן (אם נדרש):
+            <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder="Bearer/Basic" />
+          </label>
+          <button type="submit" className="primary">המשך וסנכרן</button>
+        </form>
+        <div className="login-note muted">סנכרון ינסה לרוץ אוטומטית לאחר הכניסה.</div>
+      </div>
+    </div>
+  );
+}
+
 function SectionHeader({ title, subtitle, children }) {
   return (
     <div className="section-header">
@@ -204,6 +245,11 @@ function App() {
   const [week, setWeek] = useState(persisted("IRONVIEW_WEEK", ""));
   const [viewMode, setViewMode] = useState(persisted("IRONVIEW_VIEW", "battalion"));
   const [token, setToken] = useState(persisted("IRONVIEW_TOKEN", ""));
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem("IRONVIEW_USER");
+    return stored ? JSON.parse(stored) : null;
+  });
+  const [autoSyncDone, setAutoSyncDone] = useState(false);
   const [summary, setSummary] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
   const [platoonOptions, setPlatoonOptions] = useState([]);
@@ -228,28 +274,47 @@ function App() {
   useEffect(() => localStorage.setItem("IRONVIEW_WEEK", week), [week]);
   useEffect(() => localStorage.setItem("IRONVIEW_VIEW", viewMode), [viewMode]);
   useEffect(() => localStorage.setItem("IRONVIEW_TOKEN", token), [token]);
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("IRONVIEW_USER", JSON.stringify(user));
+      if (user.token && !token) {
+        setToken(user.token);
+      }
+      if (user.platoon && !platoon) {
+        setPlatoon(user.platoon);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
     pingHealth();
     loadStatus();
     loadSummary();
     loadQueries();
     loadCoverage();
+    if (!autoSyncDone) {
+      triggerSync();
+      setAutoSyncDone(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiBase]);
+  }, [apiBase, user]);
 
   useEffect(() => {
+    if (!user) return;
     if (viewMode === "platoon" && !platoon) return;
     loadSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, week, platoon]);
 
   useEffect(() => {
+    if (!user) return;
     loadCoverage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [week]);
 
   useEffect(() => {
+    if (!user) return;
     loadQueries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [week, platoon]);
@@ -550,6 +615,16 @@ function App() {
     return { formsTotal, tanksTotal, anomaliesCount };
   }, [coverage]);
 
+  const handleLogin = (payload) => {
+    setUser({ platoon: payload.platoon, email: payload.email, token: payload.token || "" });
+    setToken(payload.token || "");
+    setViewMode("battalion");
+  };
+
+  if (!user) {
+    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "כפיר"} />;
+  }
+
   const zivudRows = useMemo(
     () => Object.entries(platoonSummary?.zivud_gaps || {}).map(([item, count]) => ({ key: item, cells: [item, count] })),
     [platoonSummary]
@@ -614,21 +689,13 @@ function App() {
             <h1>דשבורד מוכנות גדודי</h1>
             <p className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</p>
             <div className="header-actions">
-              <label className="api-label">
-                API:
-                <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} placeholder={fallbackApi} />
-              </label>
-              <label className="api-label">
-                טוקן:
-                <input
-                  type="password"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Bearer token (אם נדרש)"
-                />
-              </label>
+              <div className="pill small">משתמש: {user.email || "לא צוין"}</div>
+              <div className="pill small">פלוגה: {user.platoon || "n/a"}</div>
               <div className="status">{health}</div>
               <div className="pill">{syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}</div>
+              <div className="pill ghost" onClick={() => { setUser(null); setToken(""); localStorage.removeItem("IRONVIEW_USER"); }}>
+                התנתק
+              </div>
             </div>
           </div>
           <img src={platoonLogos.romach} alt="רומח 75" className="hero-logo" />
@@ -678,10 +745,8 @@ function App() {
         </div>
 
         <section id="import">
-          <SectionHeader title="ייבוא וסנכרון" subtitle="העלה את הדוחות השבועיים או סנכרן מ-Google Sheets." />
+          <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
           <div className="upload-grid">
-            <UploadCard title="Platoon Loadout" inputId="file-loadout" onUpload={(id) => uploadFile("platoon-loadout", id)} />
-            <UploadCard title="Battalion Summary" inputId="file-summary" onUpload={(id) => uploadFile("battalion-summary", id)} />
             <UploadCard title="Form Responses" inputId="file-form" onUpload={(id) => uploadFile("form-responses", id)} />
           </div>
           <div className="actions" style={{ marginTop: 10 }}>

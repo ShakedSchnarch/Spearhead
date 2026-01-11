@@ -375,6 +375,46 @@ pre {
   border: 1px solid #cbd5e1;
   color: #0f172a;
 }
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, #1f2937 0, transparent 25%), #0b1220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.login-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  width: min(420px, 100%);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.login-form input, .login-form select {
+  width: 100%;
+}
+.login-note {
+  font-size: 12px;
+}
+.primary {
+  background: #0ea5e9;
+  color: #0b1220;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .empty-card {
   text-align: center;
   padding: 20px;
