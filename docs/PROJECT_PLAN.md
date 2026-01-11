@@ -142,10 +142,12 @@ Roadmap for the next release with manual Google sync, improved analytics, Hebrew
 - Smoke: sync/upload → export platoon/battalion with detected platoons.
 
 ### Phase D: Dashboard rebrand "קצה הרומח"
-- Brand: rename UI, apply battalion/companies logos from `assets/logos/` (Romach_75, Kfir, Sufa, Machatz, Palsam), RTL-first.
+- Brand: rename UI, apply battalion/companies logos from `assets/logos/` (Romach_75, Kfir, Sufa, Machatz, Palsam), RTL-first. Use "קצה הרומח" in UI, "Spearhead" where English names are needed.
 - Defaults: auto API base from host, auto-select latest week, platoon choice via cards/list with logos; no IP/week typing.
 - Views: clear Battalion/Platoon screens with KPIs (coverage, anomalies, sync status, etag), simple tables/charts, easy platoon navigation.
+- UX polish: consolidated action bar (import/sync/refresh), reduced duplicate toggles, compact hero, empty states instead of empty graphs.
 - Tests: UI build, RTL smoke, default autofill, sync status display.
+- Status: Implemented; further visual refinements ongoing.
 
 ### Phase E: AI (OpenAI)
 - Use OpenAI provider with key from `.env`; show source (remote/cache/simulated) and a refresh action.

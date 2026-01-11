@@ -523,10 +523,13 @@ function App() {
   }, [coverage]);
 
   const platoonCards = useMemo(() => {
-    return knownPlatoons.map((name) => ({
-      name,
-      coverage: coverage?.platoons?.[name],
-    }));
+    const entries = Object.entries(coverage?.platoons || {}).filter(([, c]) => (c?.forms || c?.distinct_tanks || 0) > 0);
+    if (entries.length) {
+      return entries.map(([name, cov]) => ({ name, coverage: cov }));
+    }
+    return knownPlatoons
+      .filter((name) => coverage?.platoons?.[name])
+      .map((name) => ({ name, coverage: coverage.platoons[name] }));
   }, [coverage]);
 
   const syncInfo = useMemo(() => {
@@ -609,7 +612,7 @@ function App() {
           <div className="hero-text">
             <div className="pill brand">קצה הרומח · רומח 75</div>
             <h1>דשבורד מוכנות גדודי</h1>
-            <p className="muted">סקירה פלוגתית/גדודית, סנכרון ידני מגוגל, כיסוי ואנומליות.</p>
+            <p className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</p>
             <div className="header-actions">
               <label className="api-label">
                 API:
@@ -644,19 +647,12 @@ function App() {
 
       <main>
         <div className="actions-bar">
-          <div className="button-group">
-            <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
-              מצב גדודי
-            </button>
-            <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
-              מצב פלוגה
-            </button>
-          </div>
           <div className="button-group gap">
             <button onClick={() => document.getElementById("import")?.scrollIntoView({ behavior: "smooth" })}>
               ייבוא/סנכרון
             </button>
             <button onClick={triggerSync}>סנכרון מ-Google</button>
+            <button onClick={() => { loadQueries(); loadSummary(); loadStatus(); loadCoverage(); }}>רענון נתונים</button>
           </div>
         </div>
 
@@ -681,13 +677,6 @@ function App() {
           />
         </div>
 
-        <nav className="nav-quick">
-          <a href="#import">ייבוא וסנכרון</a>
-          <a href="#platoons">ניווט פלוגות</a>
-          <a href="#views">גדוד/פלוגה</a>
-          <a href="#analytics">מדדי זיווד/תחמושת</a>
-        </nav>
-
         <section id="import">
           <SectionHeader title="ייבוא וסנכרון" subtitle="העלה את הדוחות השבועיים או סנכרן מ-Google Sheets." />
           <div className="upload-grid">
@@ -702,39 +691,24 @@ function App() {
 
         <section id="platoons">
           <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים">
-            <div className="controls">
-              <div className="segmented">
-                <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
-                  גדוד
-                </button>
-                <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
-                  פלוגה
-                </button>
-              </div>
-              <label>
-                שבוע (YYYY-Www):
-                <input type="text" placeholder="לדוגמה 2026-W01" value={week} onChange={(e) => setWeek(e.target.value)} />
-              </label>
-            </div>
           </SectionHeader>
           <div className="platoon-grid">
-            {platoonCards.map((card) => (
-              <PlatoonCard
-                key={card.name}
-                name={card.name}
-                coverage={card.coverage}
-                onSelect={(name) => {
-                  setPlatoon(name);
-                  setViewMode("platoon");
-                }}
-                isActive={platoon === card.name}
-              />
-            ))}
-          </div>
-          <div className="actions" style={{ marginTop: 10 }}>
-            <button className="ghost" onClick={() => setViewMode("battalion")}>
-              חזרה לתצוגת גדוד
-            </button>
+            {platoonCards.length ? (
+              platoonCards.map((card) => (
+                <PlatoonCard
+                  key={card.name}
+                  name={card.name}
+                  coverage={card.coverage}
+                  onSelect={(name) => {
+                    setPlatoon(name);
+                    setViewMode("platoon");
+                  }}
+                  isActive={platoon === card.name}
+                />
+              ))
+            ) : (
+              <div className="card empty-card">אין נתוני כיסוי. העלה טפסים כדי לראות פלוגות.</div>
+            )}
           </div>
         </section>
 

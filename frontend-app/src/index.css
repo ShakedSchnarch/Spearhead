@@ -30,10 +30,11 @@ h1, h2, h3, h4, p {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  padding: 8px 0;
 }
 .hero-text h1 {
-  font-size: 28px;
-  margin-top: 4px;
+  font-size: 26px;
+  margin-top: 6px;
 }
 .hero-text .muted {
   color: #cbd5e1;
@@ -45,6 +46,7 @@ h1, h2, h3, h4, p {
   object-fit: contain;
   border: 2px solid #1f2937;
   background: #0f172a;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
 }
 .pill {
   display: inline-flex;
@@ -350,10 +352,11 @@ pre {
 }
 .actions-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+  margin-bottom: 10px;
 }
 .button-group {
   display: inline-flex;
@@ -371,6 +374,13 @@ pre {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   color: #0f172a;
+}
+.empty-card {
+  text-align: center;
+  padding: 20px;
+  font-size: 14px;
+  color: #64748b;
+  border: 1px dashed #cbd5e1;
 }
 .kpi-strip {
   display: grid;
