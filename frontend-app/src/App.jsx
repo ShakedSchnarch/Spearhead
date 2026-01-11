@@ -387,6 +387,7 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -639,6 +640,38 @@ function App() {
     } catch (err) {
       setBanner({ text: "שגיאה בטעינת נתונים. בדוק כתובת API או הרשאות.", tone: "danger" });
     }
+  };
+
+  const exportReport = async (mode) => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (week) params.append("week", week);
+      if (mode === "platoon") {
+        if (!platoon) throw new Error("בחר פלוגה לייצוא פלוגתי");
+        params.append("platoon", platoon);
+      }
+      const endpoint = mode === "platoon" ? "/exports/platoon" : "/exports/battalion";
+      const res = await fetch(`${apiBase}${endpoint}?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const fname = mode === "platoon" ? `platoon_${platoon}_${week || "latest"}.xlsx` : `battalion_${week || "latest"}.xlsx`;
+      link.download = fname;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      notifications.show({ title: "הייצוא מוכן", message: `הקובץ ${fname} ירד בהצלחה`, color: "teal" });
+    } catch (err) {
+      notifications.show({ title: "שגיאה בייצוא", message: String(err), color: "red" });
+    }
+    setExporting(false);
   };
 
   const sortedDelta = useMemo(() => {
@@ -1237,13 +1270,28 @@ function App() {
                   שבוע (YYYY-Www):
                   <input type="text" value={week} onChange={(e) => setWeek(e.target.value)} placeholder="לדוגמה 2026-W01" />
                 </label>
-                <button onClick={() => setBanner({ text: "ייצוא נתמך כעת דרך CLI (seed-and-export.sh) או API ייעודי בעתיד.", tone: "info" })}>
-                  הפק דוח
-                </button>
+                <Button
+                  variant="filled"
+                  color="cyan"
+                  onClick={() => exportReport("platoon")}
+                  disabled={!platoon || exporting}
+                  loading={exporting}
+                >
+                  ייצוא פלוגתי
+                </Button>
+                <Button
+                  variant="light"
+                  onClick={() => exportReport("battalion")}
+                  loading={exporting}
+                >
+                  ייצוא גדודי
+                </Button>
               </div>
             </SectionHeader>
             <div className="card">
-              <p className="muted">כרגע הייצוא מבוצע דרך סקריפט CLI (scripts/seed-and-export.sh) לאחר סנכרון/העלאה. כפתור API יתווסף בסבב הבא.</p>
+              <p className="muted">
+                הייצוא מתבצע כעת ישירות מה-API (לפי שבוע ופלוגה). ניתן עדיין להריץ CLI: scripts/seed-and-export.sh עבור זרימה מלאה.
+              </p>
             </div>
           </section>
         )}
