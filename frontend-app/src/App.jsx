@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, Collapse, Group, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from "chart.js";
 import "./index.css";
 
@@ -501,12 +502,14 @@ function App() {
       const data = await res.json();
       resultEl.textContent = `הוכנסו ${data.inserted}`;
       setBanner({ text: `העלאה הצליחה (${friendlyImportName(kind)}) · נוספו ${data.inserted} רשומות`, tone: "success" });
+      notifications.show({ title: "העלאה הושלמה", message: `נוספו ${data.inserted} רשומות (${friendlyImportName(kind)})`, color: "teal" });
       await loadQueries();
       await loadStatus();
       await loadSummary();
     } catch (err) {
       resultEl.textContent = `שגיאה: ${err}`;
       setBanner({ text: `שגיאה בהעלאה (${friendlyImportName(kind)}): ${err}`, tone: "danger" });
+      notifications.show({ title: "שגיאה בהעלאה", message: String(err), color: "red" });
     }
     setUploading(false);
   };
@@ -569,11 +572,13 @@ function App() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setBanner({ text: `סנכרון הצליח · platoon:${data.platoon_loadout} summary:${data.battalion_summary} forms:${data.form_responses}`, tone: "success" });
+      notifications.show({ title: "סנכרון הצליח", message: "הנתונים עודכנו מהמקור", color: "teal" });
       await loadStatus();
       await loadQueries();
       await loadSummary();
     } catch (err) {
       setBanner({ text: `שגיאה בסנכרון: ${err}`, tone: "danger" });
+      notifications.show({ title: "שגיאה בסנכרון", message: String(err), color: "red" });
     }
     setSyncing(false);
   };
