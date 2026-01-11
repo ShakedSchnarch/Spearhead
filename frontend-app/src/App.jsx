@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, Collapse, Group, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, Legend, CartesianGrid } from "recharts";
 import "./index.css";
 
 const storage = typeof window !== "undefined" ? window.localStorage : null;
@@ -210,60 +211,26 @@ function UploadCard({ title, inputId, onUpload, disabled }) {
 }
 
 function ChartCard({ title, data, color = "#22c55e" }) {
-  const ref = useRef(null);
-  const chartRef = useRef(null);
   const hasData = (data?.length || 0) > 0;
-  const [chartReady, setChartReady] = useState(false);
-  const chartModule = useRef(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const loadChart = async () => {
-      if (!ref.current) return;
-      const { default: Chart } = chartModule.current || (chartModule.current = await import("chart.js/auto"));
-      if (!mounted) return;
-      if (chartRef.current) chartRef.current.destroy();
-
-      const labels = data?.map((d) => d.item) || [];
-      const values = data?.map((d) => d.value ?? d.total ?? d.gaps ?? 0) || [];
-
-      chartRef.current = new Chart(ref.current, {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: title,
-              data: values,
-              backgroundColor: `${color}99`,
-              borderColor: color,
-              borderWidth: 1,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: "#9fb3d0" }, grid: { display: false } },
-            y: { ticks: { color: "#9fb3d0" }, grid: { color: "#1f293b" } },
-          },
-        },
-      });
-      setChartReady(true);
-    };
-    loadChart();
-    return () => {
-      mounted = false;
-      if (chartRef.current) chartRef.current.destroy();
-    };
-  }, [data, title, color]);
-
   return (
     <Card withBorder shadow="sm" padding="md" radius="md">
       <div className="card-title">{title}</div>
-      <canvas ref={ref} height="120" style={{ opacity: chartReady && hasData ? 1 : 0.3 }} />
-      {!hasData && <div className="empty-hint">אין נתונים להצגה</div>}
+      {hasData ? (
+        <div style={{ width: "100%", height: 240 }}>
+          <ResponsiveContainer>
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f293b" />
+              <XAxis dataKey="item" stroke="#9fb3d0" />
+              <YAxis stroke="#9fb3d0" />
+              <RTooltip />
+              <Legend />
+              <Bar dataKey="value" fill={`${color}`} radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="empty-hint">אין נתונים להצגה</div>
+      )}
     </Card>
   );
 }
