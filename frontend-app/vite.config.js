@@ -1,8 +1,22 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
   base: '/app/',
-})
+  plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts')) return 'vendor-recharts';
+            if (id.includes('@mantine')) return 'vendor-mantine';
+            if (id.includes('chart.js')) return 'vendor-chartjs';
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
+});
