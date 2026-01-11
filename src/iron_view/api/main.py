@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from iron_view.config import settings
@@ -17,6 +17,7 @@ from iron_view.exceptions import DataSourceError
 from iron_view.data.import_service import ImportService
 from iron_view.data.storage import Database
 from iron_view.services import QueryService, FormAnalytics
+from iron_view.services.exporter import ExcelExporter
 from iron_view.sync.google_sheets import GoogleSheetsProvider, SyncService
 
 logger = logging.getLogger("iron_view.api")
@@ -99,6 +100,9 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
 
     def get_form_analytics():
         return FormAnalytics(db=db)
+
+    def get_exporter():
+        return ExcelExporter(analytics=FormAnalytics(db=db))
 
     def get_sync_service():
         provider = GoogleSheetsProvider(
@@ -297,6 +301,39 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
         _auth=Depends(require_query_auth),
     ):
         return qs.form_status_counts()
+
+    @app.get("/exports/platoon")
+    def export_platoon(
+        platoon: str = Query(..., description="Platoon name to export"),
+        week: Optional[str] = Query(None, description="Week label YYYY-Www; defaults to latest"),
+        exporter: ExcelExporter = Depends(get_exporter),
+        _auth=Depends(require_auth),
+    ):
+        try:
+            path = exporter.export_platoon(platoon=platoon, week=week)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        return FileResponse(
+            path,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=path.name,
+        )
+
+    @app.get("/exports/battalion")
+    def export_battalion(
+        week: Optional[str] = Query(None, description="Week label YYYY-Www; defaults to latest"),
+        exporter: ExcelExporter = Depends(get_exporter),
+        _auth=Depends(require_auth),
+    ):
+        try:
+            path = exporter.export_battalion(week=week)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        return FileResponse(
+            path,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=path.name,
+        )
 
     @app.post("/sync/google")
     def sync_google(
