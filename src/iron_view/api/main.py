@@ -1,11 +1,14 @@
 import base64
+import json
 import logging
 import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Optional
+from urllib.parse import unquote
 from uuid import uuid4
 
+import requests
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
@@ -357,6 +360,90 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
     @app.get("/sync/status")
     def sync_status(sync_service: SyncService = Depends(get_sync_service)):
         return sync_service.get_status()
+
+    @app.get("/auth/google/callback")
+    def google_oauth_callback(
+        code: Optional[str] = Query(None),
+        error: Optional[str] = Query(None),
+        state: Optional[str] = Query(None),
+    ):
+        """
+        Handles Google OAuth redirect, exchanges code for token, fetches email, and redirects to /app with token/email.
+        """
+        if error:
+            raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+        if not code:
+            raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+        cid = settings.google.oauth_client_id
+        csecret = settings.google.oauth_client_secret
+        redirect_uri = settings.google.oauth_redirect_uri or "http://127.0.0.1:8000/app/"
+        if not cid or not csecret:
+            raise HTTPException(status_code=400, detail="OAuth client not configured on server")
+
+        token_res = requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": cid,
+                "client_secret": csecret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+            timeout=15,
+        )
+        if not token_res.ok:
+            raise HTTPException(status_code=400, detail=f"OAuth token exchange failed: {token_res.text}")
+        token_data = token_res.json()
+        access_token = token_data.get("access_token")
+        id_token = token_data.get("id_token")
+
+        email = None
+        if access_token:
+            try:
+                userinfo = requests.get(
+                    "https://www.googleapis.com/oauth2/v2/userinfo",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    timeout=10,
+                )
+                if userinfo.ok:
+                    email = userinfo.json().get("email")
+            except Exception:
+                pass
+        # Fallback: try decode id_token without verification
+        if not email and id_token:
+            try:
+                payload_part = id_token.split(".")[1] + "=="
+                payload = json.loads(base64.urlsafe_b64decode(payload_part.encode("utf-8")).decode("utf-8"))
+                email = payload.get("email")
+            except Exception:
+                pass
+
+        # Parse state if provided
+        platoon = ""
+        view_mode = ""
+        if state:
+            try:
+                decoded_state = json.loads(unquote(state))
+                platoon = decoded_state.get("platoon", "")
+                view_mode = decoded_state.get("viewMode", "")
+            except Exception:
+                pass
+
+        params = []
+        if access_token:
+            params.append(f"token={access_token}")
+        if email:
+            params.append(f"email={email}")
+        if platoon:
+            params.append(f"platoon={platoon}")
+        if view_mode:
+            params.append(f"viewMode={view_mode}")
+        qs = "&".join(params)
+        target = "/app/"
+        if qs:
+            target = f"/app/?{qs}"
+        return RedirectResponse(url=target, status_code=307)
 
     @app.get("/health")
     def health():
