@@ -120,6 +120,7 @@ All steps keep existing functionality; only additive improvements. Each phase en
 ## Maintenance Notes
 - Update this document at each stage boundary (done → next), and when standards/architecture shift.
 - Prefer local assets, deterministic builds, and reproducible tests (no live network unless explicitly configured for sync/AI).
+- Scripts helper set: `reset-env.sh` (DB + frontend dist cleanup), `clean-ui.sh` (frontend dist cleanup), `test-build-run.sh` (pytest + UI build + run-local).
 
 ## Upcoming Release Plan — "קצה הרומח"
 Roadmap for the next release with manual Google sync, improved analytics, Hebrew rebrand, and AI enablement (OpenAI key provided via `.env`). Each phase ends with approval and a commit after validation.
@@ -147,7 +148,7 @@ Roadmap for the next release with manual Google sync, improved analytics, Hebrew
 - Views: clear Battalion/Platoon screens with KPIs (coverage, anomalies, sync status, etag), simple tables/charts, easy platoon navigation.
 - UX polish: consolidated action bar (import/sync/refresh), reduced duplicate toggles, compact hero, empty states instead of empty graphs.
 - Tests: UI build, RTL smoke, default autofill, sync status display.
-- Status: Implemented; further visual refinements ongoing.
+- Status: Implemented; dark theme, login gating with saved state, tabbed dashboard/export shell, and logo-based navigation are in place. Further polish for exports/AI will follow in later phases.
 
 ### Phase E: AI (OpenAI)
 - Use OpenAI provider with key from `.env`; show source (remote/cache/simulated) and a refresh action.

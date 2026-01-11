@@ -4,10 +4,47 @@ import "./index.css";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
 
+const storage = typeof window !== "undefined" ? window.localStorage : null;
+const oauthUrl = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_GOOGLE_OAUTH_URL || "") : "";
+const storageKeys = [
+  "IRONVIEW_API",
+  "IRONVIEW_SECTION",
+  "IRONVIEW_TOPN",
+  "IRONVIEW_PLATOON",
+  "IRONVIEW_WEEK",
+  "IRONVIEW_VIEW",
+  "IRONVIEW_TOKEN",
+  "IRONVIEW_TAB",
+  "IRONVIEW_USER",
+];
+const clearStoredState = () => {
+  if (!storage) return;
+  storageKeys.forEach((k) => {
+    try {
+      storage.removeItem(k);
+    } catch {
+      /* ignore */
+    }
+  });
+};
+const debugLog = (...args) => {
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.error(...args);
+  }
+};
+const safeGet = (key) => {
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+};
 const fallbackApi = typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : "http://localhost:8000";
-const defaultApi = localStorage.getItem("IRONVIEW_API") || fallbackApi || "http://localhost:8000";
+const defaultApi = safeGet("IRONVIEW_API") || fallbackApi || "http://localhost:8000";
 const persisted = (key, fallback) => {
-  const raw = localStorage.getItem(key);
+  const raw = safeGet(key);
   if (raw === null) return fallback;
   if (typeof fallback === "number") {
     const parsed = Number(raw);
@@ -50,7 +87,7 @@ const handleAuthBanner = (status, setBannerFn) => {
   return false;
 };
 
-function LoginOverlay({ onLogin, defaultPlatoon }) {
+function LoginOverlay({ onLogin, onReset, defaultPlatoon }) {
   const [platoon, setPlatoon] = useState(defaultPlatoon || "כפיר");
   const [email, setEmail] = useState("");
   const [tokenInput, setTokenInput] = useState("");
@@ -60,12 +97,25 @@ function LoginOverlay({ onLogin, defaultPlatoon }) {
     onLogin({ platoon, email, token: tokenInput });
   };
 
+  const handleGoogle = () => {
+    if (oauthUrl) {
+      const params = new URLSearchParams();
+      params.append("platoon", platoon);
+      if (email) params.append("email", email);
+      if (tokenInput) params.append("token", tokenInput);
+      const sep = oauthUrl.includes("?") ? "&" : "?";
+      window.location.href = `${oauthUrl}${sep}${params.toString()}`;
+      return;
+    }
+    onLogin({ platoon, email: email || "guest@spearhead.local", token: tokenInput });
+  };
+
   return (
     <div className="login-overlay">
       <div className="login-card">
         <div className="pill brand">קצה הרומח · Spearhead</div>
         <h1>כניסה</h1>
-        <p className="muted">בחר פלוגה, הזדהה עם חשבון Google, והמשך לסנכרון.</p>
+        <p className="muted">בחר פלוגה, הזדהה עם חשבון Google, והמשך לסנכרון אוטומטי.</p>
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
             פלוגה:
@@ -84,8 +134,12 @@ function LoginOverlay({ onLogin, defaultPlatoon }) {
             <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder="Bearer/Basic" />
           </label>
           <button type="submit" className="primary">המשך וסנכרן</button>
+          <button type="button" className="ghost" onClick={handleGoogle}>כניסה עם Google</button>
+          <button type="button" className="ghost danger" onClick={onReset}>איפוס הגדרות</button>
         </form>
-        <div className="login-note muted">סנכרון ינסה לרוץ אוטומטית לאחר הכניסה.</div>
+        <div className="login-note muted">
+          סנכרון ינסה לרוץ אוטומטית לאחר הכניסה. ניתן להעלות קובץ טפסים ידנית במקרה של כשל.
+        </div>
       </div>
     </div>
   );
@@ -245,9 +299,15 @@ function App() {
   const [week, setWeek] = useState(persisted("IRONVIEW_WEEK", ""));
   const [viewMode, setViewMode] = useState(persisted("IRONVIEW_VIEW", "battalion"));
   const [token, setToken] = useState(persisted("IRONVIEW_TOKEN", ""));
+  const [activeTab, setActiveTab] = useState(persisted("IRONVIEW_TAB", "dashboard"));
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("IRONVIEW_USER");
-    return stored ? JSON.parse(stored) : null;
+    const stored = safeGet("IRONVIEW_USER");
+    if (!stored) return null;
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
   });
   const [autoSyncDone, setAutoSyncDone] = useState(false);
   const [summary, setSummary] = useState(null);
@@ -267,16 +327,23 @@ function App() {
   const [sortField, setSortField] = useState("delta");
   const [sortDir, setSortDir] = useState("desc");
 
-  useEffect(() => localStorage.setItem("IRONVIEW_API", apiBase), [apiBase]);
-  useEffect(() => localStorage.setItem("IRONVIEW_SECTION", section), [section]);
-  useEffect(() => localStorage.setItem("IRONVIEW_TOPN", String(topN)), [topN]);
-  useEffect(() => localStorage.setItem("IRONVIEW_PLATOON", platoon), [platoon]);
-  useEffect(() => localStorage.setItem("IRONVIEW_WEEK", week), [week]);
-  useEffect(() => localStorage.setItem("IRONVIEW_VIEW", viewMode), [viewMode]);
-  useEffect(() => localStorage.setItem("IRONVIEW_TOKEN", token), [token]);
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.title = "קצה הרומח · דשבורד מוכנות";
+    }
+  }, []);
+
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_API", apiBase); }, [apiBase]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_SECTION", section); }, [section]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_TOPN", String(topN)); }, [topN]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_PLATOON", platoon); }, [platoon]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_WEEK", week); }, [week]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_VIEW", viewMode); }, [viewMode]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_TOKEN", token); }, [token]);
+  useEffect(() => { if (storage) storage.setItem("IRONVIEW_TAB", activeTab); }, [activeTab]);
   useEffect(() => {
     if (user) {
-      localStorage.setItem("IRONVIEW_USER", JSON.stringify(user));
+      if (storage) storage.setItem("IRONVIEW_USER", JSON.stringify(user));
       if (user.token && !token) {
         setToken(user.token);
       }
@@ -410,7 +477,7 @@ function App() {
       const names = data.platoons ? Object.keys(data.platoons) : data.summary ? [data.summary.platoon] : [];
       if (names.length) setPlatoonOptions(names);
     } catch (err) {
-      console.error(err);
+      debugLog(err);
       setSummary(null);
     }
   };
@@ -430,7 +497,7 @@ function App() {
         setWeek(data.week);
       }
     } catch (err) {
-      console.error(err);
+      debugLog(err);
       setCoverage(null);
     }
   };
@@ -615,15 +682,40 @@ function App() {
     return { formsTotal, tanksTotal, anomaliesCount };
   }, [coverage]);
 
+  const resetClientState = () => {
+    setUser(null);
+    setToken("");
+    setPlatoon("");
+    setWeek("");
+    setViewMode("battalion");
+    setActiveTab("dashboard");
+    setSection("zivud");
+    setTopN(5);
+    setBanner(null);
+    setSummary(null);
+    setSyncStatus(null);
+    setTotals([]);
+    setGaps([]);
+    setDelta([]);
+    setVariance([]);
+    setForms({ ok: [], gaps: [] });
+    setCoverage(null);
+    setInsight({ content: "", source: "" });
+    setTrends([]);
+    setAutoSyncDone(false);
+    setLastUpdated(null);
+    clearStoredState();
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  };
+
   const handleLogin = (payload) => {
     setUser({ platoon: payload.platoon, email: payload.email, token: payload.token || "" });
     setToken(payload.token || "");
     setViewMode("battalion");
+    setActiveTab("dashboard");
   };
-
-  if (!user) {
-    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "כפיר"} />;
-  }
 
   const zivudRows = useMemo(
     () => Object.entries(platoonSummary?.zivud_gaps || {}).map(([item, count]) => ({ key: item, cells: [item, count] })),
@@ -680,22 +772,24 @@ function App() {
     </div>
   );
 
+  if (!user) {
+    return <LoginOverlay onLogin={handleLogin} onReset={resetClientState} defaultPlatoon={platoon || "כפיר"} />;
+  }
+
   return (
     <div className="page">
       <header className="topbar">
         <div className="hero">
           <div className="hero-text">
             <div className="pill brand">קצה הרומח · רומח 75</div>
-            <h1>דשבורד מוכנות גדודי</h1>
+            <h1>קצה הרומח · דשבורד מוכנות</h1>
             <p className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</p>
             <div className="header-actions">
               <div className="pill small">משתמש: {user.email || "לא צוין"}</div>
               <div className="pill small">פלוגה: {user.platoon || "n/a"}</div>
               <div className="status">{health}</div>
               <div className="pill">{syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}</div>
-              <div className="pill ghost" onClick={() => { setUser(null); setToken(""); localStorage.removeItem("IRONVIEW_USER"); }}>
-                התנתק
-              </div>
+              <button className="pill ghost" onClick={resetClientState}>התנתק / איפוס</button>
             </div>
           </div>
           <img src={platoonLogos.romach} alt="רומח 75" className="hero-logo" />
@@ -714,10 +808,15 @@ function App() {
 
       <main>
         <div className="actions-bar">
-          <div className="button-group gap">
-            <button onClick={() => document.getElementById("import")?.scrollIntoView({ behavior: "smooth" })}>
-              ייבוא/סנכרון
+          <div className="tabs">
+            <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>
+              דשבורד
             </button>
+            <button className={activeTab === "export" ? "active" : ""} onClick={() => setActiveTab("export")}>
+              הפקת דוחות
+            </button>
+          </div>
+          <div className="button-group gap">
             <button onClick={triggerSync}>סנכרון מ-Google</button>
             <button onClick={() => { loadQueries(); loadSummary(); loadStatus(); loadCoverage(); }}>רענון נתונים</button>
           </div>
@@ -744,279 +843,313 @@ function App() {
           />
         </div>
 
-        <section id="import">
-          <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
-          <div className="upload-grid">
-            <UploadCard title="Form Responses" inputId="file-form" onUpload={(id) => uploadFile("form-responses", id)} />
-          </div>
-          <div className="actions" style={{ marginTop: 10 }}>
-            <button onClick={triggerSync}>סנכרון מ-Google Sheets</button>
-          </div>
-        </section>
+        {activeTab === "dashboard" && (
+          <>
+            <section id="import">
+              <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
+              <div className="upload-grid">
+                <UploadCard title="Form Responses" inputId="file-form" onUpload={(id) => uploadFile("form-responses", id)} />
+              </div>
+              {!syncStatus && (
+                <div className="empty-state">
+                  אין נתונים עדיין. התחבר/י וסנכרן מגוגל או העלה קובץ טפסים ידנית כדי לטעון את הדאטה.
+                </div>
+              )}
+              <div className="actions" style={{ marginTop: 10 }}>
+                <button onClick={triggerSync}>סנכרון מ-Google Sheets</button>
+              </div>
+            </section>
 
-        <section id="platoons">
-          <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים">
-          </SectionHeader>
-          <div className="platoon-grid">
-            {platoonCards.length ? (
-              platoonCards.map((card) => (
-                <PlatoonCard
-                  key={card.name}
-                  name={card.name}
-                  coverage={card.coverage}
-                  onSelect={(name) => {
-                    setPlatoon(name);
-                    setViewMode("platoon");
-                  }}
-                  isActive={platoon === card.name}
+            <section id="platoons">
+              <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים" />
+              <div className="platoon-grid">
+                {platoonCards.length ? (
+                  platoonCards.map((card) => (
+                    <PlatoonCard
+                      key={card.name}
+                      name={card.name}
+                      coverage={card.coverage}
+                      onSelect={(name) => {
+                        setPlatoon(name);
+                        setViewMode("platoon");
+                      }}
+                      isActive={platoon === card.name}
+                    />
+                  ))
+                ) : (
+                  <div className="card empty-card">אין נתוני כיסוי. העלה טפסים כדי לראות פלוגות.</div>
+                )}
+              </div>
+            </section>
+
+            <section id="views">
+              <SectionHeader
+                title="מצב תצוגה"
+                subtitle="תמונת מצב נוכחית מהייבוא האחרון: גדוד שלם או פלוגה ממוקדת."
+              >
+                <div className="controls">
+                  <div className="segmented">
+                    <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
+                      גדוד
+                    </button>
+                    <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
+                      פלוגה
+                    </button>
+                  </div>
+                  <label>
+                    שבוע (YYYY-Www):
+                    <input type="text" placeholder="לדוגמה 2026-W01" value={week} onChange={(e) => setWeek(e.target.value)} />
+                  </label>
+                  <label>
+                    פלוגה:
+                    <input
+                      list="platoon-options"
+                      type="text"
+                      value={platoon}
+                      onChange={(e) => setPlatoon(e.target.value)}
+                      placeholder="כפיר / סופה / מחץ"
+                    />
+                    <datalist id="platoon-options">
+                      {platoonOptions.map((p) => (
+                        <option key={p} value={p} />
+                      ))}
+                    </datalist>
+                  </label>
+                </div>
+              </SectionHeader>
+
+              <div className="kpi-row">
+                <div className="kpi">
+                  <div className="kpi-label">שבוע</div>
+                  <div className="kpi-value">{summary?.week || "latest"}</div>
+                </div>
+                <div className="kpi">
+                  <div className="kpi-label">מספר טנקים</div>
+                  <div className="kpi-value">{summary?.mode === "platoon" ? platoonSummary?.tank_count ?? "-" : battalionKpi?.tanks ?? "-"}</div>
+                </div>
+                <div className="kpi">
+                  <div className="kpi-label">סנכרון אחרון (טופס)</div>
+                  <div className="kpi-value">
+                    {syncStatus?.files?.form_responses?.last_sync || "n/a"} · {syncStatus?.files?.form_responses?.source || "unknown"}
+                  </div>
+                </div>
+                <div className="kpi">
+                  <div className="kpi-label">ETag</div>
+                  <div className="kpi-value">{syncStatus?.files?.form_responses?.etag || "n/a"}</div>
+                </div>
+              </div>
+
+              {viewMode === "battalion" ? (
+                <div className="grid two-col">
+                  <SummaryTable
+                    title="סיכום פלוגות"
+                    headers={["פלוגה", "טנקים", "חוסרי זיווד", "חוסרי אמצעים"]}
+                    rows={platoonRows}
+                  />
+                  <SummaryTable
+                    title="תחמושת גדודית"
+                    headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
+                    rows={Object.entries(summary?.battalion?.ammo || {}).map(([item, vals]) => ({
+                      key: item,
+                      cells: [item, vals.total ?? 0, vals.avg_per_tank ?? 0],
+                    }))}
+                  />
+                </div>
+              ) : (
+                <div className="grid two-col">
+                  <SummaryTable title="זיווד חוסרים" headers={["פריט", "חוסרים/בלאי"]} rows={zivudRows} />
+                  <SummaryTable
+                    title="תחמושת"
+                    headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
+                    rows={ammoRows}
+                  />
+                  <SummaryTable
+                    title="אמצעים"
+                    headers={["אמצעי", "חוסרים/בלאי", "ממוצע לטנק"]}
+                    rows={meansRows}
+                  />
+                  <SummaryTable title="פערי צלמים" headers={["פריט", "צ טנק", "מט\"ק", "דגשים"]} rows={issueRows} />
+                </div>
+              )}
+
+              <div className="grid two-col">
+                <SummaryTable
+                  title="כיסוי ודיווחים"
+                  headers={["פלוגה", "מספר טפסים", "טנקים מדווחים", "ימים מאז דיווח", "אנומליה"]}
+                  rows={coverageRows}
                 />
-              ))
-            ) : (
-              <div className="card empty-card">אין נתוני כיסוי. העלה טפסים כדי לראות פלוגות.</div>
-            )}
-          </div>
-        </section>
-
-        <section id="views">
-          <SectionHeader
-            title="מצב תצוגה"
-            subtitle="תמונת מצב נוכחית מהייבוא האחרון: גדוד שלם או פלוגה ממוקדת."
-          >
-            <div className="controls">
-              <div className="segmented">
-                <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
-                  גדוד
-                </button>
-                <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
-                  פלוגה
-                </button>
-              </div>
-              <label>
-                שבוע (YYYY-Www):
-                <input type="text" placeholder="לדוגמה 2026-W01" value={week} onChange={(e) => setWeek(e.target.value)} />
-              </label>
-              <label>
-                פלוגה:
-                <input
-                  list="platoon-options"
-                  type="text"
-                  value={platoon}
-                  onChange={(e) => setPlatoon(e.target.value)}
-                  placeholder="כפיר / סופה / מחץ"
+                <SummaryTable
+                  title="אנומליות"
+                  headers={["פלוגה", "סיבה", "טפסים שבוע נוכחי", "ממוצע אחרון", "ימים ללא דיווח"]}
+                  rows={anomalyRows}
                 />
-                <datalist id="platoon-options">
-                  {platoonOptions.map((p) => (
-                    <option key={p} value={p} />
-                  ))}
-                </datalist>
-              </label>
-            </div>
-          </SectionHeader>
-
-          <div className="kpi-row">
-            <div className="kpi">
-              <div className="kpi-label">שבוע</div>
-              <div className="kpi-value">{summary?.week || "latest"}</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi-label">מספר טנקים</div>
-              <div className="kpi-value">{summary?.mode === "platoon" ? platoonSummary?.tank_count ?? "-" : battalionKpi?.tanks ?? "-"}</div>
-            </div>
-            <div className="kpi">
-              <div className="kpi-label">סנכרון אחרון (טופס)</div>
-              <div className="kpi-value">
-                {syncStatus?.files?.form_responses?.last_sync || "n/a"} · {syncStatus?.files?.form_responses?.source || "unknown"}
               </div>
-            </div>
-            <div className="kpi">
-              <div className="kpi-label">ETag</div>
-              <div className="kpi-value">{syncStatus?.files?.form_responses?.etag || "n/a"}</div>
-            </div>
-          </div>
+            </section>
 
-          {viewMode === "battalion" ? (
-            <div className="grid two-col">
-              <SummaryTable
-                title="סיכום פלוגות"
-                headers={["פלוגה", "טנקים", "חוסרי זיווד", "חוסרי אמצעים"]}
-                rows={platoonRows}
-              />
-              <SummaryTable
-                title="תחמושת גדודית"
-                headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
-                rows={Object.entries(summary?.battalion?.ammo || {}).map(([item, vals]) => ({
-                  key: item,
-                  cells: [item, vals.total ?? 0, vals.avg_per_tank ?? 0],
-                }))}
-              />
-            </div>
-          ) : (
-            <div className="grid two-col">
-              <SummaryTable title="זיווד חוסרים" headers={["פריט", "חוסרים/בלאי"]} rows={zivudRows} />
-              <SummaryTable
-                title="תחמושת"
-                headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
-                rows={ammoRows}
-              />
-              <SummaryTable
-                title="אמצעים"
-                headers={["אמצעי", "חוסרים/בלאי", "ממוצע לטנק"]}
-                rows={meansRows}
-              />
-              <SummaryTable title="פערי צלמים" headers={["פריט", "צ טנק", "מט\"ק", "דגשים"]} rows={issueRows} />
-            </div>
-          )}
+            <section id="analytics">
+              <SectionHeader title="מדדי זיווד/תחמושת" subtitle={'סה"כ, חוסרים, דלתא וסטיות מהסיכום הגדודי'}>
+                <div className="controls">
+                  <label>
+                    תחום:
+                    <select value={section} onChange={(e) => setSection(e.target.value)}>
+                      <option value="zivud">זיווד</option>
+                      <option value="ammo">תחמושת</option>
+                    </select>
+                  </label>
+                  <label>
+                    Top N:
+                    <input type="number" value={topN} min={1} max={50} onChange={(e) => setTopN(Number(e.target.value))} />
+                  </label>
+                  <label>
+                    פלוגה (אופציונלי):
+                    <input type="text" value={platoon} onChange={(e) => setPlatoon(e.target.value)} placeholder="כפיר / סופה / מחץ" />
+                  </label>
+                  <label>
+                    שבוע (אופציונלי):
+                    <input type="text" value={week} onChange={(e) => setWeek(e.target.value)} placeholder="2026-W01" />
+                  </label>
+                  <label>
+                    מיון:
+                    <select value={sortField} onChange={(e) => setSortField(e.target.value)}>
+                      <option value="delta">Delta</option>
+                      <option value="pct_change">% שינוי</option>
+                      <option value="variance">פער מול גדוד</option>
+                    </select>
+                  </label>
+                  <label>
+                    כיוון:
+                    <select value={sortDir} onChange={(e) => setSortDir(e.target.value)}>
+                      <option value="desc">יורד</option>
+                      <option value="asc">עולה</option>
+                    </select>
+                  </label>
+                  {lastUpdated && <span className="muted">עודכן לאחרונה: {lastUpdated}</span>}
+                </div>
+              </SectionHeader>
 
-          <div className="grid two-col">
-            <SummaryTable
-              title="כיסוי ודיווחים"
-              headers={["פלוגה", "מספר טפסים", "טנקים מדווחים", "ימים מאז דיווח", "אנומליה"]}
-              rows={coverageRows}
-            />
-            <SummaryTable
-              title="אנומליות"
-              headers={["פלוגה", "סיבה", "טפסים שבוע נוכחי", "ממוצע אחרון", "ימים ללא דיווח"]}
-              rows={anomalyRows}
-            />
-          </div>
-        </section>
+              <div className="grid two-col">
+                <ChartCard title="Totals" data={totals.map((t) => ({ item: t.item, value: t.total }))} />
+                <ChartCard title="Gaps" data={gaps.map((g) => ({ item: g.item, value: g.gaps }))} color="#ef4444" />
+              </div>
 
-        <section id="analytics">
-          <SectionHeader title="מדדי זיווד/תחמושת" subtitle={'סה"כ, חוסרים, דלתא וסטיות מהסיכום הגדודי'}>
-            <div className="controls">
-              <label>
-                תחום:
-                <select value={section} onChange={(e) => setSection(e.target.value)}>
-                  <option value="zivud">זיווד</option>
-                  <option value="ammo">תחמושת</option>
-                </select>
-              </label>
-              <label>
-                Top N:
-                <input type="number" value={topN} min={1} max={50} onChange={(e) => setTopN(Number(e.target.value))} />
-              </label>
-              <label>
-                פלוגה (אופציונלי):
-                <input type="text" value={platoon} onChange={(e) => setPlatoon(e.target.value)} placeholder="כפיר / סופה / מחץ" />
-              </label>
-              <label>
-                שבוע (אופציונלי):
-                <input type="text" value={week} onChange={(e) => setWeek(e.target.value)} placeholder="2026-W01" />
-              </label>
-              <label>
-                מיון:
-                <select value={sortField} onChange={(e) => setSortField(e.target.value)}>
-                  <option value="delta">Delta</option>
-                  <option value="pct_change">% שינוי</option>
-                  <option value="variance">פער מול גדוד</option>
-                </select>
-              </label>
-              <label>
-                כיוון:
-                <select value={sortDir} onChange={(e) => setSortDir(e.target.value)}>
-                  <option value="desc">יורד</option>
-                  <option value="asc">עולה</option>
-                </select>
-              </label>
-              <button onClick={() => { loadQueries(); loadSummary(); loadStatus(); }}>רענון נתונים</button>
-              {lastUpdated && <span className="muted">עודכן לאחרונה: {lastUpdated}</span>}
-            </div>
-          </SectionHeader>
+              <div className="grid two-col">
+                <div className="card">
+                  <div className="card-title">Delta vs Previous Import</div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Current</th>
+                        <th>Prev</th>
+                        <th>Δ</th>
+                        <th>Pct</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedDelta.slice(0, 20).map((row) => (
+                        <tr key={row.item}>
+                          <td>{row.item}</td>
+                          <td>{row.current}</td>
+                          <td>{row.previous}</td>
+                          <td>
+                            <span className={`trend-chip ${row.direction}`}>
+                              <span className="arrow" />
+                              {row.delta?.toFixed(1)}
+                            </span>
+                          </td>
+                          <td>{row.pct_change != null ? `${row.pct_change.toFixed(1)}%` : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="card">
+                  <div className="card-title">Variance vs Battalion Summary</div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Current</th>
+                        <th>Summary</th>
+                        <th>Var</th>
+                        <th>Pct</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedVariance.slice(0, 20).map((row) => (
+                        <tr key={row.item}>
+                          <td>{row.item}</td>
+                          <td>{row.current}</td>
+                          <td>{row.summary}</td>
+                          <td>
+                            <span className={`trend-chip ${row.direction}`}>
+                              <span className="arrow" />
+                              {row.variance?.toFixed(1)}
+                            </span>
+                          </td>
+                          <td>{row.pct_change != null ? `${row.pct_change.toFixed(1)}%` : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-          <div className="grid two-col">
-            <ChartCard title="Totals" data={totals.map((t) => ({ item: t.item, value: t.total }))} />
-            <ChartCard title="Gaps" data={gaps.map((g) => ({ item: g.item, value: g.gaps }))} color="#ef4444" />
-          </div>
+              <div className="card">
+                <div className="card-title">Form Status</div>
+                <div className="grid two-col">
+                  <div>
+                    <h4>OK</h4>
+                    <pre>{formsOk}</pre>
+                  </div>
+                  <div>
+                    <h4>Gaps</h4>
+                    <pre>{formsGaps}</pre>
+                  </div>
+                </div>
+              </div>
 
-          <div className="grid two-col">
+              <div className="grid two-col">
+                <TrendTable title="Trends (top items, recent weeks)" data={trends} />
+                <div className="card">
+                  <div className="card-title">AI Insight</div>
+                  <div className="pill">
+                    <span className="dot" />
+                    Source: {insight.source || "n/a"} {insight.cached ? "(cached)" : ""}
+                  </div>
+                  <pre>{insight.content || "No insight yet."}</pre>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === "export" && (
+          <section id="export">
+            <SectionHeader title="הפקת דוחות אקסל" subtitle="בחר שבוע ופלוגה להפקת דוח. לגדוד ניתן לבחור גדוד לריכוז.">
+              <div className="controls">
+                <label>
+                  פלוגה:
+                  <select value={platoon} onChange={(e) => setPlatoon(e.target.value)}>
+                    <option value="כפיר">כפיר</option>
+                    <option value="סופה">סופה</option>
+                    <option value="מחץ">מחץ</option>
+                  </select>
+                </label>
+                <label>
+                  שבוע (YYYY-Www):
+                  <input type="text" value={week} onChange={(e) => setWeek(e.target.value)} placeholder="לדוגמה 2026-W01" />
+                </label>
+                <button onClick={() => setBanner({ text: "ייצוא נתמך כעת דרך CLI (seed-and-export.sh) או API ייעודי בעתיד.", tone: "info" })}>
+                  הפק דוח
+                </button>
+              </div>
+            </SectionHeader>
             <div className="card">
-              <div className="card-title">Delta vs Previous Import</div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Current</th>
-                    <th>Prev</th>
-                    <th>Δ</th>
-                    <th>Pct</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedDelta.slice(0, 20).map((row) => (
-                    <tr key={row.item}>
-                      <td>{row.item}</td>
-                      <td>{row.current}</td>
-                      <td>{row.previous}</td>
-                      <td>
-                        <span className={`trend-chip ${row.direction}`}>
-                          <span className="arrow" />
-                          {row.delta?.toFixed(1)}
-                        </span>
-                      </td>
-                      <td>{row.pct_change != null ? `${row.pct_change.toFixed(1)}%` : "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <p className="muted">כרגע הייצוא מבוצע דרך סקריפט CLI (scripts/seed-and-export.sh) לאחר סנכרון/העלאה. כפתור API יתווסף בסבב הבא.</p>
             </div>
-            <div className="card">
-              <div className="card-title">Variance vs Battalion Summary</div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Current</th>
-                    <th>Summary</th>
-                    <th>Var</th>
-                    <th>Pct</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedVariance.slice(0, 20).map((row) => (
-                    <tr key={row.item}>
-                      <td>{row.item}</td>
-                      <td>{row.current}</td>
-                      <td>{row.summary}</td>
-                      <td>
-                        <span className={`trend-chip ${row.direction}`}>
-                          <span className="arrow" />
-                          {row.variance?.toFixed(1)}
-                        </span>
-                      </td>
-                      <td>{row.pct_change != null ? `${row.pct_change.toFixed(1)}%` : "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-title">Form Status</div>
-            <div className="grid two-col">
-              <div>
-                <h4>OK</h4>
-                <pre>{formsOk}</pre>
-              </div>
-              <div>
-                <h4>Gaps</h4>
-                <pre>{formsGaps}</pre>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid two-col">
-            <TrendTable title="Trends (top items, recent weeks)" data={trends} />
-            <div className="card">
-              <div className="card-title">AI Insight</div>
-              <div className="pill">
-                <span className="dot" />
-                Source: {insight.source || "n/a"} {insight.cached ? "(cached)" : ""}
-              </div>
-              <pre>{insight.content || "No insight yet."}</pre>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );
