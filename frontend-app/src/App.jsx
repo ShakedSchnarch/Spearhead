@@ -169,6 +169,11 @@ function LoginOverlay({ onLogin, defaultPlatoon }) {
           <Button type="button" variant="subtle" radius="md" fullWidth onClick={() => setShowAdvanced((v) => !v)}>
             {showAdvanced ? "הסתר מתקדם" : "שדות מתקדמים (דב)"}
           </Button>
+          {!oauthReady && (
+            <Text size="xs" c="yellow" ta="center">
+              OAuth לא הוגדר (VITE_GOOGLE_OAUTH_URL). השתמש בלוגין הידני או הוסף כתובת OAuth.
+            </Text>
+          )}
         </Stack>
         <Text size="xs" c="dimmed" ta="center" mt="xs">
           סנכרון ינסה לרוץ אוטומטית לאחר הכניסה. ניתן להעלות קובץ טפסים ידנית במקרה של כשל.
@@ -482,6 +487,25 @@ function App() {
       setWeek(summary.week);
     }
   }, [summary, week]);
+
+  // OAuth callback handler: read query params token/email/platoon/viewMode, then clean URL.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get("token");
+    const emailParam = params.get("email");
+    const platoonParam = params.get("platoon") || params.get("platoon_override");
+    const viewModeParam = params.get("viewMode") || (platoonParam ? "platoon" : "battalion");
+    if (tokenParam || emailParam) {
+      setToken(tokenParam || "");
+      setUser({ platoon: platoonParam || "", email: emailParam || "", token: tokenParam || "" });
+      setViewMode(viewModeParam);
+      setActiveTab("dashboard");
+      // Clean URL
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, []);
 
   const pingHealth = async () => {
     try {
