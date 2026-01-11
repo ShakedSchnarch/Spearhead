@@ -31,6 +31,9 @@ class GoogleSettings(BaseSettings):
     enabled: bool = False
     service_account_file: Optional[Path] = None
     api_key: Optional[str] = None
+    oauth_client_id: Optional[str] = None
+    oauth_client_secret: Optional[str] = None
+    oauth_redirect_uri: Optional[str] = None
     file_ids: dict[str, str] = {
         "platoon_loadout": "",
         "battalion_summary": "",
