@@ -334,6 +334,15 @@ function PlatoonCard({ name, coverage, onSelect, isActive }) {
   );
 }
 
+function EmptyCard({ title, message }) {
+  return (
+    <Card withBorder shadow="sm" padding="md" radius="md">
+      <div className="card-title">{title}</div>
+      <div className="empty-card">{message}</div>
+    </Card>
+  );
+}
+
 function KpiCard({ label, value, hint, tone = "neutral" }) {
   return (
     <Paper
@@ -940,21 +949,19 @@ function App() {
             <section id="platoons">
               <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים" />
               <div className="platoon-grid">
-                {platoonCards.length ? (
-                  platoonCards.map((card) => (
-                    <PlatoonCard
-                      key={card.name}
-                      name={card.name}
-                      coverage={card.coverage}
-                      onSelect={(name) => {
-                        setPlatoon(name);
-                        setViewMode("platoon");
-                      }}
-                      isActive={platoon === card.name}
-                    />
-                  ))
-                ) : (
-                  <div className="card empty-card">אין נתוני כיסוי. העלה טפסים כדי לראות פלוגות.</div>
+                {platoonCards.length ? platoonCards.map((card) => (
+                  <PlatoonCard
+                    key={card.name}
+                    name={card.name}
+                    coverage={card.coverage}
+                    onSelect={(name) => {
+                      setPlatoon(name);
+                      setViewMode("platoon");
+                    }}
+                    isActive={platoon === card.name}
+                  />
+                )) : (
+                  <EmptyCard title="אין נתוני כיסוי" message="סנכרן מגוגל או העלה טפסים ידנית כדי לראות פלוגות." />
                 )}
               </div>
             </section>
@@ -1018,19 +1025,27 @@ function App() {
 
               {viewMode === "battalion" ? (
                 <div className="grid two-col">
-                  <SummaryTable
-                    title="סיכום פלוגות"
-                    headers={["פלוגה", "טנקים", "חוסרי זיווד", "חוסרי אמצעים"]}
-                    rows={platoonRows}
-                  />
-                  <SummaryTable
-                    title="תחמושת גדודית"
-                    headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
-                    rows={Object.entries(summary?.battalion?.ammo || {}).map(([item, vals]) => ({
-                      key: item,
-                      cells: [item, vals.total ?? 0, vals.avg_per_tank ?? 0],
-                    }))}
-                  />
+                  {platoonRows.length ? (
+                    <SummaryTable
+                      title="סיכום פלוגות"
+                      headers={["פלוגה", "טנקים", "חוסרי זיווד", "חוסרי אמצעים"]}
+                      rows={platoonRows}
+                    />
+                  ) : (
+                    <EmptyCard title="אין סיכום פלוגות" message="סנכרן או העלה טפסים כדי לראות נתוני סיכום." />
+                  )}
+                  {Object.keys(summary?.battalion?.ammo || {}).length ? (
+                    <SummaryTable
+                      title="תחמושת גדודית"
+                      headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
+                      rows={Object.entries(summary?.battalion?.ammo || {}).map(([item, vals]) => ({
+                        key: item,
+                        cells: [item, vals.total ?? 0, vals.avg_per_tank ?? 0],
+                      }))}
+                    />
+                  ) : (
+                    <EmptyCard title="אין נתוני תחמושת" message="העלאה/סנכרון נדרשים כדי לראות תחמושת." />
+                  )}
                 </div>
               ) : (
                 <div className="grid two-col">
@@ -1040,26 +1055,42 @@ function App() {
                     headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
                     rows={ammoRows}
                   />
-                  <SummaryTable
-                    title="אמצעים"
-                    headers={["אמצעי", "חוסרים/בלאי", "ממוצע לטנק"]}
-                    rows={meansRows}
-                  />
-                  <SummaryTable title="פערי צלמים" headers={["פריט", "צ טנק", "מט\"ק", "דגשים"]} rows={issueRows} />
+                  {meansRows.length ? (
+                    <SummaryTable
+                      title="אמצעים"
+                      headers={["אמצעי", "חוסרים/בלאי", "ממוצע לטנק"]}
+                      rows={meansRows}
+                    />
+                  ) : (
+                    <EmptyCard title="אין נתוני אמצעים" message="סנכרן כדי לראות אמצעים." />
+                  )}
+                  {issueRows.length ? (
+                    <SummaryTable title="פערי צלמים" headers={["פריט", "צ טנק", "מט\"ק", "דגשים"]} rows={issueRows} />
+                  ) : (
+                    <EmptyCard title="אין פערי צלמים" message="אין דגשים לתצוגה." />
+                  )}
                 </div>
               )}
 
               <div className="grid two-col">
-                <SummaryTable
-                  title="כיסוי ודיווחים"
-                  headers={["פלוגה", "מספר טפסים", "טנקים מדווחים", "ימים מאז דיווח", "אנומליה"]}
-                  rows={coverageRows}
-                />
-                <SummaryTable
-                  title="אנומליות"
-                  headers={["פלוגה", "סיבה", "טפסים שבוע נוכחי", "ממוצע אחרון", "ימים ללא דיווח"]}
-                  rows={anomalyRows}
-                />
+                {coverageRows.length ? (
+                  <SummaryTable
+                    title="כיסוי ודיווחים"
+                    headers={["פלוגה", "מספר טפסים", "טנקים מדווחים", "ימים מאז דיווח", "אנומליה"]}
+                    rows={coverageRows}
+                  />
+                ) : (
+                  <EmptyCard title="אין כיסוי" message="סנכרון חסר. ודא שהנתונים זמינים." />
+                )}
+                {anomalyRows.length ? (
+                  <SummaryTable
+                    title="אנומליות"
+                    headers={["פלוגה", "סיבה", "טפסים שבוע נוכחי", "ממוצע אחרון", "ימים ללא דיווח"]}
+                    rows={anomalyRows}
+                  />
+                ) : (
+                  <EmptyCard title="אין אנומליות" message="לא זוהו אנומליות פעילות." />
+                )}
               </div>
             </section>
 
