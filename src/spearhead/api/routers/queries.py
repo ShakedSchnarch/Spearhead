@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from spearhead.services import QueryService, FormAnalytics
 from spearhead.services.exporter import ExcelExporter
 from spearhead.ai import InsightService
+from spearhead.data.dto import GapReport, TrendPoint
 from spearhead.api.deps import (
     get_query_service,
     get_form_analytics,
@@ -118,6 +119,15 @@ def form_status(
     _auth=Depends(require_query_auth),
 ):
     return qs.form_status_counts()
+
+@router.get("/queries/forms/gaps", response_model=list[GapReport])
+def form_gaps_detailed(
+    week: Optional[str] = Query(None, description="Week label YYYY-Www"),
+    platoon: Optional[str] = Query(None, description="Optional platoon filter"),
+    analytics: FormAnalytics = Depends(get_form_analytics),
+    _auth=Depends(require_query_auth),
+):
+    return analytics.get_gaps(week=week, platoon=platoon)
 
 # --- Insights ---
 @router.get("/insights")

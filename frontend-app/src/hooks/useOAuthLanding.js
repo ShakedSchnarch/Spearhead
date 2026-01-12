@@ -1,10 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Reads OAuth callback params from the URL (?token=&email=&platoon=&viewMode=)
  * and passes them to the provided handler once, then cleans the URL.
  */
 export function useOAuthLanding(onComplete) {
+  const onCompleteRef = useRef(onComplete);
+
+  // Keep ref up to date
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -13,8 +20,9 @@ export function useOAuthLanding(onComplete) {
     const email = params.get("email");
     const platoon = params.get("platoon") || params.get("platoon_override") || "";
     const viewMode = params.get("viewMode") || (platoon ? "platoon" : "");
+    
     if (token || email || platoon) {
-      onComplete({
+      onCompleteRef.current({
         token: token || "",
         session: session || token || "",
         email: email || "",
@@ -24,5 +32,5 @@ export function useOAuthLanding(onComplete) {
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
     }
-  }, [onComplete]);
+  }, []); // Run only once on mount
 }

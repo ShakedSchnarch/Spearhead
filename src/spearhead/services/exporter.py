@@ -3,6 +3,9 @@ from typing import Optional
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
+from openpyxl.styles import PatternFill
+
+RED_FILL = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
 
 from spearhead.config import settings
 from spearhead.services.analytics import FormAnalytics
@@ -31,10 +34,13 @@ class ExcelExporter:
         wb = Workbook()
         ws_zivud = wb.active
         ws_zivud.title = "זיווד"
+        ws_zivud.sheet_view.rightToLeft = True
         ws_zivud.append(["פריט", "חוסרים/בלאי"])
         if summary.zivud_gaps:
             for item, count in sorted(summary.zivud_gaps.items(), key=lambda kv: kv[1], reverse=True):
                 ws_zivud.append([item, count])
+                if count > 0:
+                    ws_zivud.cell(row=ws_zivud.max_row, column=2).fill = RED_FILL
         else:
             ws_zivud.append(["אין נתונים", None])
         _autosize(ws_zivud)

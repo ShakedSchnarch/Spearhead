@@ -8,6 +8,8 @@ from spearhead.config import settings
 from spearhead.config_fields import field_config
 from spearhead.data.field_mapper import FieldMapper
 from spearhead.data.storage import Database
+from spearhead.data.dto import GapReport, FormResponseRow
+from spearhead.logic.gaps import GapAnalyzer
 
 
 @dataclass
@@ -40,6 +42,51 @@ class FormAnalytics:
         # Keep order but drop duplicates
         self.gap_tokens = tuple(dict.fromkeys(gap_source))
         self.ok_tokens = tuple(dict.fromkeys(ok_source))
+        self.gap_analyzer = GapAnalyzer()
+
+    def get_gaps(self, week: Optional[str] = None, platoon: Optional[str] = None) -> List[GapReport]:
+        """
+        Returns a detailed list of extracted gaps using the logic engine.
+        """
+        filters = []
+        params = []
+        target_week = week or self.latest_week()
+        
+        if target_week:
+            filters.append("week_label = ?")
+            params.append(target_week)
+        if platoon:
+            filters.append("platoon = ?")
+            params.append(platoon)
+            
+        where = " AND ".join(filters) if filters else "1=1"
+        
+        with self.db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT platoon, tank_id, week_label, fields_json, row_index FROM form_responses WHERE {where}",
+                 params
+            )
+            rows = cur.fetchall()
+
+        response_rows = []
+        for pl, tid, wk, fields_json, idx in rows:
+            try:
+                fields = json.loads(fields_json)
+            except:
+                fields = {}
+            
+            response_rows.append(FormResponseRow(
+                source_file=None, # Not stored in db, simplistic approach
+                platoon=pl,
+                row_index=idx or 0,
+                tank_id=tid,
+                timestamp=None,
+                week_label=wk,
+                fields=fields
+            ))
+            
+        return self.gap_analyzer.analyze_batch(response_rows)
 
     def latest_week(self) -> Optional[str]:
         with self.db._connect() as conn:

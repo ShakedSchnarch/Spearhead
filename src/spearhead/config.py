@@ -28,7 +28,7 @@ class StatusTokens(BaseSettings):
     ok_tokens: list[str] = ["קיים", "יש"]
 
 class GoogleSettings(BaseSettings):
-    enabled: bool = False
+    enabled: bool = True
     service_account_file: Optional[Path] = None
     api_key: Optional[str] = None
     oauth_client_id: Optional[str] = None
@@ -40,6 +40,7 @@ class GoogleSettings(BaseSettings):
         "form_responses": [
             "1kkdR41tCHJQQDCGMLzch-YCcxMiM1uSp-5MrEl9AAVY", # Machatz
             "11yfVvw2IcXQZUkfO1K69DwMXNUwBd-ffW7eWOpP2g6M", # Sufa
+             "1Jc8mEjAVMfuMoLTpVXG_C0anO1njy88q3MJfU6sTl3Y", # Kfir
         ],
     }
     cache_dir: Path = Path("./data/sync_cache")

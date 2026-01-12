@@ -1,120 +1,123 @@
 import { useState } from "react";
-import { Badge, Button, Collapse, Group, Paper, Select, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Badge, Button, Group, Paper, Text, Title, Collapse, SegmentedControl, Center } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 
 export function LoginOverlay({ onLogin, defaultPlatoon = "battalion", oauthReady, oauthUrl, logos }) {
-  const [target, setTarget] = useState(defaultPlatoon || "battalion");
-  const [email, setEmail] = useState("");
-  const [tokenInput, setTokenInput] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(defaultPlatoon || "battalion");
+  const [showDev, setShowDev] = useState(false);
 
-  const logoSrc =
-    target === "battalion"
-      ? logos?.romach
-      : logos?.[target] || logos?.romach;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const viewMode = target === "battalion" ? "battalion" : "platoon";
-    const platoon = target === "battalion" ? "" : target;
-    onLogin({ platoon, email, token: tokenInput, viewMode });
-  };
+  // Dynamic logo based on selection
+  const logoSrc = selected === "battalion" ? logos?.romach : (logos?.[selected] || logos?.romach);
 
   const handleGoogle = () => {
-    const viewMode = target === "battalion" ? "battalion" : "platoon";
-    const platoon = target === "battalion" ? "" : target;
+    setLoading(true);
+    const platoon = selected === "battalion" ? "" : selected;
+    const viewMode = selected === "battalion" ? "battalion" : "platoon";
+
     if (oauthUrl) {
       try {
         const url = new URL(oauthUrl);
         const statePayload = {
-          platoon,
+          platoon, 
           viewMode,
-          email,
           ts: Date.now(),
         };
         url.searchParams.set("state", encodeURIComponent(JSON.stringify(statePayload)));
         window.location.href = url.toString();
+        return;
       } catch {
         notifications.show({
-          title: "OAuth לא מוגדר",
-          message: "לא ניתן לנתח את כתובת ה-OAuth שסופקה.",
+          title: "שגיאת OAuth",
+          message: "כתובת ה-OAuth אינה תקינה.",
           color: "red",
         });
+        setLoading(false);
       }
-      return;
+    } else {
+      // Dev Fallback
+      onLogin({ platoon, email: "guest@spearhead.local", token: "", viewMode });
     }
-    notifications.show({
-      title: "OAuth לא מוגדר",
-      message: "לא הוגדר VITE_GOOGLE_OAUTH_URL. משתמש בפלואו הידני.",
-      color: "yellow",
-    });
-    onLogin({ platoon, email: email || "guest@spearhead.local", token: tokenInput, viewMode });
   };
 
   return (
     <div className="login-overlay">
-      <Paper shadow="xl" radius="lg" className="login-card" withBorder>
-        <Group justify="center" align="center">
-          <Badge color="teal" radius="xl" variant="gradient" gradient={{ from: "green", to: "teal" }}>
+      <Paper shadow="xl" radius="lg" className="login-card" withBorder style={{ maxWidth: 420, margin: "auto", padding: "2rem" }}>
+        
+        {/* Header Badge */}
+        <Group justify="center" align="center" mb="lg">
+          <Badge size="lg" color="teal" radius="xl" variant="gradient" gradient={{ from: "green", to: "teal" }}>
             קצה הרומח · Spearhead
           </Badge>
         </Group>
-        <div className="login-logo">
-          {logoSrc && <img src={logoSrc} alt={target === "battalion" ? "רומח" : target} />}
-        </div>
-        <Title order={2} ta="center">
-          כניסה
-        </Title>
-        <Text ta="center" c="dimmed" size="sm">
-          בחר מצב (גדוד/פלוגה), הזדהה עם חשבון Google, והמשך לסנכרון אוטומטי.
-        </Text>
-        <Stack gap="xs" mt="sm" component="form" onSubmit={handleSubmit}>
-          <Select
-            label="מצב"
-            value={target}
-            onChange={(value) => setTarget(value || "battalion")}
-            data={[
-              { value: "battalion", label: "גדוד (רומח)" },
-              { value: "כפיר", label: "כפיר" },
-              { value: "סופה", label: "סופה" },
-              { value: "מחץ", label: "מחץ" },
-            ]}
-            required
-          />
-          <TextInput
-            label="מייל Google"
-            placeholder="name@domain"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Collapse in={showAdvanced}>
-            <TextInput
-              label="טוקן (מתקדם/דב)"
-              placeholder="Bearer/Basic"
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
+        
+        {/* Dynamic Logo */}
+        <div className="login-logo" style={{ textAlign: "center", marginBottom: "1.5rem", height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {logoSrc && (
+            <img 
+              src={logoSrc} 
+              alt={selected} 
+              style={{ 
+                maxHeight: "100%", 
+                maxWidth: "100%", 
+                objectFit: "contain",
+                filter: "drop-shadow(0px 4px 6px rgba(0,0,0,0.3))"
+              }} 
             />
-          </Collapse>
-          <Button type="submit" color="cyan" radius="md" fullWidth>
-            המשך וסנכרן
-          </Button>
-          <Button type="button" variant="light" radius="md" fullWidth onClick={handleGoogle}>
-            כניסה עם Google
-          </Button>
-          <Button type="button" variant="subtle" radius="md" fullWidth onClick={() => setShowAdvanced((v) => !v)}>
-            {showAdvanced ? "הסתר מתקדם" : "שדות מתקדמים (דב)"}
-          </Button>
-          {!oauthReady && (
-            <Text size="xs" c="yellow" ta="center">
-              OAuth לא הוגדר (VITE_GOOGLE_OAUTH_URL). השתמש בלוגין הידני או הוסף כתובת OAuth.
-            </Text>
           )}
-        </Stack>
-        <Text size="xs" c="dimmed" ta="center" mt="xs">
-          סנכרון ינסה לרוץ אוטומטית לאחר הכניסה. ניתן להעלות קובץ טפסים ידנית במקרה של כשל.
+        </div>
+
+        <Title order={2} ta="center" mb="xs" style={{ fontFamily: "kumbh sans, sans-serif" }}>
+          ברוכים הבאים
+        </Title>
+        <Text ta="center" c="dimmed" size="sm" mb="xl">
+          בחר יחידה והתחבר למערכת
         </Text>
+
+        {/* Unit Selection */}
+        <SegmentedControl
+          fullWidth
+          radius="md"
+          size="md"
+          mb="xl"
+          value={selected}
+          onChange={setSelected}
+          data={[
+            { label: "גדוד (רומח)", value: "battalion" },
+            { label: "כפיר", value: "כפיר" },
+            { label: "סופה", value: "סופה" },
+            { label: "מחץ", value: "מחץ" },
+          ]}
+          styles={{
+            root: { backgroundColor: "rgba(0, 0, 0, 0.2)" }
+          }}
+        />
+
+        {/* Main Action */}
+        <Button 
+          size="lg" 
+          color="cyan" 
+          radius="md" 
+          fullWidth 
+          onClick={handleGoogle} 
+          loading={loading}
+          leftSection={<span style={{ fontSize: "1.2em", fontWeight: "bold" }}>G</span>}
+        >
+          {selected === "battalion" ? "התחבר כגדוד" : `התחבר כ${selected}`}
+        </Button>
+
+        {/* Dev Footer */}
+        <Center mt="xl">
+            <Text size="xs" c="dimmed" style={{ cursor: "pointer", opacity: 0.5 }} onClick={() => setShowDev(!showDev)}>
+            v1.0.0
+            </Text>
+        </Center>
+        
+        <Collapse in={showDev}>
+            <Text size="xs" c="dimmed" ta="center" mt="xs">
+                Dev Mode: No OAuth? Click above to bypass.
+            </Text>
+        </Collapse>
       </Paper>
     </div>
   );
