@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
-from iron_view.etl.loader import load_data
-from iron_view.domain.models import ReadinessStatus
+from spearhead.etl.loader import load_data
+from spearhead.domain.models import ReadinessStatus
 
 def test_load_data_success(tmp_path):
     # Create valid CSV

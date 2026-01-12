@@ -11,50 +11,50 @@
 - Analytics/exports: dynamic tank counts from form responses, zivud gaps, ammo per-tank averages, means gaps, commander capture; Excel exports (platoon/battalion).
 - Scripts: `dev-api.sh`, `dev-ui.sh`, `build-ui.sh`, `test.sh`, `clean-db.sh`, `seed-and-export.sh`, `sync-and-export.sh` (sync from Sheets if enabled, else samples → export).
 
-## Updated Execution Plan (Post-MVP → first customer release)
-All steps keep existing functionality; only additive improvements. Each phase ends with an approval/commit.
+## Execution Plan (refresh for structured rollout)
+Goal: tighten layering, standardize frontend data flow, finish OAuth/Sheets integration, and ship a predictable release-ready stack. Each phase ends with validation (pytest + UI build) and doc updates.
 
-### Phase 1: Google Sheets Sync (done)
-- Source of truth: per-platoon Google Form responses (כפיר/סופה/מחץ). Platoon inferred from the sheet/file id; tanks identified by צ׳ טנק (no fixed counts).
-- Week derivation: from timestamp/date column; store week_key for grouping.
-- Schema drift tolerance: added columns kept as text.
-- ETag/304 cache, retry/backoff, `/sync/status` shows etag/source/cache/last_sync/error.
-- Tests: provider fakes for cache/etag/failure; API tests for `/sync/google`.
+### Phase 0 — Baseline & guardrails (Completed)
+- [x] Lock repository conventions: paths, env, scripts, lint/format, DB location. Check `.gitignore`.
+- [x] Confirm settings defaults: Google disabled, Auth optional.
+- [x] Verified generated artifacts policy.
+- [x] DoD Met: `pytest` green, `npm run build` passes, scripts functional.
 
-### Phase 2: Resilient data shaping (config-driven, non-hardcoded) — Done
-- Config file (`config/fields.yaml`): header aliases per family (zivud/ammo/means/issues/parsim), tank_id/timestamp/commander, platoon inference (file id/name), gap/ok tokens.
-- Normalization: slug headers (strip punctuation/spacing/diacritics); resolve via config with wildcards (“דוח זיווד [*]”, “סטטוס ציוד קשר [*]”); avoid hardcoded strings.
-- Schema drift visibility: keep unknown columns in raw payload; log “unmapped headers”; store per-import schema snapshot (expose via `/sync/status` or sidecar JSON).
-- Validation: if essential columns (tank_id/timestamp) missing → 422 with clear message; otherwise warn on unmapped.
-- Calculations (same behavior): zivud gaps only, ammo/means per-tank averages, dynamic tank counts per platoon/week, פערי צלמים if present, commander capture.
-- Exports: platoon/battalion XLSX fed by normalized names; commander/tank ids in פערי צלמים; skip/notify when categories empty.
-- Tests: fuzzed headers (aliases/spacing), added columns, idempotent dual sync, export smoke.
-- Deliverable: parsing/analytics driven by config, resilient to sheet changes.
+### Phase 1 — Structure & separation (backend + frontend)
+- Backend: enforce layering within repo modules: `data` (adapters/storage/import), `services` (analytics/queries), `sync` (providers/service), `api` (routers/middleware). `SyncService` only depends on provider + import; API should not reach adapters directly. OAuth session store behind an interface; sync status schema consistent.
+- Frontend: finalize layout (`components/`, `hooks/`, `api/`, `types/`, optional `styles/`); all network via `api/client` + React Query keys; single persisted state (apiBase/token/oauthSession/platoon/week/viewMode/topN). Remove legacy `api.js`/CSS remnants; Mantine/RTL defaults kept.
+- Logging/metrics standard drafted (request_id, auth_mode, sheet_id, platoon) for later phases.
+- Deliverables: component map + data flow diagram; lint/build clean.
 
-### Phase 3: View modes (Battalion vs. Platoon) — Done
-- Backend: optional platoon override for UI; normalized zivud/ammo/means summaries via `/queries/forms/summary`.
-- Frontend: toggle Battalion/Platoon with persistent filters (platoon/section/topN/week); KPIs + sync source/etag surfaced; banners for success/error.
-- QA: manual smoke + pytest (includes summary modes).
+### Phase 2 — Auth/OAuth + Google Sheets hardening
+- Server: add refresh-token handling and expiry cleanup to OAuth store; optional persistence hook (in-memory default). Improve `/sync/status` with `auth_mode`/source and clearer 401/403/429 paths with cache fallback. Refresh-token policy documented (TTL, storage, PII guardrails).
+- Client: login overlay shows OAuth readiness; store `session` separately from API token; send `X-OAuth-Session`; handle expiry banner and manual fallback upload. Surface sync source/auth_mode/etag in UI.
+- Error semantics: invalid/expired session → 401 with clear detail; exports/sync unauthenticated → 401/403; rate-limit messages (429) bubbled to UI.
+- Tests: unit for OAuth store TTL/refresh; sync provider fallbacks with user token; API tests for headers/query params; UI banner on 401/expired session.
 
-### Phase 4: UX polish and messaging — Done
-- Hebrew success/error messaging for import/sync/queries and KPI with time/source/etag.
-- Full RTL support for the user UI, navigation anchors, friendly empty states.
+### Phase 3 — Data shaping, queries, and exports
+- Verify coverage defaults (latest week) across summary/coverage/tabular endpoints; align battalion vs. platoon responses and error codes.
+- Exports: enforce filters (week/platoon), user-token auth, and descriptive errors (404/422 with detail). Add smoke for HQ/unknown platoons and dynamic filenames.
+- Analytics: validate anomaly thresholds and report tokens; keep schema snapshots lean (retention cap/cleanup documented).
+- Tests: expand `test_sync`, `test_queries`, export smoke (platoon/battalion), error-path tests for missing filters/auth.
 
-### Phase 5: Auth and ops — Done
-- Token/basic auth wired end-to-end; UI token field stores locally.
-- Auth smoke documented in README; keep token empty for local dev by default.
-- Consolidated runner is optional; existing scripts cover API/UI/test flows.
+### Phase 4 — Dashboard UX & interactions
+- Consolidated filter bar (mode/week/platoon/section/topN) + localStorage; consistent empty/error states; RTL-ready tables/charts with tooltips/legends.
+- Navigation: battalion/platoon cards with logos; header with user/session/source info; action bar (sync/refresh/export/upload) unified.
+- Reduce duplication: shared KPI strip, table components, chart wrappers; loading/skeleton states for React Query.
+- UX standards: banner/notification tone mapping; loading/empty/error patterns; maintain Mantine theme RTL; avoid ad-hoc buttons/styles.
 
-### Phase 6: AI (optional)
-- If enabled: smoke with real provider, redaction/limited context, source indicator (cache/remote) in UI.
-- Otherwise remain simulated; document enablement.
+### Phase 5 — Observability & operations
+- Structured logging (request_id, auth_mode, sheet id, platoon) and sync metrics; optional file-rotation config. Clarify log destination and retention.
+- Scripts: one-click dev (`dev-api.sh`, `dev-ui.sh`), reset, test-build-run. Add CI target or doc for local pre-commit (lint + pytest + UI build). Keep `.env` defaults safe (Google off, AI off).
+- Operational runbook pointer: how to start services, view logs, clean generated data, and smoke-test auth/sync.
 
-### Phase 7: Docs and release — Done
-- README updated (scripts, sync flow, modes, token usage, auth smoke); release notes appended here.
-- QA run (local samples): clean-db, import + exports generated, reports under `reports/` (platoon_כפיר_2026-W01.xlsx, battalion_2026-W01.xlsx), pytest green.
-- Next: tag internal release and ensure schema snapshots/config/fields.yaml are committed.
+### Phase 6 — Docs, readiness, release
+- Update README + this plan with the new architecture, OAuth flow, sync header usage, folder layout, and cleanup commands.
+- Final QA: `scripts/clean-db.sh` → sample import/sync → exports → UI smoke (battalion/platoon) → pytest → `npm run build`. Verify error semantics (exports without filters/auth) and sync status shows `auth_mode`.
 
 ## Release Notes (Internal)
+- OAuth callback now persists a short-lived session (in-memory) with access/refresh tokens and state; `/sync/google` consumes user tokens via `X-OAuth-Session` when present and falls back to service account/API key with `auth_mode` tracked.
 - Phase 2: Config-driven parsing (fields.yaml), header normalization with wildcards, schema snapshots, validation, and unmapped logging.
 - Phase 3: Battalion/Platoon view modes; `/queries/forms/summary`; frontend toggle + KPIs and sync source/etag.
 - Phase 4: UX polish (Hebrew UI, RTL, navigation anchors, empty states, auth banners).
@@ -123,42 +123,7 @@ All steps keep existing functionality; only additive improvements. Each phase en
 - Scripts helper set: `reset-env.sh` (DB + frontend dist cleanup), `clean-ui.sh` (frontend dist cleanup), `test-build-run.sh` (pytest + UI build + run-local).
 
 ## Upcoming Release Plan — "קצה הרומח"
-Roadmap for the next release with manual Google sync, improved analytics, Hebrew rebrand, and AI enablement (OpenAI key provided via `.env`). Each phase ends with approval and a commit after validation.
-
-### Phase A: Google Sheets sync (manual trigger, placeholders)
-- Configure `config/settings.yaml` with the supplied כפיר sheet ID; set placeholders for סופה/מחץ and keep uploads as fallback.
-- Keep sync manual (UI button + script); surface source/etag/cache/error/schema summary in `/sync/status`.
-- Tests: unit (sync/cache/etag), integration (sync → import → DB), and manual smoke via upload fallback.
-
-### Phase B: Week defaults, coverage, anomalies
-- Auto-derive `week_label` from form timestamp; API exposes “current/latest week” default.
-- Add coverage KPIs per platoon/week (reported tanks/forms, days without reports); detect weekly anomalies vs. history.
-- Separate battalion vs. platoon KPIs in queries; default filters to latest week in API/UI.
-- Tests: unit for coverage/anomaly math and missing-field handling; integration for new KPIs.
-- Status: Implemented. API now returns `latest_week`/`available_weeks`; coverage endpoint `/queries/forms/coverage` with anomalies; UI auto-fills latest week and shows coverage/anomalies tables. Pending: broader test run and user acceptance.
-
-### Phase C: Exports and schema drift
-- Support HQ platoon and any discovered platoon names (no hardcoding) in platoon/battalion exports.
-- Dynamic filenames (week/platoon) and tolerant columns for new fields.
-- Smoke: sync/upload → export platoon/battalion with detected platoons.
-
-### Phase D: Dashboard rebrand "קצה הרומח"
-- Brand: rename UI, apply battalion/companies logos from `assets/logos/` (Romach_75, Kfir, Sufa, Machatz, Palsam), RTL-first. Use "קצה הרומח" in UI, "Spearhead" where English names are needed.
-- Defaults: auto API base from host, auto-select latest week, platoon choice via cards/list with logos; no IP/week typing.
-- Views: clear Battalion/Platoon screens with KPIs (coverage, anomalies, sync status, etag), simple tables/charts, easy platoon navigation.
-- UX polish: consolidated action bar (import/sync/refresh), reduced duplicate toggles, compact hero, empty states instead of empty graphs.
-- Tests: UI build, RTL smoke, default autofill, sync status display.
-- Status: Implemented; dark theme, login gating with saved state, tabbed dashboard/export shell, and logo-based navigation are in place. Mantine adopted for shell/login/cards, notifications added, empty states improved, Chart.js lazy-loaded to reduce bundle. Further polish for exports/AI will follow in later phases.
-
-### Phase E: AI (OpenAI)
-- Use OpenAI provider with key from `.env`; show source (remote/cache/simulated) and a refresh action.
-- Focus on current-week insights with trends/anomalies context; keep deterministic fallback.
-- Tests: cache TTL unit, integration with real provider, fallback path.
-
-### Phase F: Docs & QA
-- Update README and this plan with flows (manual sync, defaults, AI config), scripts, and checkpoints.
-- Run `scripts/sync-and-export.sh` (manual sync path), `scripts/test.sh`, and UI smoke.
-- Commit at phase end after validation and user approval.
+Superseded by the refreshed Execution Plan above. Use the new phases (0–6) as the single source of truth for implementation and approvals.
 
 ## Editing and Delivery Policy
 - Code and docs: concise, English for code; Hebrew UI copy where appropriate. Keep ASCII unless existing file uses otherwise.

@@ -1,9 +1,88 @@
-.venv/
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
 .pytest_cache/
-src/iron_view.egg-info/
+cover/
+
+# Node/Frontend
 frontend-app/node_modules/
 frontend-app/dist/
-.env
+frontend-app/.env.local
+frontend-app/.env.development.local
+frontend-app/.env.test.local
+frontend-app/.env.production.local
+frontend-app/npm-debug.log*
+frontend-app/yarn-debug.log*
+frontend-app/yarn-error.log*
+
+# Database & Data
 data/ironview.db
+data/*.db
+data/*.sqlite
 data/sync_cache/
+data/input/
+data/generated/
+data/*.csv
+data/*.xlsx
+!data/input/.keep
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project Specific
+reports/
+*.log

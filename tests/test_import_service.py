@@ -1,14 +1,14 @@
 import sqlite3
 from pathlib import Path
 
-from iron_view.data.import_service import ImportService
+from spearhead.data.import_service import ImportService
 
 
 BASE = Path(__file__).resolve().parents[1]
 
 
 def test_import_service_idempotent(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     svc = ImportService(db_path=db_path)
 
     # Use small test file (form responses) to validate idempotency
@@ -31,7 +31,7 @@ def test_import_service_idempotent(tmp_path):
 
 
 def test_import_service_tabular(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     svc = ImportService(db_path=db_path)
 
     loadout_path = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"

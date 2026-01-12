@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from iron_view.ai.insight_service import InsightService
-from iron_view.ai.client import BaseAIClient, AIResult, SimulatedAIClient
-from iron_view.data.import_service import ImportService
-from iron_view.services import QueryService
+from spearhead.ai.insight_service import InsightService
+from spearhead.ai.client import BaseAIClient, AIResult, SimulatedAIClient
+from spearhead.data.import_service import ImportService
+from spearhead.services import QueryService
 
 
 BASE = Path(__file__).resolve().parents[1]
@@ -15,7 +15,7 @@ class FailingAIClient(BaseAIClient):
 
 
 def bootstrap_db(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     svc = ImportService(db_path=db_path)
     svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר.xlsx")
     svc.import_battalion_summary(BASE / "docs/Files/מסמך דוחות גדודי.xlsx")

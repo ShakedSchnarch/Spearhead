@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-DB_PATH="$ROOT/data/ironview.db"
+DB_PATH="$ROOT/data/spearhead.db"
 
 echo "Resetting database at $DB_PATH"
 rm -f "$DB_PATH"
@@ -20,9 +20,9 @@ export PYTHONPATH="$ROOT/src"
 python - <<'PY'
 from pathlib import Path
 
-from iron_view.data.import_service import ImportService
-from iron_view.services.analytics import FormAnalytics
-from iron_view.services.exporter import ExcelExporter
+from spearhead.data.import_service import ImportService
+from spearhead.services.analytics import FormAnalytics
+from spearhead.services.exporter import ExcelExporter
 
 root = Path(__file__).resolve().parents[1]
 sample_dir = root / "docs" / "Files"

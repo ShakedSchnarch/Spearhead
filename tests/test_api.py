@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from iron_view.api import create_app
+from spearhead.api import create_app
 from openpyxl import Workbook
 
 
@@ -11,7 +11,7 @@ BASE = Path(__file__).resolve().parents[1]
 
 
 def test_api_imports_and_queries(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     app = create_app(db_path=db_path)
     client = TestClient(app)
 
@@ -69,7 +69,7 @@ def test_missing_required_headers_returns_422(tmp_path):
     """
     Uploading a form file without tank_id should raise a 422 with a clear message.
     """
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     app = create_app(db_path=db_path)
     client = TestClient(app)
 
@@ -92,7 +92,7 @@ def test_missing_required_headers_returns_422(tmp_path):
 
 
 def test_form_summary_modes(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     app = create_app(db_path=db_path)
     client = TestClient(app)
 

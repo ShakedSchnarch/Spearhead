@@ -15,11 +15,11 @@ export PYTHONPATH="$ROOT/src"
 python - <<'PY'
 from pathlib import Path
 import sys
-from iron_view.config import settings
-from iron_view.data.import_service import ImportService
-from iron_view.sync.google_sheets import GoogleSheetsProvider, SyncService
-from iron_view.services.analytics import FormAnalytics
-from iron_view.services.exporter import ExcelExporter
+from spearhead.config import settings
+from spearhead.data.import_service import ImportService
+from spearhead.sync.google_sheets import GoogleSheetsProvider, SyncService
+from spearhead.services.analytics import FormAnalytics
+from spearhead.services.exporter import ExcelExporter
 
 root = Path.cwd()
 

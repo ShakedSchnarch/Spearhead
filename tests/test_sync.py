@@ -1,9 +1,9 @@
 import shutil
 from pathlib import Path
 
-from iron_view.data.import_service import ImportService
-from iron_view.exceptions import DataSourceError
-from iron_view.sync.google_sheets import SyncService, SheetsProvider
+from spearhead.data.import_service import ImportService
+from spearhead.exceptions import DataSourceError
+from spearhead.sync.google_sheets import SyncService, SheetsProvider
 
 
 BASE = Path(__file__).resolve().parents[1]
@@ -13,7 +13,9 @@ class FakeSheetsProvider:
     def __init__(self, fixture_dir: Path):
         self.fixture_dir = fixture_dir
 
-    def download_sheet(self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None):
+    def download_sheet(
+        self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None, user_token: str | None = None
+    ):
         # file_id here is the filename to copy from fixtures
         src = self.fixture_dir / file_id
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -21,11 +23,11 @@ class FakeSheetsProvider:
         if cache_path:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, cache_path)
-        return dest, False, "fake-etag"
+        return dest, False, "fake-etag", "fake"
 
 
 def test_sync_service(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     import_service = ImportService(db_path=db_path)
 
     fixture_dir = BASE / "docs/Files"
@@ -59,7 +61,9 @@ class FlakyProvider:
         self.fixture_dir = fixture_dir
         self.calls = 0
 
-    def download_sheet(self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None):
+    def download_sheet(
+        self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None, user_token: str | None = None
+    ):
         self.calls += 1
         if self.calls == 1:
             raise DataSourceError("transient error")
@@ -69,11 +73,11 @@ class FlakyProvider:
         if cache_path:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, cache_path)
-        return dest, False, "flaky-etag"
+        return dest, False, "flaky-etag", "fake"
 
 
 def test_sync_status_and_cache_fallback(tmp_path, monkeypatch):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     import_service = ImportService(db_path=db_path)
     fixture_dir = BASE / "docs/Files"
 
@@ -85,7 +89,9 @@ def test_sync_status_and_cache_fallback(tmp_path, monkeypatch):
     shutil.copyfile(cached_src, cached_target)
 
     class AlwaysFailProvider:
-        def download_sheet(self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None):
+        def download_sheet(
+            self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None, user_token: str | None = None
+        ):
             raise DataSourceError("network down")
 
     provider = AlwaysFailProvider()
@@ -115,7 +121,7 @@ def test_google_provider_retries_and_uses_cache(tmp_path, monkeypatch):
     """
     Validate retry/backoff path and cache fallback inside GoogleSheetsProvider.
     """
-    from iron_view.sync.google_sheets import GoogleSheetsProvider
+    from spearhead.sync.provider import GoogleSheetsProvider
     calls = {"count": 0}
 
     class FakeResp:
@@ -134,21 +140,21 @@ def test_google_provider_retries_and_uses_cache(tmp_path, monkeypatch):
             return FakeResp(200, b"data", etag="etag1")
         return FakeResp(200, b"data2", etag="etag2")
 
-    monkeypatch.setattr("iron_view.sync.google_sheets.requests.get", fake_get)
+    monkeypatch.setattr("spearhead.sync.provider.requests.get", fake_get)
     provider = GoogleSheetsProvider(api_key="fake", max_retries=3, backoff_seconds=0)
     dest = tmp_path / "out.xlsx"
     cache_path = tmp_path / "cache.xlsx"
 
-    path, used_cache, etag = provider.download_sheet("file123", dest, cache_path=cache_path)
+    path, used_cache, etag, auth_mode = provider.download_sheet("file123", dest, cache_path=cache_path)
     assert path.exists()
     assert used_cache is False
     assert etag == "etag1"
     assert calls["count"] == 2  # retried once after failure
-    _, _, _ = provider.download_sheet("file123", dest, cache_path=cache_path, etag="etag123")
+    _, _, _, _ = provider.download_sheet("file123", dest, cache_path=cache_path, etag="etag123")
 
 
 def test_sync_service_etag_tracked(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     import_service = ImportService(db_path=db_path)
     fixture_dir = BASE / "docs/Files"
 
@@ -157,7 +163,9 @@ def test_sync_service_etag_tracked(tmp_path):
             self.fixture_dir = fixture_dir
             self.called_etag = None
 
-        def download_sheet(self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None):
+        def download_sheet(
+            self, file_id: str, dest: Path, cache_path: Path | None = None, etag: str | None = None, user_token: str | None = None
+        ):
             self.called_etag = etag
             src = self.fixture_dir / file_id
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -165,7 +173,7 @@ def test_sync_service_etag_tracked(tmp_path):
             if cache_path:
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(src, cache_path)
-            return dest, False, "etag-value"
+            return dest, False, "etag-value", "fake"
 
     provider = EtagProvider(fixture_dir)
     file_ids = {

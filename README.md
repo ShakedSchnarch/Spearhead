@@ -50,6 +50,10 @@ Endpoints:
 - GET `/insights`
 - GET `/health`
 
+OAuth + Google Sheets:
+- `/auth/google/callback` exchanges code -> stores short-lived session (in-memory) with access/refresh token + state (platoon/viewMode) and redirects to `/app/?token=<session_id>`.
+- `/sync/google` will use the user session when header `X-OAuth-Session: <session_id>` is provided, otherwise falls back to service account/API key as configured.
+
 ### Frontend (React dashboard)
 ```bash
 cd frontend-app
@@ -123,6 +127,13 @@ Auth smoke checklist (manual):
 - `curl -f -H "Authorization: Bearer secret" -F file=@docs/Files/דוחות\ פלוגת\ כפיר.xlsx http://localhost:8000/imports/platoon-loadout` → expect 200.
 - `curl -f http://localhost:8000/imports/platoon-loadout` → expect 401.
 - UI: set the token in the header field, upload a file, run sync; clear token to confirm unauthorized banner.
+
+
+### Security Checklist (Production)
+- [ ] Ensure `SECURITY__API_TOKEN` is set to a strong secret in `.env`.
+- [ ] If Google Sync is enabled (`GOOGLE__ENABLED=true`), ensure `service_account.json` is present but **NOT** committed.
+- [ ] Verify `GOOGLE__FILE_IDS` are correct for the target deployment.
+- [ ] Confirm `AI__ENABLED` is false unless explicitly required and cost-controlled.
 
 ## 📄 License
 Internal Use Only - Battalion 74.

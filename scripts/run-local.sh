@@ -26,4 +26,4 @@ if [[ ! -d "$ROOT/frontend-app/dist" ]]; then
 fi
 
 PORT="${PORT:-8000}"
-exec "$ROOT/.venv/bin/uvicorn" --app-dir src iron_view.api.main:app --reload --port "$PORT"
+exec "$ROOT/.venv/bin/uvicorn" --app-dir src spearhead.api.main:app --reload --port "$PORT"

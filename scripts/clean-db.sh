@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-DB_PATH="data/ironview.db"
+DB_PATH="data/spearhead.db"
 SYNC_TMP="data/input/sync_tmp"
 CACHE_DIR="data/sync_cache"
 

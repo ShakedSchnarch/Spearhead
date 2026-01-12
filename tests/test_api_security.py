@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from iron_view.api import create_app
-from iron_view.config import settings
+from spearhead.api import create_app
+from spearhead.config import settings
 
 
 BASE = Path(__file__).resolve().parents[1]
@@ -28,7 +28,7 @@ def reset_security():
 
 def test_import_requires_token_when_configured(tmp_path):
     settings.security.api_token = "secret-token"
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     app = create_app(db_path=db_path)
     client = TestClient(app)
 
@@ -53,7 +53,7 @@ def test_import_requires_token_when_configured(tmp_path):
 def test_queries_require_token_when_enabled(tmp_path):
     settings.security.api_token = "secret-token"
     settings.security.require_auth_on_queries = True
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     app = create_app(db_path=db_path)
     client = TestClient(app)
 
@@ -71,7 +71,7 @@ def test_queries_require_token_when_enabled(tmp_path):
 
 def test_upload_rejected_when_too_large(tmp_path):
     settings.security.max_upload_mb = 0
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     app = create_app(db_path=db_path)
     client = TestClient(app)
 

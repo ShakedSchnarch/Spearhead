@@ -11,4 +11,4 @@ if [[ -z "${VIRTUAL_ENV:-}" && -f "$ROOT/.venv/bin/activate" ]]; then
 fi
 
 export PYTHONPATH="$ROOT/src"
-exec "$ROOT/.venv/bin/uvicorn" --app-dir src iron_view.api.main:app --reload --port 8000
+exec "$ROOT/.venv/bin/uvicorn" --app-dir src spearhead.api.main:app --reload --port 8000

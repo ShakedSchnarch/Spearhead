@@ -1,15 +1,15 @@
 from pathlib import Path
 from datetime import datetime, UTC
 
-from iron_view.data.import_service import ImportService
-from iron_view.services import QueryService
+from spearhead.data.import_service import ImportService
+from spearhead.services import QueryService
 
 
 BASE = Path(__file__).resolve().parents[1]
 
 
 def bootstrap_db(tmp_path):
-    db_path = tmp_path / "ironview.db"
+    db_path = tmp_path / "spearhead.db"
     svc = ImportService(db_path=db_path)
     svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר.xlsx")
     svc.import_form_responses(BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx")

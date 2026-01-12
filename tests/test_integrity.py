@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timedelta
-from iron_view.logic.analyzers import IntegrityAnalyzer
-from iron_view.domain.models import VehicleReport, BattalionData, ReadinessStatus
+from spearhead.logic.analyzers import IntegrityAnalyzer
+from spearhead.domain.models import VehicleReport, BattalionData, ReadinessStatus
 
 def create_report(vid, time_offset_minutes, status, location, faults, logistics, company="C1"):
     return VehicleReport(

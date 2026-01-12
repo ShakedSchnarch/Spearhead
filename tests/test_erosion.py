@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
-from iron_view.logic.analyzers import ErosionAnalyzer
-from iron_view.domain.models import VehicleReport, BattalionData, ReadinessStatus
+from spearhead.logic.analyzers import ErosionAnalyzer
+from spearhead.domain.models import VehicleReport, BattalionData, ReadinessStatus
 
 def create_faulty_report(vid, status, faults):
     return VehicleReport(

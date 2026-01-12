@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timedelta
-from iron_view.domain.models import VehicleReport, ReadinessStatus
-from iron_view.logic.integrity import detect_copy_paste
-from iron_view.logic.erosion import calculate_erosion_score
+from spearhead.domain.models import VehicleReport, ReadinessStatus
+from spearhead.logic.integrity import detect_copy_paste
+from spearhead.logic.erosion import calculate_erosion_score
 
 @pytest.fixture
 def sample_report():

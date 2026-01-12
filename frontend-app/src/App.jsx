@@ -1,55 +1,47 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Card, Collapse, Group, Paper, Select, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Badge,
+  Button,
+  Card,
+  Group,
+  NumberInput,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+
+import { ChartCard } from "./components/ChartCard";
+import { EmptyCard } from "./components/EmptyCard";
+import { FormStatusTables } from "./components/FormStatusTables";
+import { HeroHeader } from "./components/HeroHeader";
+import { KpiCard } from "./components/KpiCard";
+import { LoginOverlay } from "./components/LoginOverlay";
+import { PlatoonCard } from "./components/PlatoonCard";
+import { SectionHeader } from "./components/SectionHeader";
+import { SummaryTable } from "./components/SummaryTable";
+import { UploadCard } from "./components/UploadCard";
+import { useApiClient } from "./hooks/useApiClient";
+import { useDashboardActions } from "./hooks/useDashboardActions";
+import { useDashboardData } from "./hooks/useDashboardData";
+import { useDashboardState } from "./hooks/useDashboardState";
+import { useOAuthLanding } from "./hooks/useOAuthLanding";
+import { anomalyLabels, knownPlatoons } from "./types/state";
 import "./index.css";
 
-const storage = typeof window !== "undefined" ? window.localStorage : null;
-const oauthUrl = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_GOOGLE_OAUTH_URL || "") : "";
-const storageKeys = [
-  "IRONVIEW_API",
-  "IRONVIEW_SECTION",
-  "IRONVIEW_TOPN",
-  "IRONVIEW_PLATOON",
-  "IRONVIEW_WEEK",
-  "IRONVIEW_VIEW",
-  "IRONVIEW_TOKEN",
-  "IRONVIEW_TAB",
-  "IRONVIEW_USER",
-];
-const clearStoredState = () => {
-  if (!storage) return;
-  storageKeys.forEach((k) => {
-    try {
-      storage.removeItem(k);
-    } catch {
-      /* ignore */
-    }
-  });
-};
-const debugLog = (...args) => {
-  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.error(...args);
-  }
-};
-const safeGet = (key) => {
-  if (!storage) return null;
-  try {
-    return storage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-const fallbackApi = typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : "http://localhost:8000";
-const defaultApi = safeGet("IRONVIEW_API") || fallbackApi || "http://localhost:8000";
-const persisted = (key, fallback) => {
-  const raw = safeGet(key);
-  if (raw === null) return fallback;
-  if (typeof fallback === "number") {
-    const parsed = Number(raw);
-    return Number.isNaN(parsed) ? fallback : parsed;
-  }
-  return raw;
+const oauthUrl =
+  typeof import.meta !== "undefined" && import.meta.env ? import.meta.env.VITE_GOOGLE_OAUTH_URL || "" : "";
+const oauthReady = Boolean(oauthUrl);
+const assetBase = typeof window !== "undefined" && window.location.pathname.startsWith("/app") ? "/app" : "";
+const logoPath = (file) => `${assetBase}/logos/${file}`;
+const platoonLogos = {
+  "כפיר": logoPath("Kfir_logo.JPG"),
+  "סופה": logoPath("Sufa_logo.JPG"),
+  "מחץ": logoPath("Machatz_logo.JPG"),
+  "פלסם": logoPath("Palsam_logo.JPG"),
+  romach: logoPath("Romach_75_logo.JPG"),
 };
 
 const friendlyImportName = (kind) => {
@@ -59,369 +51,54 @@ const friendlyImportName = (kind) => {
   return kind;
 };
 
-const assetBase = typeof window !== "undefined" && window.location.pathname.startsWith("/app") ? "/app" : "";
-const logoPath = (file) => `${assetBase}/logos/${file}`;
-
-const platoonLogos = {
-  "כפיר": logoPath("Kfir_logo.JPG"),
-  "סופה": logoPath("Sufa_logo.JPG"),
-  "מחץ": logoPath("Machatz_logo.JPG"),
-  "פלסם": logoPath("Palsam_logo.JPG"),
-  romach: logoPath("Romach_75_logo.JPG"),
-};
-
-const knownPlatoons = ["כפיר", "סופה", "מחץ", "פלסם"];
-
-const anomalyLabels = {
-  no_reports: "אין דיווחים",
-  low_volume: "נפח דיווח נמוך",
-  stale: "לא דווח זמן רב",
-};
-
-const handleAuthBanner = (status, setBannerFn) => {
-  if (status === 401) {
-    setBannerFn({ text: "נדרש טוקן/Basic כדי לבצע פעולה זו", tone: "warning" });
-    return true;
-  }
-  return false;
-};
-
-function LoginOverlay({ onLogin, defaultPlatoon, oauthReady }) {
-  const [target, setTarget] = useState(defaultPlatoon || "battalion");
-  const [email, setEmail] = useState("");
-  const [tokenInput, setTokenInput] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const logoSrc = target === "battalion" ? platoonLogos.romach : platoonLogos[target] || platoonLogos.romach;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const viewMode = target === "battalion" ? "battalion" : "platoon";
-    const platoon = target === "battalion" ? "" : target;
-    onLogin({ platoon, email, token: tokenInput, viewMode });
-  };
-
-  const handleGoogle = () => {
-    const viewMode = target === "battalion" ? "battalion" : "platoon";
-    const platoon = target === "battalion" ? "" : target;
-    if (oauthUrl) {
-      const params = new URLSearchParams();
-      params.append("platoon", platoon);
-      params.append("viewMode", viewMode);
-      if (email) params.append("email", email);
-      if (tokenInput) params.append("token", tokenInput);
-      const sep = oauthUrl.includes("?") ? "&" : "?";
-      window.location.href = `${oauthUrl}${sep}${params.toString()}`;
-      return;
-    }
-    notifications.show({ title: "OAuth לא מוגדר", message: "לא הוגדר VITE_GOOGLE_OAUTH_URL. משתמש בפלואו הידני.", color: "yellow" });
-    onLogin({ platoon, email: email || "guest@spearhead.local", token: tokenInput, viewMode });
-  };
-
-  return (
-    <div className="login-overlay">
-      <Paper shadow="xl" radius="lg" className="login-card" withBorder>
-        <Group justify="center" align="center">
-          <Badge color="teal" radius="xl" variant="gradient" gradient={{ from: "green", to: "teal" }}>
-            קצה הרומח · Spearhead
-          </Badge>
-        </Group>
-        <div className="login-logo">
-          <img src={logoSrc} alt={target === "battalion" ? "רומח" : target} />
-        </div>
-        <Title order={2} ta="center">כניסה</Title>
-        <Text ta="center" c="dimmed" size="sm">בחר מצב (גדוד/פלוגה), הזדהה עם חשבון Google, והמשך לסנכרון אוטומטי.</Text>
-        <Stack gap="xs" mt="sm" component="form" onSubmit={handleSubmit}>
-          <Select
-            label="מצב"
-            value={target}
-            onChange={(value) => setTarget(value || "battalion")}
-            data={[
-              { value: "battalion", label: "גדוד (רומח)" },
-              { value: "כפיר", label: "כפיר" },
-              { value: "סופה", label: "סופה" },
-              { value: "מחץ", label: "מחץ" },
-            ]}
-            required
-          />
-          <TextInput
-            label="מייל Google"
-            placeholder="name@domain"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Collapse in={showAdvanced}>
-            <TextInput
-              label="טוקן (מתקדם/דב)"
-              placeholder="Bearer/Basic"
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-            />
-          </Collapse>
-          <Button type="submit" color="cyan" radius="md" fullWidth>
-            המשך וסנכרן
-          </Button>
-          <Button type="button" variant="light" radius="md" fullWidth onClick={handleGoogle}>
-            כניסה עם Google
-          </Button>
-          <Button type="button" variant="subtle" radius="md" fullWidth onClick={() => setShowAdvanced((v) => !v)}>
-            {showAdvanced ? "הסתר מתקדם" : "שדות מתקדמים (דב)"}
-          </Button>
-          {!oauthReady && (
-            <Text size="xs" c="yellow" ta="center">
-              OAuth לא הוגדר (VITE_GOOGLE_OAUTH_URL). השתמש בלוגין הידני או הוסף כתובת OAuth.
-            </Text>
-          )}
-        </Stack>
-        <Text size="xs" c="dimmed" ta="center" mt="xs">
-          סנכרון ינסה לרוץ אוטומטית לאחר הכניסה. ניתן להעלות קובץ טפסים ידנית במקרה של כשל.
-        </Text>
-      </Paper>
-    </div>
-  );
-}
-
-function SectionHeader({ title, subtitle, children }) {
-  return (
-    <div className="section-header">
-      <div>
-        <h2>{title}</h2>
-        {subtitle && <p className="muted">{subtitle}</p>}
-      </div>
-      <div className="actions">{children}</div>
-    </div>
-  );
-}
-
-function UploadCard({ title, inputId, onUpload, disabled }) {
-  return (
-    <Card withBorder shadow="md" padding="md" radius="md">
-      <Text fw={700} mb="xs">{title}</Text>
-      <input type="file" id={inputId} disabled={disabled} />
-      <Button
-        fullWidth
-        mt="sm"
-        radius="md"
-        onClick={() => onUpload(inputId)}
-        disabled={disabled}
-        loading={disabled}
-      >
-        העלה
-      </Button>
-      <div className="result" id={`result-${inputId}`} />
-    </Card>
-  );
-}
-
-function ChartCard({ title, data, color = "#22c55e" }) {
-  const hasData = (data?.length || 0) > 0;
-  const [recharts, setRecharts] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      const mod = await import("recharts");
-      if (!mounted) return;
-      setRecharts({
-        ResponsiveContainer: mod.ResponsiveContainer,
-        BarChart: mod.BarChart,
-        Bar: mod.Bar,
-        XAxis: mod.XAxis,
-        YAxis: mod.YAxis,
-        RTooltip: mod.Tooltip,
-        Legend: mod.Legend,
-        CartesianGrid: mod.CartesianGrid,
-      });
-    };
-    load();
-    return () => { mounted = false; };
-  }, []);
-
-  const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, RTooltip, Legend, CartesianGrid } = recharts || {};
-  return (
-    <Card withBorder shadow="sm" padding="md" radius="md">
-      <div className="card-title">{title}</div>
-      {hasData && recharts ? (
-        <div style={{ width: "100%", height: 240 }}>
-          <ResponsiveContainer>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f293b" />
-              <XAxis dataKey="item" stroke="#9fb3d0" />
-              <YAxis stroke="#9fb3d0" />
-              <RTooltip />
-              <Legend />
-              <Bar dataKey="value" fill={`${color}`} radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="empty-hint">אין נתונים להצגה</div>
-      )}
-    </Card>
-  );
-}
-
-function SummaryTable({ title, headers, rows }) {
-  return (
-    <Card withBorder shadow="sm" padding="md" radius="md">
-      <div className="card-title">{title}</div>
-      <table className="table">
-        <thead>
-          <tr>
-            {headers.map((h) => (
-              <th key={h}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length ? (
-            rows.map((row) => (
-              <tr key={row.key || row.cells[0]}>
-                {row.cells.map((v, idx) => (
-                  <td key={idx}>{v}</td>
-                ))}
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={headers.length}>אין נתונים</td>
+const TrendTable = ({ title, data }) => (
+  <div className="card">
+    <div className="card-title">{title}</div>
+    <table className="table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Week</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(data || []).flatMap((row) =>
+          (row.points || []).map((p) => (
+            <tr key={`${row.item}-${p.week}`}>
+              <td>{row.item}</td>
+              <td>{p.week}</td>
+              <td>{p.total}</td>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
-
-function PlatoonCard({ name, coverage, onSelect, isActive }) {
-  const logo = platoonLogos[name] || platoonLogos.romach;
-  const anomaly = coverage?.anomaly;
-  const anomalyText = anomaly ? anomalyLabels[anomaly] || anomaly : null;
-  return (
-    <button className={`platoon-card ${isActive ? "active" : ""}`} onClick={() => onSelect(name)}>
-      <div className="platoon-card__header">
-        <div className="platoon-card__title">
-          <span className="platoon-name">{name}</span>
-          {anomaly && <span className="badge warn">אנומליה</span>}
-        </div>
-        <img src={logo} alt={name} className="platoon-logo" />
-      </div>
-      <div className="platoon-card__metrics">
-        <div>
-          <div className="metric-label">טפסים</div>
-          <div className="metric-value">{coverage?.forms ?? 0}</div>
-        </div>
-        <div>
-          <div className="metric-label">טנקים מדווחים</div>
-          <div className="metric-value">{coverage?.distinct_tanks ?? 0}</div>
-        </div>
-        <div>
-          <div className="metric-label">ימים ללא דיווח</div>
-          <div className="metric-value">{coverage?.days_since_last ?? "-"}</div>
-        </div>
-      </div>
-      <div className="platoon-card__footer">
-        {anomaly ? <span className="muted">סיבה: {anomalyText}</span> : <span className="muted">מצב תקין</span>}
-      </div>
-    </button>
-  );
-}
-
-function EmptyCard({ title, message }) {
-  return (
-    <Card withBorder shadow="sm" padding="md" radius="md">
-      <div className="card-title">{title}</div>
-      <div className="empty-card">{message}</div>
-    </Card>
-  );
-}
-
-function FormStatusTables({ formsOk, formsGaps }) {
-  const okRows = (formsOk || []).map((f, idx) => ({ key: idx, cells: [f.platoon || f.item || "?", f.week || "?", f.total || f.count || 0] }));
-  const gapRows = (formsGaps || []).map((f, idx) => ({ key: idx, cells: [f.platoon || f.item || "?", f.week || "?", f.total || f.count || 0] }));
-  return (
-    <div className="grid two-col">
-      {okRows.length ? (
-        <SummaryTable
-          title="טפסים תקינים"
-          headers={["פלוגה", "שבוע", "סה\"כ"]}
-          rows={okRows}
-        />
-      ) : (
-        <EmptyCard title="אין טפסים תקינים" message="לא נמצאו טפסים תקינים לנתונים שהועלו." />
-      )}
-      {gapRows.length ? (
-        <SummaryTable
-          title="פערי טפסים"
-          headers={["פלוגה", "שבוע", "סה\"כ"]}
-          rows={gapRows}
-        />
-      ) : (
-        <EmptyCard title="אין פערי טפסים" message="לא נמצאו פערים ברשומות הטפסים." />
-      )}
-    </div>
-  );
-}
-
-function KpiCard({ label, value, hint, tone = "neutral" }) {
-  return (
-    <Paper
-      className={`kpi-card ${tone}`}
-      withBorder
-      shadow="sm"
-      padding="md"
-      radius="md"
-    >
-      <div className="kpi-card__label">{label}</div>
-      <div className="kpi-card__value">{value}</div>
-      {hint && <div className="kpi-card__hint">{hint}</div>}
-    </Paper>
-  );
-}
+          )),
+        )}
+      </tbody>
+    </table>
+  </div>
+);
 
 function App() {
-  const [apiBase, setApiBase] = useState(defaultApi);
-  const [health, setHealth] = useState("Checking...");
-  const [section, setSection] = useState(persisted("IRONVIEW_SECTION", "zivud"));
-  const [topN, setTopN] = useState(persisted("IRONVIEW_TOPN", 5));
-  const [platoon, setPlatoon] = useState(persisted("IRONVIEW_PLATOON", ""));
-  const [week, setWeek] = useState(persisted("IRONVIEW_WEEK", ""));
-  const [viewMode, setViewMode] = useState(persisted("IRONVIEW_VIEW", "battalion"));
-  const [token, setToken] = useState(persisted("IRONVIEW_TOKEN", ""));
-  const [activeTab, setActiveTab] = useState(persisted("IRONVIEW_TAB", "dashboard"));
-  const [user, setUser] = useState(() => {
-    const stored = safeGet("IRONVIEW_USER");
-    if (!stored) return null;
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return null;
-    }
-  });
   const [autoSyncDone, setAutoSyncDone] = useState(false);
-  const [summary, setSummary] = useState(null);
-  const [syncStatus, setSyncStatus] = useState(null);
-  const [platoonOptions, setPlatoonOptions] = useState([]);
   const [banner, setBanner] = useState(null); // {text, tone}
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const [totals, setTotals] = useState([]);
-  const [gaps, setGaps] = useState([]);
-  const [delta, setDelta] = useState([]);
-  const [variance, setVariance] = useState([]);
-  const [forms, setForms] = useState({ ok: [], gaps: [] });
-  const [coverage, setCoverage] = useState(null);
-  const [insight, setInsight] = useState({ content: "", source: "" });
-  const [trends, setTrends] = useState([]);
-  const [sortField, setSortField] = useState("delta");
-  const [sortDir, setSortDir] = useState("desc");
-  const [syncing, setSyncing] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [oauthReady] = useState(Boolean(oauthUrl));
+  const { state, update } = useDashboardState();
+  const { apiBase, section, topN, platoon, week, viewMode, activeTab, token, user, oauthSession } = state;
+  const apiClient = useApiClient(apiBase, token, oauthSession || token);
+  const filters = useMemo(
+    () => ({
+      section,
+      topN,
+      platoon,
+      week,
+      viewMode,
+    }),
+    [section, topN, platoon, week, viewMode],
+  );
+
+  const enabled = Boolean(user);
+  const { health, syncStatus, summary, coverage, tabular } = useDashboardData(apiClient, filters, enabled);
+  const { syncMutation, uploadMutation, exportMutation } = useDashboardActions(apiClient);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -429,371 +106,158 @@ function App() {
     }
   }, []);
 
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_API", apiBase); }, [apiBase]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_SECTION", section); }, [section]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_TOPN", String(topN)); }, [topN]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_PLATOON", platoon); }, [platoon]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_WEEK", week); }, [week]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_VIEW", viewMode); }, [viewMode]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_TOKEN", token); }, [token]);
-  useEffect(() => { if (storage) storage.setItem("IRONVIEW_TAB", activeTab); }, [activeTab]);
   useEffect(() => {
-    if (user) {
-      if (storage) storage.setItem("IRONVIEW_USER", JSON.stringify(user));
-      if (user.token && !token) {
-        setToken(user.token);
+    if (tabular.data) setLastUpdated(new Date().toLocaleString());
+  }, [tabular.data]);
+
+  const handleApiError = useCallback(
+    (err, context) => {
+      if (err?.status === 401) {
+        setBanner({ text: "נדרש טוקן/Basic כדי לבצע פעולה זו", tone: "warning" });
+        notifications.show({
+          title: "דרוש טוקן",
+          message: "הוסף טוקן או Basic כדי להמשיך.",
+          color: "yellow",
+        });
+        return true;
       }
-      if (user.platoon && !platoon) {
-        setPlatoon(user.platoon);
-      }
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    pingHealth();
-    loadStatus();
-    loadSummary();
-    loadQueries();
-    loadCoverage();
-    if (!autoSyncDone) {
-      triggerSync();
-      setAutoSyncDone(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiBase, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (viewMode === "platoon" && !platoon) return;
-    loadSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, week, platoon]);
-
-  useEffect(() => {
-    if (!user) return;
-    loadCoverage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [week]);
-
-  useEffect(() => {
-    if (!user) return;
-    loadQueries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [week, platoon]);
-
-  useEffect(() => {
-    if (!week && summary?.week) {
-      setWeek(summary.week);
-    }
-  }, [summary, week]);
-
-  // OAuth callback handler: read query params token/email/platoon/viewMode, then clean URL.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get("token");
-    const emailParam = params.get("email");
-    const platoonParam = params.get("platoon") || params.get("platoon_override");
-    const viewModeParam = params.get("viewMode") || (platoonParam ? "platoon" : "battalion");
-    if (tokenParam || emailParam) {
-      setToken(tokenParam || "");
-      setUser({ platoon: platoonParam || "", email: emailParam || "", token: tokenParam || "" });
-      setViewMode(viewModeParam);
-      setActiveTab("dashboard");
-      // Clean URL
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, cleanUrl);
-    }
-  }, []);
-
-  const pingHealth = async () => {
-    try {
-      const res = await fetch(`${apiBase}/health`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      setHealth(`ON · v${data.version}`);
-    } catch (err) {
-      setHealth("לא מחובר");
-    }
-  };
-
-  const loadStatus = async () => {
-    try {
-      const res = await fetch(`${apiBase}/sync/status`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (handleAuthBanner(res.status, setBanner)) return;
-      const data = await res.json();
-      setSyncStatus(data);
-      if (data?.files?.form_responses?.last_sync) {
+      if (err) {
         setBanner({
-          text: `סנכרון אחרון: ${data.files.form_responses.last_sync} (${data.files.form_responses.source || "n/a"})`,
-          tone: data.files.form_responses.status === "ok" ? "success" : "warning",
+          text: `${context || "שגיאה"}: ${err.message || err}`,
+          tone: "danger",
         });
       }
-    } catch (err) {
-      setSyncStatus(null);
+      return false;
+    },
+    [setBanner],
+  );
+
+  useEffect(() => {
+    const errors = [summary.error, coverage.error, tabular.error, syncStatus.error];
+    const unauthorized = errors.find((e) => e?.status === 401);
+    if (unauthorized) {
+      handleApiError(unauthorized);
     }
-  };
+  }, [summary.error, coverage.error, tabular.error, syncStatus.error, handleApiError]);
 
-  const uploadFile = async (kind, inputId) => {
-    const input = document.getElementById(inputId);
-    const resultEl = document.getElementById(`result-${inputId}`);
-    const file = input?.files?.[0];
-    if (!file) {
-      resultEl.textContent = "בחר/י קובץ";
-      return;
+  const handleLogin = useCallback(
+    (payload) =>
+      update((prev) => ({
+        ...prev,
+        user: { platoon: payload.platoon, email: payload.email, token: payload.token || "" },
+        token: payload.token || "",
+        oauthSession: payload.oauthSession || "",
+        platoon: payload.platoon || prev.platoon,
+        viewMode: payload.viewMode || (payload.platoon ? "platoon" : "battalion"),
+        activeTab: "dashboard",
+      })),
+    [update],
+  );
+
+  const handleLogout = () =>
+    update((prev) => ({
+      ...prev,
+      user: null,
+      token: "",
+      platoon: "",
+      viewMode: "battalion",
+    }));
+
+  const applyOAuth = useCallback(
+    (payload) =>
+      update((prev) => ({
+        ...prev,
+        token: payload.token || prev.token,
+        oauthSession: payload.session || payload.token || prev.oauthSession,
+        user: {
+          email: payload.email || prev.user?.email || "",
+          platoon: payload.platoon || prev.user?.platoon || "",
+          token: payload.token || prev.token,
+        },
+        platoon: payload.platoon || prev.platoon,
+        viewMode: payload.viewMode || (payload.platoon ? "platoon" : "battalion"),
+        activeTab: "dashboard",
+      })),
+    [update],
+  );
+  useOAuthLanding(applyOAuth);
+
+  useEffect(() => {
+    if (!week && summary.data?.week) {
+      update((prev) => ({ ...prev, week: summary.data.week }));
     }
-    setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
-    resultEl.textContent = "מעלה...";
-    try {
-      const res = await fetch(`${apiBase}/imports/${kind}`, {
-        method: "POST",
-        body: form,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (handleAuthBanner(res.status, setBanner)) {
-        resultEl.textContent = "לא מורשה";
-        return;
-      }
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      resultEl.textContent = `הוכנסו ${data.inserted}`;
-      setBanner({ text: `העלאה הצליחה (${friendlyImportName(kind)}) · נוספו ${data.inserted} רשומות`, tone: "success" });
-      notifications.show({ title: "העלאה הושלמה", message: `נוספו ${data.inserted} רשומות (${friendlyImportName(kind)})`, color: "teal" });
-      await loadQueries();
-      await loadStatus();
-      await loadSummary();
-    } catch (err) {
-      resultEl.textContent = `שגיאה: ${err}`;
-      setBanner({ text: `שגיאה בהעלאה (${friendlyImportName(kind)}): ${err}`, tone: "danger" });
-      notifications.show({ title: "שגיאה בהעלאה", message: String(err), color: "red" });
+  }, [week, summary.data, update]);
+
+  useEffect(() => {
+    if (!week && coverage.data?.week) {
+      update((prev) => ({ ...prev, week: coverage.data.week }));
     }
-    setUploading(false);
-  };
+  }, [week, coverage.data, update]);
 
-  const loadSummary = async () => {
-    try {
-      if (viewMode === "platoon" && !platoon) {
-        setSummary(null);
-        return;
-      }
-      const params = new URLSearchParams();
-      params.append("mode", viewMode);
-      if (week) params.append("week", week);
-      if (viewMode === "platoon" && platoon) params.append("platoon", platoon);
-      const res = await fetch(`${apiBase}/queries/forms/summary?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (handleAuthBanner(res.status, setBanner)) return;
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setSummary(data);
-      const names = data.platoons ? Object.keys(data.platoons) : data.summary ? [data.summary.platoon] : [];
-      if (names.length) setPlatoonOptions(names);
-    } catch (err) {
-      debugLog(err);
-      setSummary(null);
-    }
-  };
+  useEffect(() => {
+    if (!user || autoSyncDone) return;
+    syncMutation
+      .mutateAsync("all")
+      .then((data) => {
+        setBanner({
+          text: `סנכרון הצליח · platoon:${data.platoon_loadout} summary:${data.battalion_summary} forms:${data.form_responses}`,
+          tone: "success",
+        });
+      })
+      .catch((err) => handleApiError(err, "שגיאה בסנכרון"))
+      .finally(() => setAutoSyncDone(true));
+  }, [user, autoSyncDone, syncMutation, handleApiError]);
 
-  const loadCoverage = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (week) params.append("week", week);
-      const res = await fetch(`${apiBase}/queries/forms/coverage?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (handleAuthBanner(res.status, setBanner)) return;
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setCoverage(data);
-      if (!week && data.week) {
-        setWeek(data.week);
-      }
-    } catch (err) {
-      debugLog(err);
-      setCoverage(null);
-    }
-  };
+  const healthLabel = health.data
+    ? `ON · v${health.data.version}`
+    : health.isError
+      ? "לא מחובר"
+      : "בודק...";
 
-  const triggerSync = async () => {
-    if (syncing) return;
-    setBanner({ text: "סנכרון מתבצע...", tone: "warning" });
-    setSyncing(true);
-    try {
-      const res = await fetch(`${apiBase}/sync/google?target=all`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (handleAuthBanner(res.status, setBanner)) return;
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setBanner({ text: `סנכרון הצליח · platoon:${data.platoon_loadout} summary:${data.battalion_summary} forms:${data.form_responses}`, tone: "success" });
-      notifications.show({ title: "סנכרון הצליח", message: "הנתונים עודכנו מהמקור", color: "teal" });
-      await loadStatus();
-      await loadQueries();
-      await loadSummary();
-    } catch (err) {
-      setBanner({ text: `שגיאה בסנכרון: ${err}`, tone: "danger" });
-      notifications.show({ title: "שגיאה בסנכרון", message: String(err), color: "red" });
-    }
-    setSyncing(false);
-  };
+  const summaryData = summary.data;
+  const coverageData = coverage.data;
+  const tabularData = tabular.data || {};
+  const syncData = syncStatus.data;
 
-  const loadQueries = async () => {
-    try {
-      const platoonParam = platoon ? `&platoon=${encodeURIComponent(platoon)}` : "";
-      const weekParam = week ? `&week=${encodeURIComponent(week)}` : "";
-      const [t, g, d, v, f, ai, tr] = await Promise.all([
-        fetch(`${apiBase}/queries/tabular/totals?section=${section}&top_n=${topN}${platoonParam}${weekParam}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch(`${apiBase}/queries/tabular/gaps?section=${section}&top_n=${topN}${platoonParam}${weekParam}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch(`${apiBase}/queries/tabular/delta?section=${section}&top_n=${topN}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch(`${apiBase}/queries/tabular/variance?section=${section}&top_n=${topN}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch(`${apiBase}/queries/forms/status`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
-        fetch(`${apiBase}/insights?section=${section}&top_n=${topN}${platoonParam}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch(`${apiBase}/queries/trends?section=${section}&top_n=5${platoonParam}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-      ]);
-      if ([t, g, d, v, f, ai, tr].some((res) => handleAuthBanner(res.status, setBanner))) {
-        return;
-      }
-      const [tJson, gJson, dJson, vJson, fJson, aiJson, trJson] = await Promise.all([
-        t.json(),
-        g.json(),
-        d.json(),
-        v.json(),
-        f.json(),
-        ai.json(),
-        tr.json(),
-      ]);
-      setTotals(tJson);
-      setGaps(gJson);
-      setDelta(dJson);
-      setVariance(vJson);
-      setForms(fJson);
-      setInsight(aiJson);
-      setTrends(trJson);
-      setLastUpdated(new Date().toLocaleString());
-    } catch (err) {
-      setBanner({ text: "שגיאה בטעינת נתונים. בדוק כתובת API או הרשאות.", tone: "danger" });
-    }
-  };
-
-  const exportReport = async (mode) => {
-    if (exporting) return;
-    setExporting(true);
-    try {
-      const params = new URLSearchParams();
-      if (week) params.append("week", week);
-      if (mode === "platoon") {
-        if (!platoon) throw new Error("בחר פלוגה לייצוא פלוגתי");
-        params.append("platoon", platoon);
-      }
-      const endpoint = mode === "platoon" ? "/exports/platoon" : "/exports/battalion";
-      const res = await fetch(`${apiBase}${endpoint}?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const errJson = await res.json();
-          detail = errJson.detail || JSON.stringify(errJson);
-        } catch {
-          detail = await res.text();
-        }
-        throw new Error(detail || "Export failed");
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const fname = mode === "platoon" ? `platoon_${platoon}_${week || "latest"}.xlsx` : `battalion_${week || "latest"}.xlsx`;
-      link.download = fname;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      notifications.show({ title: "הייצוא מוכן", message: `הקובץ ${fname} ירד בהצלחה`, color: "teal" });
-    } catch (err) {
-      notifications.show({ title: "שגיאה בייצוא", message: String(err), color: "red" });
-    }
-    setExporting(false);
-  };
-
-  const sortedDelta = useMemo(() => {
-    const data = [...delta];
-    return data.sort((a, b) => {
-      const field = sortField || "delta";
-      const dir = sortDir === "asc" ? 1 : -1;
-      return (a[field] ?? 0) > (b[field] ?? 0) ? dir : -dir;
-    });
-  }, [delta, sortField, sortDir]);
-
-  const sortedVariance = useMemo(() => {
-    const data = [...variance];
-    return data.sort((a, b) => {
-      const field = sortField === "delta" ? "variance" : sortField;
-      const dir = sortDir === "asc" ? 1 : -1;
-      return (a[field] ?? 0) > (b[field] ?? 0) ? dir : -dir;
-    });
-  }, [variance, sortField, sortDir]);
-
-  const deltaText = useMemo(() => JSON.stringify(delta, null, 2), [delta]);
-  const varianceText = useMemo(() => JSON.stringify(variance, null, 2), [variance]);
-  const formsOk = useMemo(() => JSON.stringify((forms.ok || []).slice(0, topN), null, 2), [forms.ok, topN]);
-  const formsGaps = useMemo(() => JSON.stringify((forms.gaps || []).slice(0, topN), null, 2), [forms.gaps, topN]);
+  const platoonOptions = useMemo(() => {
+    const names = new Set();
+    if (summaryData?.platoons) Object.keys(summaryData.platoons).forEach((p) => names.add(p));
+    if (coverageData?.platoons) Object.keys(coverageData.platoons).forEach((p) => names.add(p));
+    knownPlatoons.forEach((p) => names.add(p));
+    return Array.from(names);
+  }, [summaryData, coverageData]);
 
   const platoonSummary = useMemo(() => {
-    if (!summary) return null;
-    if (summary.mode === "platoon") return summary.summary;
-    if (summary.mode === "battalion" && platoon && summary.platoons?.[platoon]) {
-      return summary.platoons[platoon];
+    if (!summaryData) return null;
+    if (summaryData.mode === "platoon") return summaryData.summary;
+    if (summaryData.mode === "battalion" && platoon && summaryData.platoons?.[platoon]) {
+      return summaryData.platoons[platoon];
     }
     return null;
-  }, [summary, platoon]);
-
-  const platoonRows = useMemo(() => {
-    if (!summary?.platoons) return [];
-    return Object.values(summary.platoons).map((p) => {
-      const zivudTotal = Object.values(p.zivud_gaps || {}).reduce((acc, v) => acc + (v || 0), 0);
-      const meansTotal = Object.values(p.means || {}).reduce((acc, v) => acc + (v?.count || 0), 0);
-      return {
-        key: p.platoon,
-        cells: [p.platoon, p.tank_count, zivudTotal, meansTotal],
-      };
-    });
-  }, [summary]);
+  }, [summaryData, platoon]);
 
   const battalionKpi = useMemo(() => {
-    if (!summary?.battalion) return null;
+    if (!summaryData?.battalion) return null;
     return {
-      week: summary.week || summary.latest_week || "latest",
-      tanks: summary.battalion.tank_count,
-      source: syncStatus?.files?.form_responses?.source || "n/a",
-      lastSync: syncStatus?.files?.form_responses?.last_sync || "n/a",
-      etag: syncStatus?.files?.form_responses?.etag || "n/a",
+      week: summaryData.week || summaryData.latest_week || "latest",
+      tanks: summaryData.battalion.tank_count,
+      source: syncData?.files?.form_responses?.source || "n/a",
+      lastSync: syncData?.files?.form_responses?.last_sync || "n/a",
+      etag: syncData?.files?.form_responses?.etag || "n/a",
     };
-  }, [summary, syncStatus]);
+  }, [summaryData, syncData]);
+
+  const coverageTotals = useMemo(() => {
+    const platoons = coverageData?.platoons || {};
+    const formsTotal = Object.values(platoons).reduce((acc, p) => acc + (p.forms || 0), 0);
+    const tanksTotal = Object.values(platoons).reduce((acc, p) => acc + (p.distinct_tanks || 0), 0);
+    const anomaliesCount = coverageData?.anomalies?.length || 0;
+    return { formsTotal, tanksTotal, anomaliesCount };
+  }, [coverageData]);
 
   const coverageRows = useMemo(() => {
-    if (!coverage?.platoons) return [];
-    return Object.entries(coverage.platoons).map(([name, c]) => ({
+    if (!coverageData?.platoons) return [];
+    return Object.entries(coverageData.platoons).map(([name, c]) => ({
       key: name,
       cells: [
         name,
@@ -803,11 +267,11 @@ function App() {
         c.anomaly ? anomalyLabels[c.anomaly] || c.anomaly : "תקין",
       ],
     }));
-  }, [coverage]);
+  }, [coverageData]);
 
   const anomalyRows = useMemo(() => {
-    if (!coverage?.anomalies?.length) return [];
-    return coverage.anomalies.map((a, idx) => ({
+    if (!coverageData?.anomalies?.length) return [];
+    return coverageData.anomalies.map((a, idx) => ({
       key: `${a.platoon}-${idx}`,
       cells: [
         a.platoon,
@@ -817,46 +281,45 @@ function App() {
         a.days_since_last ?? "-",
       ],
     }));
-  }, [coverage]);
+  }, [coverageData]);
 
   const platoonCards = useMemo(() => {
-    const entries = Object.entries(coverage?.platoons || {}).filter(([, c]) => (c?.forms || c?.distinct_tanks || 0) > 0);
+    const entries = Object.entries(coverageData?.platoons || {}).filter(
+      ([, c]) => (c?.forms || c?.distinct_tanks || 0) > 0,
+    );
     if (entries.length) {
       return entries.map(([name, cov]) => ({ name, coverage: cov }));
     }
     return knownPlatoons
-      .filter((name) => coverage?.platoons?.[name])
-      .map((name) => ({ name, coverage: coverage.platoons[name] }));
-  }, [coverage]);
+      .filter((name) => coverageData?.platoons?.[name])
+      .map((name) => ({ name, coverage: coverageData.platoons[name] }));
+  }, [coverageData]);
 
   const syncInfo = useMemo(() => {
-    const forms = syncStatus?.files?.form_responses;
+    const forms = syncData?.files?.form_responses;
     return {
-      status: forms?.status || (syncStatus?.enabled ? "enabled" : "disabled"),
+      status: forms?.status || (syncData?.enabled ? "enabled" : "disabled"),
       last: forms?.last_sync || "n/a",
       source: forms?.source || "n/a",
       etag: forms?.etag || "n/a",
     };
-  }, [syncStatus]);
+  }, [syncData]);
 
-  const coverageTotals = useMemo(() => {
-    const platoons = coverage?.platoons || {};
-    const formsTotal = Object.values(platoons).reduce((acc, p) => acc + (p.forms || 0), 0);
-    const tanksTotal = Object.values(platoons).reduce((acc, p) => acc + (p.distinct_tanks || 0), 0);
-    const anomaliesCount = coverage?.anomalies?.length || 0;
-    return { formsTotal, tanksTotal, anomaliesCount };
-  }, [coverage]);
-
-  const handleLogin = (payload) => {
-    setUser({ platoon: payload.platoon, email: payload.email, token: payload.token || "" });
-    setToken(payload.token || "");
-    setViewMode(payload.viewMode || (payload.platoon ? "platoon" : "battalion"));
-    setActiveTab("dashboard");
-  };
+  const platoonRows = useMemo(() => {
+    if (!summaryData?.platoons) return [];
+    return Object.values(summaryData.platoons).map((p) => {
+      const zivudTotal = Object.values(p.zivud_gaps || {}).reduce((acc, v) => acc + (v || 0), 0);
+      const meansTotal = Object.values(p.means || {}).reduce((acc, v) => acc + (v?.count || 0), 0);
+      return {
+        key: p.platoon,
+        cells: [p.platoon, p.tank_count, zivudTotal, meansTotal],
+      };
+    });
+  }, [summaryData]);
 
   const zivudRows = useMemo(
     () => Object.entries(platoonSummary?.zivud_gaps || {}).map(([item, count]) => ({ key: item, cells: [item, count] })),
-    [platoonSummary]
+    [platoonSummary],
   );
   const ammoRows = useMemo(
     () =>
@@ -864,7 +327,7 @@ function App() {
         key: item,
         cells: [item, vals.total ?? 0, vals.avg_per_tank ?? 0],
       })),
-    [platoonSummary]
+    [platoonSummary],
   );
   const meansRows = useMemo(
     () =>
@@ -872,7 +335,7 @@ function App() {
         key: item,
         cells: [item, vals.count ?? 0, vals.avg_per_tank ?? 0],
       })),
-    [platoonSummary]
+    [platoonSummary],
   );
   const issueRows = useMemo(
     () =>
@@ -880,73 +343,102 @@ function App() {
         key: `${issue.item}-${idx}`,
         cells: [issue.item, issue.tank_id, issue.commander || "", issue.detail],
       })),
-    [platoonSummary]
+    [platoonSummary],
   );
 
-  const TrendTable = ({ title, data }) => (
-    <div className="card">
-      <div className="card-title">{title}</div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Week</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row) =>
-            (row.points || []).map((p) => (
-              <tr key={`${row.item}-${p.week}`}>
-                <td>{row.item}</td>
-                <td>{p.week}</td>
-                <td>{p.total}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
+  const sortedDelta = useMemo(() => {
+    const data = [...(tabularData.delta || [])];
+    return data.sort((a, b) => (a.delta ?? 0) > (b.delta ?? 0) ? -1 : 1);
+  }, [tabularData.delta]);
+
+  const sortedVariance = useMemo(() => {
+    const data = [...(tabularData.variance || [])];
+    return data.sort((a, b) => (a.variance ?? 0) > (b.variance ?? 0) ? -1 : 1);
+  }, [tabularData.variance]);
+
+  const handleSync = async () => {
+    if (syncMutation.isPending) return;
+    setBanner({ text: "סנכרון מתבצע...", tone: "warning" });
+    try {
+      const data = await syncMutation.mutateAsync("all");
+      setBanner({
+        text: `סנכרון הצליח · platoon:${data.platoon_loadout} summary:${data.battalion_summary} forms:${data.form_responses}`,
+        tone: "success",
+      });
+      notifications.show({ title: "סנכרון הצליח", message: "הנתונים עודכנו מהמקור", color: "teal" });
+      await Promise.all([syncStatus.refetch(), summary.refetch(), coverage.refetch(), tabular.refetch()]);
+    } catch (err) {
+      if (handleApiError(err, "שגיאה בסנכרון")) return;
+      notifications.show({ title: "שגיאה בסנכרון", message: String(err), color: "red" });
+    }
+  };
+
+  const refreshAll = async () => {
+    await Promise.all([health.refetch(), syncStatus.refetch(), summary.refetch(), coverage.refetch(), tabular.refetch()]);
+  };
+
+  const handleUpload = async (file) => {
+    try {
+      const res = await uploadMutation.mutateAsync({ kind: "form-responses", file });
+      const inserted = res?.inserted || 0;
+      setBanner({
+        text: `העלאה הצליחה (${friendlyImportName("form-responses")}) · נוספו ${inserted} רשומות`,
+        tone: "success",
+      });
+      notifications.show({
+        title: "העלאה הושלמה",
+        message: `נוספו ${inserted} רשומות (${friendlyImportName("form-responses")})`,
+        color: "teal",
+      });
+      await refreshAll();
+      return inserted;
+    } catch (err) {
+      handleApiError(err, "שגיאה בהעלאה");
+      notifications.show({ title: "שגיאה בהעלאה", message: String(err), color: "red" });
+      throw err;
+    }
+  };
+
+  const handleExport = async (mode) => {
+    try {
+      const params = {};
+      if (week) params.week = week;
+      if (mode === "platoon") {
+        if (!platoon) throw new Error("בחר פלוגה לייצוא פלוגתי");
+        params.platoon = platoon;
+      }
+      const blob = await exportMutation.mutateAsync({ mode, params });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fname = mode === "platoon" ? `platoon_${platoon}_${week || "latest"}.xlsx` : `battalion_${week || "latest"}.xlsx`;
+      link.href = url;
+      link.download = fname;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      notifications.show({ title: "הייצוא מוכן", message: `הקובץ ${fname} ירד בהצלחה`, color: "teal" });
+    } catch (err) {
+      handleApiError(err, "שגיאה בייצוא");
+      notifications.show({ title: "שגיאה בייצוא", message: String(err), color: "red" });
+    }
+  };
 
   if (!user) {
-    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "battalion"} oauthReady={oauthReady} />;
+    return <LoginOverlay onLogin={handleLogin} defaultPlatoon={platoon || "battalion"} oauthReady={oauthReady} oauthUrl={oauthUrl} logos={platoonLogos} />;
   }
 
   return (
     <div className="page">
-      <header className="topbar">
-        <div className="hero">
-          <div className="hero-text">
-            <Badge color="teal" size="lg" radius="md" variant="gradient" gradient={{ from: "green", to: "teal" }}>
-              קצה הרומח · רומח 75
-            </Badge>
-            <Title order={2} mt="xs">דשבורד מוכנות</Title>
-            <Text className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</Text>
-            <Group gap="xs" mt="sm" wrap="wrap" className="header-actions">
-              <Badge variant="light" color="gray">משתמש: {user.email || "לא צוין"}</Badge>
-              <Badge variant="light" color="cyan">מצב: {viewMode === "battalion" ? "גדוד" : "פלוגה"} {user.platoon ? `· ${user.platoon}` : ""}</Badge>
-              <Badge variant="outline" color="green">{health}</Badge>
-              <Badge variant="outline" color={syncStatus?.enabled ? "teal" : "gray"}>
-                {syncStatus?.enabled ? "Google Sync פעיל" : "Google Sync כבוי"}
-              </Badge>
-              <Button
-                variant="light"
-                size="xs"
-                color="red"
-                onClick={() => { setUser(null); setToken(""); if (storage) storage.removeItem("IRONVIEW_USER"); }}
-              >
-                התנתק
-              </Button>
-            </Group>
-          </div>
-          <img
-            src={viewMode === "battalion" || !user.platoon ? platoonLogos.romach : platoonLogos[user.platoon] || platoonLogos.romach}
-            alt={viewMode === "battalion" ? "רומח 75" : user.platoon}
-            className="hero-logo"
-          />
-        </div>
-      </header>
+      <HeroHeader
+        user={user}
+        viewMode={viewMode}
+        platoon={platoon}
+        health={healthLabel}
+        syncEnabled={syncData?.enabled}
+        onLogout={handleLogout}
+        logoSrc={viewMode === "battalion" || !user.platoon ? platoonLogos.romach : platoonLogos[user.platoon] || platoonLogos.romach}
+      />
 
       {banner && (
         <div className={`banner ${banner.tone || "info"}`}>
@@ -962,38 +454,38 @@ function App() {
         <div className="actions-bar">
           <Group gap="xs" wrap="wrap">
             <Group gap={4} className="tabs">
-              <Button variant={activeTab === "dashboard" ? "filled" : "light"} onClick={() => setActiveTab("dashboard")}>
+              <Button variant={activeTab === "dashboard" ? "filled" : "light"} onClick={() => update((prev) => ({ ...prev, activeTab: "dashboard" }))}>
                 דשבורד
               </Button>
-              <Button variant={activeTab === "export" ? "filled" : "light"} onClick={() => setActiveTab("export")}>
+              <Button variant={activeTab === "export" ? "filled" : "light"} onClick={() => update((prev) => ({ ...prev, activeTab: "export" }))}>
                 הפקת דוחות
               </Button>
             </Group>
             <Group gap="xs" className="button-group">
-              <Button onClick={triggerSync} loading={syncing} variant="filled" color="cyan">סנכרון מ-Google</Button>
+              <Button onClick={handleSync} loading={syncMutation.isPending} variant="filled" color="cyan">
+                סנכרון מ-Google
+              </Button>
               <Button
-                onClick={async () => {
-                  if (refreshing) return;
-                  setRefreshing(true);
-                  await Promise.all([loadQueries(), loadSummary(), loadStatus(), loadCoverage()]);
-                  setRefreshing(false);
-                }}
-                loading={refreshing}
+                onClick={refreshAll}
+                loading={summary.isFetching || coverage.isFetching || tabular.isFetching}
                 variant="light"
               >
                 רענון נתונים
               </Button>
+              <TextInput
+                label="API"
+                size="xs"
+                value={apiBase}
+                onChange={(e) => update((prev) => ({ ...prev, apiBase: e.target.value }))}
+                placeholder="http://localhost:8000"
+              />
             </Group>
           </Group>
         </div>
 
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" className="kpi-strip">
-          <KpiCard label="שבוע נוכחי" value={summary?.latest_week || summary?.week || coverage?.week || "n/a"} />
-          <KpiCard
-            label="דיווחים השבוע"
-            value={coverageTotals.formsTotal || 0}
-            hint="סך טפסים מכל הפלוגות"
-          />
+          <KpiCard label="שבוע נוכחי" value={summaryData?.latest_week || summaryData?.week || coverageData?.week || "n/a"} />
+          <KpiCard label="דיווחים השבוע" value={coverageTotals.formsTotal || 0} hint="סך טפסים מכל הפלוגות" />
           <KpiCard label="טנקים מדווחים" value={coverageTotals.tanksTotal || 0} />
           <KpiCard
             label="אנומליות פעילות"
@@ -1005,46 +497,41 @@ function App() {
         {activeTab === "dashboard" && (
           <>
             <section id="import">
-          <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
-          <div className="upload-grid">
-            <UploadCard title="Form Responses" inputId="file-form" onUpload={(id) => uploadFile("form-responses", id)} disabled={uploading} />
-          </div>
-          {!syncStatus && (
-            <div className="empty-state">
-              אין נתונים עדיין. התחבר/י וסנכרן מגוגל או העלה קובץ טפסים ידנית כדי לטעון את הדאטה.
-            </div>
-            )}
-            <div className="actions" style={{ marginTop: 10 }}>
-              <button onClick={triggerSync} disabled={syncing}>{syncing ? "מסנכרן..." : "סנכרון מ-Google Sheets"}</button>
-              <button
-                onClick={async () => {
-                  if (refreshing) return;
-                  setRefreshing(true);
-                  await Promise.all([loadQueries(), loadSummary(), loadStatus(), loadCoverage()]);
-                  setRefreshing(false);
-                }}
-                disabled={refreshing}
-              >
-                {refreshing ? "מרענן..." : "רענון נתונים"}
-              </button>
-            </div>
-          </section>
+              <SectionHeader title="ייבוא וסנכרון" subtitle="סנכרון אוטומטי מטפסי הפלוגות. העלה קובץ טפסים לגיבוי בלבד." />
+              <div className="upload-grid">
+                <UploadCard title="Form Responses" onUpload={handleUpload} disabled={uploadMutation.isPending} />
+              </div>
+              {!syncData && (
+                <div className="empty-state">
+                  אין נתונים עדיין. התחבר/י וסנכרן מגוגל או העלה קובץ טפסים ידנית כדי לטעון את הדאטה.
+                </div>
+              )}
+              <div className="actions" style={{ marginTop: 10 }}>
+                <Button onClick={handleSync} disabled={syncMutation.isPending} loading={syncMutation.isPending}>
+                  {syncMutation.isPending ? "מסנכרן..." : "סנכרון מ-Google Sheets"}
+                </Button>
+                <Button onClick={refreshAll} disabled={summary.isFetching || coverage.isFetching || tabular.isFetching}>
+                  {summary.isFetching || coverage.isFetching || tabular.isFetching ? "מרענן..." : "רענון נתונים"}
+                </Button>
+              </div>
+            </section>
 
             <section id="platoons">
               <SectionHeader title="ניווט פלוגות" subtitle="בחירת פלוגה ותצוגה מהירה של כיסוי ודיווחים" />
               <div className="platoon-grid">
-                {platoonCards.length ? platoonCards.map((card) => (
-                  <PlatoonCard
-                    key={card.name}
-                    name={card.name}
-                    coverage={card.coverage}
-                    onSelect={(name) => {
-                      setPlatoon(name);
-                      setViewMode("platoon");
-                    }}
-                    isActive={platoon === card.name}
-                  />
-                )) : (
+                {platoonCards.length ? (
+                  platoonCards.map((card) => (
+                    <PlatoonCard
+                      key={card.name}
+                      name={card.name}
+                      coverage={card.coverage}
+                      logo={platoonLogos[card.name] || platoonLogos.romach}
+                      anomalyLabel={anomalyLabels[card.coverage?.anomaly]}
+                      onSelect={(name) => update((prev) => ({ ...prev, platoon: name, viewMode: "platoon" }))}
+                      isActive={platoon === card.name}
+                    />
+                  ))
+                ) : (
                   <EmptyCard title="אין נתוני כיסוי" message="סנכרן מגוגל או העלה טפסים ידנית כדי לראות פלוגות." />
                 )}
               </div>
@@ -1055,55 +542,58 @@ function App() {
                 title="מצב תצוגה"
                 subtitle="תמונת מצב נוכחית מהייבוא האחרון: גדוד שלם או פלוגה ממוקדת."
               >
-                <div className="controls">
-                  <div className="segmented">
-                    <button className={viewMode === "battalion" ? "active" : ""} onClick={() => setViewMode("battalion")}>
-                      גדוד
-                    </button>
-                    <button className={viewMode === "platoon" ? "active" : ""} onClick={() => setViewMode("platoon")}>
-                      פלוגה
-                    </button>
-                  </div>
-                  <label>
-                    שבוע (YYYY-Www):
-                    <input type="text" placeholder="לדוגמה 2026-W01" value={week} onChange={(e) => setWeek(e.target.value)} />
-                  </label>
-                  <label>
-                    פלוגה:
-                    <input
-                      list="platoon-options"
-                      type="text"
-                      value={platoon}
-                      onChange={(e) => setPlatoon(e.target.value)}
-                      placeholder="כפיר / סופה / מחץ"
-                    />
-                    <datalist id="platoon-options">
-                      {platoonOptions.map((p) => (
-                        <option key={p} value={p} />
-                      ))}
-                    </datalist>
-                  </label>
-                </div>
+                <Group gap="sm" wrap="wrap" className="controls">
+                  <SegmentedControl
+                    value={viewMode}
+                    onChange={(value) => update((prev) => ({ ...prev, viewMode: value }))}
+                    data={[
+                      { label: "גדוד", value: "battalion" },
+                      { label: "פלוגה", value: "platoon" },
+                    ]}
+                  />
+                  <TextInput
+                    label="שבוע (YYYY-Www)"
+                    value={week}
+                    onChange={(e) => update((prev) => ({ ...prev, week: e.target.value }))}
+                    placeholder="לדוגמה 2026-W01"
+                  />
+                  <Select
+                    label="פלוגה"
+                    data={platoonOptions.map((p) => ({ value: p, label: p }))}
+                    value={platoon}
+                    onChange={(value) => update((prev) => ({ ...prev, platoon: value || "" }))}
+                    placeholder="כפיר / סופה / מחץ"
+                    searchable
+                  />
+                  <Badge variant="outline" color="teal">
+                    סנכרון אחרון: {syncInfo.last} · {syncInfo.source}
+                  </Badge>
+                  <Badge variant="outline" color="gray">
+                    ETag: {syncInfo.etag}
+                  </Badge>
+                </Group>
               </SectionHeader>
 
               <div className="kpi-row">
                 <div className="kpi">
                   <div className="kpi-label">שבוע</div>
-                  <div className="kpi-value">{summary?.week || "latest"}</div>
+                  <div className="kpi-value">{summaryData?.week || "latest"}</div>
                 </div>
                 <div className="kpi">
                   <div className="kpi-label">מספר טנקים</div>
-                  <div className="kpi-value">{summary?.mode === "platoon" ? platoonSummary?.tank_count ?? "-" : battalionKpi?.tanks ?? "-"}</div>
+                  <div className="kpi-value">
+                    {summaryData?.mode === "platoon" ? platoonSummary?.tank_count ?? "-" : battalionKpi?.tanks ?? "-"}
+                  </div>
                 </div>
                 <div className="kpi">
                   <div className="kpi-label">סנכרון אחרון (טופס)</div>
                   <div className="kpi-value">
-                    {syncStatus?.files?.form_responses?.last_sync || "n/a"} · {syncStatus?.files?.form_responses?.source || "unknown"}
+                    {syncInfo.last} · {syncInfo.source}
                   </div>
                 </div>
                 <div className="kpi">
                   <div className="kpi-label">ETag</div>
-                  <div className="kpi-value">{syncStatus?.files?.form_responses?.etag || "n/a"}</div>
+                  <div className="kpi-value">{syncInfo.etag}</div>
                 </div>
               </div>
 
@@ -1118,11 +608,11 @@ function App() {
                   ) : (
                     <EmptyCard title="אין סיכום פלוגות" message="סנכרן או העלה טפסים כדי לראות נתוני סיכום." />
                   )}
-                  {Object.keys(summary?.battalion?.ammo || {}).length ? (
+                  {Object.keys(summaryData?.battalion?.ammo || {}).length ? (
                     <SummaryTable
                       title="תחמושת גדודית"
                       headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
-                      rows={Object.entries(summary?.battalion?.ammo || {}).map(([item, vals]) => ({
+                      rows={Object.entries(summaryData?.battalion?.ammo || {}).map(([item, vals]) => ({
                         key: item,
                         cells: [item, vals.total ?? 0, vals.avg_per_tank ?? 0],
                       }))}
@@ -1134,11 +624,7 @@ function App() {
               ) : (
                 <div className="grid two-col">
                   <SummaryTable title="זיווד חוסרים" headers={["פריט", "חוסרים/בלאי"]} rows={zivudRows} />
-                  <SummaryTable
-                    title="תחמושת"
-                    headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]}
-                    rows={ammoRows}
-                  />
+                  <SummaryTable title="תחמושת" headers={["אמצעי", "סה\"כ", "ממוצע לטנק"]} rows={ammoRows} />
                   {meansRows.length ? (
                     <SummaryTable
                       title="אמצעים"
@@ -1180,52 +666,46 @@ function App() {
 
             <section id="analytics">
               <SectionHeader title="מדדי זיווד/תחמושת" subtitle={'סה"כ, חוסרים, דלתא וסטיות מהסיכום הגדודי'}>
-                <div className="controls">
-                  <label>
-                    תחום:
-                    <select value={section} onChange={(e) => setSection(e.target.value)}>
-                      <option value="zivud">זיווד</option>
-                      <option value="ammo">תחמושת</option>
-                    </select>
-                  </label>
-                  <label>
-                    Top N:
-                    <input type="number" value={topN} min={1} max={50} onChange={(e) => setTopN(Number(e.target.value))} />
-                  </label>
-                  <label>
-                    פלוגה (אופציונלי):
-                    <input type="text" value={platoon} onChange={(e) => setPlatoon(e.target.value)} placeholder="כפיר / סופה / מחץ" />
-                  </label>
-                  <label>
-                    שבוע (אופציונלי):
-                    <input type="text" value={week} onChange={(e) => setWeek(e.target.value)} placeholder="2026-W01" />
-                  </label>
-                  <label>
-                    מיון:
-                    <select value={sortField} onChange={(e) => setSortField(e.target.value)}>
-                      <option value="delta">Delta</option>
-                      <option value="pct_change">% שינוי</option>
-                      <option value="variance">פער מול גדוד</option>
-                    </select>
-                  </label>
-                  <label>
-                    כיוון:
-                    <select value={sortDir} onChange={(e) => setSortDir(e.target.value)}>
-                      <option value="desc">יורד</option>
-                      <option value="asc">עולה</option>
-                    </select>
-                  </label>
+                <Group gap="sm" wrap="wrap" className="controls">
+                  <Select
+                    label="תחום"
+                    value={section}
+                    onChange={(value) => update((prev) => ({ ...prev, section: value || "zivud" }))}
+                    data={[
+                      { value: "zivud", label: "זיווד" },
+                      { value: "ammo", label: "תחמושת" },
+                    ]}
+                  />
+                  <NumberInput
+                    label="Top N"
+                    value={topN}
+                    min={1}
+                    max={50}
+                    onChange={(value) => update((prev) => ({ ...prev, topN: value || 5 }))}
+                  />
+                  <TextInput
+                    label="פלוגה (אופציונלי)"
+                    value={platoon}
+                    onChange={(e) => update((prev) => ({ ...prev, platoon: e.target.value }))}
+                    placeholder="כפיר / סופה / מחץ"
+                  />
+                  <TextInput
+                    label="שבוע (אופציונלי)"
+                    value={week}
+                    onChange={(e) => update((prev) => ({ ...prev, week: e.target.value }))}
+                    placeholder="2026-W01"
+                  />
                   {lastUpdated && <span className="muted">עודכן לאחרונה: {lastUpdated}</span>}
-                </div>
+                </Group>
               </SectionHeader>
 
               <div className="grid two-col">
-                <ChartCard title="Totals" data={totals.map((t) => ({ item: t.item, value: t.total }))} />
-                <ChartCard title="Gaps" data={gaps.map((g) => ({ item: g.item, value: g.gaps }))} color="#ef4444" />
+                <ChartCard title="Totals" data={(tabularData.totals || []).map((t) => ({ item: t.item, value: t.total }))} />
+                <ChartCard title="Gaps" data={(tabularData.gaps || []).map((g) => ({ item: g.item, value: g.gaps }))} color="#ef4444" />
               </div>
 
               <div className="grid two-col">
-                <div className="card">
+                <Card className="card">
                   <div className="card-title">Delta vs Previous Import</div>
                   <table className="table">
                     <thead>
@@ -1254,8 +734,8 @@ function App() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="card">
+                </Card>
+                <Card className="card">
                   <div className="card-title">Variance vs Battalion Summary</div>
                   <table className="table">
                     <thead>
@@ -1284,23 +764,23 @@ function App() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </Card>
               </div>
 
               <div className="card">
                 <div className="card-title">מצב טפסים</div>
-                <FormStatusTables formsOk={forms.ok} formsGaps={forms.gaps} />
+                <FormStatusTables formsOk={tabularData.forms?.ok} formsGaps={tabularData.forms?.gaps} topN={topN} />
               </div>
 
               <div className="grid two-col">
-                <TrendTable title="Trends (top items, recent weeks)" data={trends} />
+                <TrendTable title="Trends (top items, recent weeks)" data={tabularData.trends} />
                 <div className="card">
                   <div className="card-title">AI Insight</div>
                   <div className="pill">
                     <span className="dot" />
-                    Source: {insight.source || "n/a"} {insight.cached ? "(cached)" : ""}
+                    Source: {tabularData.insights?.source || "n/a"} {tabularData.insights?.cached ? "(cached)" : ""}
                   </div>
-                  <pre>{insight.content || "No insight yet."}</pre>
+                  <pre>{tabularData.insights?.content || "No insight yet."}</pre>
                 </div>
               </div>
             </section>
@@ -1310,36 +790,32 @@ function App() {
         {activeTab === "export" && (
           <section id="export">
             <SectionHeader title="הפקת דוחות אקסל" subtitle="בחר שבוע ופלוגה להפקת דוח. לגדוד ניתן לבחור גדוד לריכוז.">
-              <div className="controls">
-                <label>
-                  פלוגה:
-                  <select value={platoon} onChange={(e) => setPlatoon(e.target.value)}>
-                    <option value="כפיר">כפיר</option>
-                    <option value="סופה">סופה</option>
-                    <option value="מחץ">מחץ</option>
-                  </select>
-                </label>
-                <label>
-                  שבוע (YYYY-Www):
-                  <input type="text" value={week} onChange={(e) => setWeek(e.target.value)} placeholder="לדוגמה 2026-W01" />
-                </label>
+              <Group gap="sm" wrap="wrap" className="controls">
+                <Select
+                  label="פלוגה"
+                  data={platoonOptions.map((p) => ({ value: p, label: p }))}
+                  value={platoon}
+                  onChange={(value) => update((prev) => ({ ...prev, platoon: value || "" }))}
+                />
+                <TextInput
+                  label="שבוע (YYYY-Www)"
+                  value={week}
+                  onChange={(e) => update((prev) => ({ ...prev, week: e.target.value }))}
+                  placeholder="לדוגמה 2026-W01"
+                />
                 <Button
                   variant="filled"
                   color="cyan"
-                  onClick={() => exportReport("platoon")}
-                  disabled={!platoon || exporting}
-                  loading={exporting}
+                  onClick={() => handleExport("platoon")}
+                  disabled={!platoon || exportMutation.isPending}
+                  loading={exportMutation.isPending}
                 >
                   ייצוא פלוגתי
                 </Button>
-                <Button
-                  variant="light"
-                  onClick={() => exportReport("battalion")}
-                  loading={exporting}
-                >
+                <Button variant="light" onClick={() => handleExport("battalion")} loading={exportMutation.isPending}>
                   ייצוא גדודי
                 </Button>
-              </div>
+              </Group>
             </SectionHeader>
             <div className="card">
               <p className="muted">
