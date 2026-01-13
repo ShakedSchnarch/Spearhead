@@ -16,9 +16,22 @@ class FamilyConfig(BaseModel):
 
 class PlatoonInferenceConfig(BaseModel):
     file_names: List[Dict[str, str]] = Field(
-        default_factory=lambda: [{"match": "כפיר", "platoon": "כפיר"}]
+        default_factory=lambda: [
+            {"match": "כפיר", "platoon": "Kfir"},
+            {"match": "kfir", "platoon": "Kfir"},
+            {"match": "מחץ", "platoon": "Mahatz"},
+            {"match": "mahatz", "platoon": "Mahatz"},
+            {"match": "סופה", "platoon": "Sufa"},
+            {"match": "sufa", "platoon": "Sufa"},
+        ]
     )
-    sheet_ids: Dict[str, str] = Field(default_factory=dict)
+    sheet_ids: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "1kkdR41tCHJQQDCGMLzch-YCcxMiM1uSp-5MrEl9AAVY": "Mahatz",
+            "11yfVvw2IcXQZUkfO1K69DwMXNUwBd-ffW7eWOpP2g6M": "Sufa",
+            "1Jc8mEjAVMfuMoLTpVXG_C0anO1njy88q3MJfU6sTl3Y": "Kfir",
+        }
+    )
 
 
 class FormFieldConfig(BaseModel):

@@ -10,9 +10,13 @@ from spearhead.services import QueryService, FormAnalytics
 from spearhead.services.exporter import ExcelExporter
 from spearhead.ai import build_ai_client, InsightService
 from spearhead.sync.google_sheets import GoogleSheetsProvider, SyncService
+from spearhead.api.oauth_store import OAuthSessionStore
+from spearhead.domain.models import User
 
 # Global/Cached instances
 _db_instance: Optional[Database] = None
+# Shared Session Store (In-Memory)
+oauth_store = OAuthSessionStore(ttl_seconds=86400) # 24h explicitly
 
 def get_db() -> Database:
     """
@@ -98,3 +102,27 @@ def require_query_auth(
 ):
     if settings.security.require_auth_on_queries:
         require_auth(authorization=authorization, x_api_key=x_api_key)
+
+
+def get_current_user(
+    x_oauth_session: Optional[str] = Header(None, alias="X-OAuth-Session")
+) -> User:
+    """
+    Resolves the authenticated user from the session ID.
+    Enforces strict access control.
+    """
+    if not x_oauth_session:
+        # For development/debug without auth, checking settings? 
+        # No, "Sterile Auth" means we require it.
+        # But maybe we allow basic auth fallback? For now, strict session.
+        raise HTTPException(status_code=401, detail="Missing authentication")
+
+    session = oauth_store.get_active_session(x_oauth_session)
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    return User(
+        email=session.email or "unknown",
+        platoon=session.platoon, # This is the enforced/sterile platoon
+        role="viewer" # basic default
+    )

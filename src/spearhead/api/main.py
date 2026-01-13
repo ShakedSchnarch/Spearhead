@@ -17,6 +17,8 @@ from spearhead.api.deps import get_db
 # Routers
 from spearhead.api.routers import system, imports, queries, sync
 
+# Configure logging
+logging.basicConfig(level=getattr(logging, settings.logging.level.upper(), logging.INFO))
 logger = logging.getLogger("spearhead.api")
 
 def create_app(db_path: Optional[Path] = None) -> FastAPI:
@@ -58,14 +60,44 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
 
     # Locate built frontend assets relative to repo root (src/spearhead/api/main.py -> ../../.. = repo)
     dist_path = Path(__file__).resolve().parents[3] / "frontend-app" / "dist"
+    
     if dist_path.exists():
-        app.mount("/app", StaticFiles(directory=dist_path, html=True), name="frontend")
+        # 1. Mount assets specifically at /spearhead/assets
+        #    This ensures requests to /spearhead/assets/... are served from dist/assets folder
+        app.mount("/spearhead/assets", StaticFiles(directory=dist_path / "assets"), name="assets")
+
+        # 2. Redirect root to /spearhead
         @app.get("/")
         async def root_redirect():
-            return RedirectResponse(url="/app", status_code=307)
+            return RedirectResponse(url="/spearhead", status_code=307)
+        
+        # 3. Serve public files (like logos) if they exist at root of dist, otherwise serve index.html for SPA
+        from fastapi.responses import FileResponse
+        
+        @app.get("/spearhead/{full_path:path}")
+        async def serve_spa(full_path: str):
+            # If the path points to a real file in dist (e.g. logos/Kfir_logo.JPG), serve it.
+            # otherwise, serve index.html
+            file_path = dist_path / full_path
+            if file_path.is_file():
+                return FileResponse(file_path)
+            
+            return FileResponse(dist_path / "index.html")
+            
+        @app.get("/spearhead")
+        async def serve_spa_root():
+            return FileResponse(dist_path / "index.html")
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
+        # Allow Starlette/FastAPI HTTP exceptions to pass through (or handle them specifically if needed)
+        # But wait, exception handlers don't cascade. If I catch Exception, I catch everything.
+        # So I MUST implement a specific handler for HTTPException if I want different behavior,
+        # OR check isinstance here.
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        if isinstance(exc, StarletteHTTPException):
+             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        
         rid = getattr(request.state, "request_id", None)
         logger.exception("Unhandled error", extra={"path": str(request.url), "request_id": rid})
         payload = {"error": "internal_error", "detail": "Unexpected server error"}

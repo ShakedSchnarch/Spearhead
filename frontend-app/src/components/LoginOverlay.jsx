@@ -1,14 +1,33 @@
 import { useState } from "react";
-import { Badge, Button, Group, Paper, Text, Title, Collapse, SegmentedControl, Center } from "@mantine/core";
+import {
+  Badge,
+  Button,
+  Group,
+  Paper,
+  Text,
+  Title,
+  Collapse,
+  SegmentedControl,
+  Center,
+} from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 
-export function LoginOverlay({ onLogin, defaultPlatoon = "battalion", oauthReady, oauthUrl, logos }) {
+export function LoginOverlay({
+  onLogin,
+  defaultPlatoon = "battalion",
+  oauthReady,
+  oauthUrl,
+  logos,
+}) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(defaultPlatoon || "battalion");
   const [showDev, setShowDev] = useState(false);
 
   // Dynamic logo based on selection
-  const logoSrc = selected === "battalion" ? logos?.romach : (logos?.[selected] || logos?.romach);
+  const logoSrc =
+    selected === "battalion"
+      ? logos?.romach
+      : logos?.[selected] || logos?.romach;
 
   const handleGoogle = () => {
     setLoading(true);
@@ -19,11 +38,14 @@ export function LoginOverlay({ onLogin, defaultPlatoon = "battalion", oauthReady
       try {
         const url = new URL(oauthUrl);
         const statePayload = {
-          platoon, 
+          platoon,
           viewMode,
           ts: Date.now(),
         };
-        url.searchParams.set("state", encodeURIComponent(JSON.stringify(statePayload)));
+        url.searchParams.set(
+          "state",
+          encodeURIComponent(JSON.stringify(statePayload))
+        );
         window.location.href = url.toString();
         return;
       } catch {
@@ -42,33 +64,53 @@ export function LoginOverlay({ onLogin, defaultPlatoon = "battalion", oauthReady
 
   return (
     <div className="login-overlay">
-      <Paper shadow="xl" radius="lg" className="login-card" withBorder style={{ maxWidth: 420, margin: "auto", padding: "2rem" }}>
-        
-        {/* Header Badge */}
+      <Paper
+        shadow="xl"
+        radius="lg"
+        className="login-card"
+        withBorder
+        style={{ maxWidth: 420, margin: "auto", padding: "2rem" }}
+      >
+        {/* Header Badge - Removed for cleaner look */}
         <Group justify="center" align="center" mb="lg">
-          <Badge size="lg" color="teal" radius="xl" variant="gradient" gradient={{ from: "green", to: "teal" }}>
-            קצה הרומח · Spearhead
-          </Badge>
+          <Text size="sm" c="dimmed" fw={500}>
+            מערכת מוכנות גדודית
+          </Text>
         </Group>
-        
+
         {/* Dynamic Logo */}
-        <div className="login-logo" style={{ textAlign: "center", marginBottom: "1.5rem", height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          className="login-logo"
+          style={{
+            textAlign: "center",
+            marginBottom: "1.5rem",
+            height: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           {logoSrc && (
-            <img 
-              src={logoSrc} 
-              alt={selected} 
-              style={{ 
-                maxHeight: "100%", 
-                maxWidth: "100%", 
+            <img
+              src={logoSrc}
+              alt={selected}
+              style={{
+                maxHeight: "100%",
+                maxWidth: "100%",
                 objectFit: "contain",
-                filter: "drop-shadow(0px 4px 6px rgba(0,0,0,0.3))"
-              }} 
+                filter: "drop-shadow(0px 4px 6px rgba(0,0,0,0.3))",
+              }}
             />
           )}
         </div>
 
-        <Title order={2} ta="center" mb="xs" style={{ fontFamily: "kumbh sans, sans-serif" }}>
-          ברוכים הבאים
+        <Title
+          order={1}
+          ta="center"
+          mb="md"
+          style={{ fontFamily: "kumbh sans, sans-serif", fontWeight: 800 }}
+        >
+          קצה הרומח
         </Title>
         <Text ta="center" c="dimmed" size="sm" mb="xl">
           בחר יחידה והתחבר למערכת
@@ -89,34 +131,41 @@ export function LoginOverlay({ onLogin, defaultPlatoon = "battalion", oauthReady
             { label: "מחץ", value: "מחץ" },
           ]}
           styles={{
-            root: { backgroundColor: "rgba(0, 0, 0, 0.2)" }
+            root: { backgroundColor: "rgba(0, 0, 0, 0.2)" },
           }}
         />
 
         {/* Main Action */}
-        <Button 
-          size="lg" 
-          color="cyan" 
-          radius="md" 
-          fullWidth 
-          onClick={handleGoogle} 
+        <Button
+          size="lg"
+          color="cyan"
+          radius="md"
+          fullWidth
+          onClick={handleGoogle}
           loading={loading}
-          leftSection={<span style={{ fontSize: "1.2em", fontWeight: "bold" }}>G</span>}
+          leftSection={
+            <span style={{ fontSize: "1.2em", fontWeight: "bold" }}>G</span>
+          }
         >
           {selected === "battalion" ? "התחבר כגדוד" : `התחבר כ${selected}`}
         </Button>
 
         {/* Dev Footer */}
         <Center mt="xl">
-            <Text size="xs" c="dimmed" style={{ cursor: "pointer", opacity: 0.5 }} onClick={() => setShowDev(!showDev)}>
+          <Text
+            size="xs"
+            c="dimmed"
+            style={{ cursor: "pointer", opacity: 0.5 }}
+            onClick={() => setShowDev(!showDev)}
+          >
             v1.0.0
-            </Text>
+          </Text>
         </Center>
-        
+
         <Collapse in={showDev}>
-            <Text size="xs" c="dimmed" ta="center" mt="xs">
-                Dev Mode: No OAuth? Click above to bypass.
-            </Text>
+          <Text size="xs" c="dimmed" ta="center" mt="xs">
+            Dev Mode: No OAuth? Click above to bypass.
+          </Text>
         </Collapse>
       </Paper>
     </div>

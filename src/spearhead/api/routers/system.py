@@ -3,6 +3,8 @@ import json
 import base64
 import time
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from urllib.parse import unquote
 from uuid import uuid4
 from typing import Optional
@@ -10,11 +12,12 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from spearhead.config import settings
-from spearhead.api.oauth_store import OAuthSessionStore, OAuthSession
+from spearhead.api.deps import oauth_store
+from spearhead.api.oauth_store import OAuthSession
 
 logger = logging.getLogger("spearhead.api.system")
 router = APIRouter()
-oauth_store = OAuthSessionStore(ttl_seconds=3600)
+# oauth_store is now imported from deps to share state
 
 @router.get("/health")
 def health():
@@ -34,14 +37,36 @@ def google_oauth_callback(
     if not code:
         raise HTTPException(status_code=400, detail="Missing OAuth code")
 
+    # Parse state for context
+    platoon = None
+    view_mode = "battalion"  # Default if not specified
+    if state:
+        try:
+            # Handle potential double encoding or direct JSON
+            raw_state = unquote(state) if "%" in state else state
+            # If still starts with %, unquote again? No, let's try strict parse
+            # Sometimes frontend sends JSON string directly.
+            state_data = json.loads(raw_state)
+            if isinstance(state_data, dict):
+                 platoon = state_data.get("platoon")
+                 view_mode = state_data.get("viewMode") or "battalion"
+        except Exception:
+            logger.warning(f"Failed to parse OAuth state: {state}")
+            pass
+
     cid = settings.google.oauth_client_id
     csecret = settings.google.oauth_client_secret
-    redirect_uri = settings.google.oauth_redirect_uri or "http://127.0.0.1:8000/app/"
+    redirect_uri = settings.google.oauth_redirect_uri or "http://127.0.0.1:8000/spearhead/"
     if not cid or not csecret:
         raise HTTPException(status_code=400, detail="OAuth client not configured on server")
 
     try:
-        token_res = requests.post(
+        # Robust request with retries
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        token_res = session.post(
             "https://oauth2.googleapis.com/token",
             data={
                 "code": code,
@@ -50,7 +75,7 @@ def google_oauth_callback(
                 "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             },
-            timeout=15,
+            timeout=30,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"OAuth connection failed: {e}")
@@ -83,16 +108,28 @@ def google_oauth_callback(
         except Exception:
             pass
 
-    # Parse state if provided
-    platoon = ""
-    view_mode = ""
-    if state:
-        try:
-            decoded_state = json.loads(unquote(state))
-            platoon = decoded_state.get("platoon", "")
-            view_mode = decoded_state.get("viewMode", "")
-        except Exception:
-            pass
+    # Authorization Check
+    authorized_users = settings.security.authorized_users
+    # Allow wildcard or strictly enforce list? For Sterility logic, we enforce list if populated.
+    # If list is empty, maybe allow all (dev mode). But for this task, we assume strict.
+    
+    assigned_role = authorized_users.get(email)
+    if not assigned_role and authorized_users:
+         # Check if there is a wildcard domain rule? For now, strict email check.
+         logger.warning(f"Unauthorized login attempt: {email}")
+         raise HTTPException(status_code=403, detail="User not authorized")
+
+    # Determine effective platoon based on role
+    # If role is a specific platoon (Kfir/Mahatz/Sufa), enforce it.
+    # If role is 'battalion' or None, allow user selection (or default to view_mode).
+    
+    forced_platoon = None
+    if assigned_role and assigned_role.lower() != "battalion":
+        forced_platoon = assigned_role
+
+    final_platoon = forced_platoon if forced_platoon else (platoon or "")
+    # If forced, view_mode MUST be platoon
+    final_view_mode = "platoon" if forced_platoon else (view_mode or (final_platoon and "platoon") or "battalion")
 
     if not access_token:
         raise HTTPException(status_code=400, detail="OAuth token exchange failed: missing access_token")
@@ -107,8 +144,8 @@ def google_oauth_callback(
             refresh_token=token_data.get("refresh_token"),
             expires_at=expires_at,
             email=email,
-            platoon=platoon,
-            view_mode=view_mode or (platoon and "platoon") or "battalion",
+            platoon=final_platoon,
+            view_mode=final_view_mode,
         ),
     )
 
@@ -116,13 +153,13 @@ def google_oauth_callback(
     params.append(f"token={session_id}")
     if email:
         params.append(f"email={email}")
-    if platoon:
-        params.append(f"platoon={platoon}")
-    if view_mode:
-        params.append(f"viewMode={view_mode}")
+    if final_platoon:
+        params.append(f"platoon={final_platoon}")
+    if final_view_mode:
+        params.append(f"viewMode={final_view_mode}")
     params.append(f"session={session_id}")
     qs = "&".join(params)
-    target = "/app/"
+    target = "/spearhead/"
     if qs:
-        target = f"/app/?{qs}"
+        target = f"/spearhead/?{qs}"
     return RedirectResponse(url=target, status_code=307)

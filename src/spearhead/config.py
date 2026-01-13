@@ -34,7 +34,7 @@ class GoogleSettings(BaseSettings):
     oauth_client_id: Optional[str] = None
     oauth_client_secret: Optional[str] = None
     oauth_redirect_uri: Optional[str] = None
-    file_ids: dict[str, str | list[str]] = {
+    file_ids: dict[str, dict[str, str] | list[str] | str] = {
         "platoon_loadout": "1kkdR41tCHJQQDCGMLzch-YCcxMiM1uSp-5MrEl9AAVY", # Machatz placeholder if same sheet, or use separate logic
         "battalion_summary": "",
         "form_responses": [
@@ -59,9 +59,17 @@ class SecuritySettings(BaseSettings):
     basic_pass: Optional[str] = None
     require_auth_on_queries: bool = False
     max_upload_mb: int = 15  # Hard cap for uploads (Content-Length guard)
+    authorized_users: dict[str, str] = {
+        "shakedsid@gmail.com": "battalion", # Admin/Battalion view
+        "kfir@spearhead.idf": "Kfir",
+        "mahatz@spearhead.idf": "Mahatz",
+        "sufa@spearhead.idf": "Sufa",
+    }
 
 class LoggingSettings(BaseSettings):
     log_requests: bool = True
+    format: str = "console"  # console | json
+    level: str = "INFO"
 
 class AISettings(BaseSettings):
     enabled: bool = False

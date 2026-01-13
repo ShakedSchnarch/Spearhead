@@ -144,17 +144,40 @@ class FieldMapper:
                 return platoon
 
         stem_norm = self.normalize(file_path.stem)
+
+        # 1. Configured Rules (Highest Priority)
         for rule in self.config.form.platoon_inference.file_names:
             match_token = rule.get("match")
             platoon_name = rule.get("platoon")
             if match_token and platoon_name:
+                # Use word boundary check if possible, or simple substring
                 if self.normalize(match_token) in stem_norm:
                     return platoon_name
 
-        # Fallback: last token from the file name
-        tokens = [t for t in re.split(r"[\\s_\\-]+", file_path.stem) if t]
-        if tokens:
-            return tokens[-1]
+        # 2. Strict / Direct Matching against known mappings
+        # Search for any known match token in the raw stem to avoid normalization issues
+        raw_stem = file_path.stem
+        for rule in self.config.form.platoon_inference.file_names:
+            match_token = rule.get("match")
+            platoon_name = rule.get("platoon")
+            if match_token and platoon_name:
+                # Check normalized first (existing logic)
+                if self.normalize(match_token) in stem_norm:
+                    return platoon_name
+                # Fallback: Check raw containment for Hebrew edge cases
+                if match_token in raw_stem:
+                    return platoon_name
+
+        # 3. Last Resort: Try to find any known platoon name in the tokens
+        # Helpful for files like "SomeLongFile_Kfir_Beta.xlsx"
+        # We use strict list of valid platoons to avoid false positives
+        valid_platoons = {r.get("platoon") for r in self.config.form.platoon_inference.file_names if r.get("platoon")}
+        for token in stem_norm.split():
+            # If a token matches a valid Platoon name exactly (e.g. "kfir")
+             if token.capitalize() in valid_platoons:
+                 return token.capitalize()
+             # Or if token matches Hebrew? We rely on rules for that.
+
         return None
 
     def extract_by_aliases(self, row: Dict[str, Any], aliases: Iterable[str]) -> Optional[Any]:

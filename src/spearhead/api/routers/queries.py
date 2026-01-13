@@ -8,11 +8,13 @@ from spearhead.data.dto import GapReport, TrendPoint
 from spearhead.api.deps import (
     get_query_service,
     get_form_analytics,
-    get_exporter,
     get_insight_service,
+    get_exporter,
     require_query_auth,
     require_auth,
+    get_current_user,
 )
+from spearhead.domain.models import User
 
 router = APIRouter()
 
@@ -24,8 +26,11 @@ def tabular_totals(
     platoon: Optional[str] = Query(None, description="Optional platoon filter"),
     week: Optional[str] = Query(None, description="Week label YYYY-Www"),
     qs: QueryService = Depends(get_query_service),
-    _auth=Depends(require_query_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon:
+        # Auto-scope restricted users
+        platoon = user.platoon
     return qs.tabular_totals(section=section, top_n=top_n, platoon=platoon, week=week)
 
 @router.get("/queries/tabular/gaps")
@@ -35,8 +40,10 @@ def tabular_gaps(
     platoon: Optional[str] = Query(None, description="Optional platoon filter"),
     week: Optional[str] = Query(None, description="Week label YYYY-Www"),
     qs: QueryService = Depends(get_query_service),
-    _auth=Depends(require_query_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon:
+        platoon = user.platoon
     return qs.tabular_gaps(section=section, top_n=top_n, platoon=platoon, week=week)[:top_n]
 
 @router.get("/queries/tabular/by-platoon")
@@ -74,8 +81,10 @@ def tabular_trends(
     platoon: Optional[str] = Query(None, description="Optional platoon filter"),
     weeks: int = Query(8, description="Number of recent weeks to include"),
     qs: QueryService = Depends(get_query_service),
-    _auth=Depends(require_query_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon:
+        platoon = user.platoon
     return qs.tabular_trends(section=section, top_n=top_n, platoon=platoon, window_weeks=weeks)
 
 # --- Forms Analytics ---
@@ -88,8 +97,14 @@ def form_summary(
         None, description="Force all rows to be grouped under this platoon name"
     ),
     analytics: FormAnalytics = Depends(get_form_analytics),
-    _auth=Depends(require_query_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon:
+        # Enforce platoon mode and target
+        mode = "platoon"
+        platoon = user.platoon
+        platoon_override = user.platoon
+            
     summary = analytics.summarize(week=week, platoon_override=platoon_override, prefer_latest=True)
     serialized = analytics.serialize_summary(summary)
 
@@ -101,11 +116,14 @@ def form_summary(
         # Robust lookup
         platoon_data = serialized.get("platoons", {}).get(target)
         if not platoon_data:
-            # Check if platoon exists in "known" list?
-            # For now, just return specific 404 so UI can handle it gracefully if needed.
-            # Or better: return a partial object that implies empty?
-            # Let's stick to 404 but with clear detail the UI can parse if it wants to suppress.
-            raise HTTPException(status_code=404, detail=f"No data found for platoon '{target}'")
+            # Instead of 404, return empty structure to prevent UI crash
+            return {
+                "mode": "platoon", 
+                "platoon": target, 
+                "week": serialized.get("week"), 
+                "summary": None, 
+                "note": "No data found"
+            }
         
         return {"mode": "platoon", "platoon": target, "week": serialized.get("week"), "summary": platoon_data}
 
@@ -116,8 +134,15 @@ def form_coverage(
     week: Optional[str] = Query(None, description="Week label YYYY-Www; defaults to latest/current"),
     window_weeks: int = Query(4, ge=1, le=12, description="Recent weeks to compare for anomalies"),
     analytics: FormAnalytics = Depends(get_form_analytics),
-    _auth=Depends(require_query_auth),
+    user: User = Depends(get_current_user),
 ):
+    # Coverage is battalion-wide usually. 
+    # If restricted, we might want to filtered coverage? 
+    # Current implementation of analytics.coverage is battalion level.
+    # For now, if restricted, we can trigger 403 OR implement filtered.
+    # Let's return 403 for now as "Overview" is blocked, but maybe return empty/mock if UI demands it.
+    if user.platoon:
+         raise HTTPException(status_code=403, detail="Battalion coverage view restricted")
     return analytics.coverage(week=week, window_weeks=window_weeks, prefer_latest=True)
 
 @router.get("/queries/forms/status")
@@ -143,8 +168,10 @@ def insights(
     platoon: Optional[str] = Query(None, description="Optional platoon filter"),
     top_n: int = Query(5, ge=1, le=20),
     svc: InsightService = Depends(get_insight_service),
-    _auth=Depends(require_query_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon:
+        platoon = user.platoon
     return svc.generate(section=section, platoon=platoon, top_n=top_n)
 
 # --- Exports ---
@@ -153,8 +180,11 @@ def export_platoon(
     platoon: str = Query(..., description="Platoon name to export"),
     week: str = Query(..., description="Week label YYYY-Www (Required)"),
     exporter: ExcelExporter = Depends(get_exporter),
-    _auth=Depends(require_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon and platoon != user.platoon:
+        raise HTTPException(status_code=403, detail="Platoon export restricted")
+
     try:
         path = exporter.export_platoon(platoon=platoon, week=week)
     except ValueError as exc:
@@ -169,8 +199,11 @@ def export_platoon(
 def export_battalion(
     week: str = Query(..., description="Week label YYYY-Www (Required)"),
     exporter: ExcelExporter = Depends(get_exporter),
-    _auth=Depends(require_auth),
+    user: User = Depends(get_current_user),
 ):
+    if user.platoon:
+        raise HTTPException(status_code=403, detail="Battalion export restricted")
+
     try:
         path = exporter.export_battalion(week=week)
     except ValueError as exc:

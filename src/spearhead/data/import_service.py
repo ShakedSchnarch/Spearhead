@@ -14,6 +14,8 @@ from spearhead.data.storage import Database
 from spearhead.config import settings
 from spearhead.data.field_mapper import SchemaSnapshot
 
+logger = logging.getLogger(__name__)
+
 
 class ImportService:
     """
@@ -40,11 +42,12 @@ class ImportService:
             return 0
         return self.db.insert_tabular_records(import_id, records)
 
-    def import_form_responses(self, file_path: Path, source_id: Optional[str] = None) -> int:
-        responses, schema = FormResponsesAdapter.load_with_schema(file_path, source_id=source_id)
+    def import_form_responses(self, file_path: Path, source_id: Optional[str] = None, platoon: Optional[str] = None) -> int:
+        responses, schema = FormResponsesAdapter.load_with_schema(file_path, source_id=source_id, platoon=platoon)
         import_id, is_new = self._register_import(file_path, settings.imports.form_responses_label)
-        if not is_new:
-            return 0
+        # if not is_new:
+        #     return 0
+        logger.info(f"DEBUG: Inserting {len(responses)} records into DB (import_id={import_id})")
         inserted = self.db.insert_form_responses(import_id, responses)
         if schema:
             self._store_schema_snapshot(import_id, settings.imports.form_responses_label, schema)

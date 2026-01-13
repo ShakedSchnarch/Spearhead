@@ -38,15 +38,30 @@ async def log_requests(request: Request, call_next):
         return response
     finally:
         duration_ms = (time.perf_counter() - start) * 1000
-        status = getattr(response, "status_code", "error")
+        status = getattr(response, "status_code", 500)
         rid = getattr(request.state, "request_id", None)
-        logger.info(
-            "request",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status": status,
-                "duration_ms": round(duration_ms, 2),
-                "request_id": rid,
-            },
-        )
+        
+        path = request.url.path
+        method = request.method
+        
+        # Structure the log data
+        log_data = {
+            "timestamp": time.time(),
+            "request_id": rid,
+            "method": method,
+            "path": path,
+            "status": status,
+            "duration_ms": round(duration_ms, 2),
+        }
+        
+        if settings.logging.format == "json":
+            # Direct JSON output to stdout/stderr via logger
+            # We construct the message as a serialized JSON string strings
+            import json
+            logger.info(json.dumps(log_data))
+        else:
+            # Traditional Key-Value console logging
+            logger.info(
+                "request",
+                extra=log_data,
+            )

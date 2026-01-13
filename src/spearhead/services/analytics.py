@@ -325,6 +325,8 @@ class FormAnalytics:
             if ts_raw:
                 try:
                     ts = datetime.fromisoformat(ts_raw)
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=UTC)
                 except Exception:
                     ts = None
                 if ts and (last_seen[platoon] is None or ts > last_seen[platoon]):

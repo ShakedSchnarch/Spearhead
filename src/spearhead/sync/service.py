@@ -40,37 +40,54 @@ class SyncService:
         return inserted
 
     def sync_form_responses(self, user_token: Optional[str] = None) -> int:
-        ids = self.file_ids.get("form_responses", [])
-        if isinstance(ids, str):
-            ids = [ids]
+        ids_config = self.file_ids.get("form_responses", {})
         
+        # Normalize to dict[platoon_alias, file_id]
+        targets: dict[str, str] = {}
+        if isinstance(ids_config, str):
+            import json
+            try:
+                if ids_config.strip().startswith("{"):
+                    ids_config = json.loads(ids_config)
+                    # Fallthrough to dict handler
+            except Exception:
+                pass
+
+        if isinstance(ids_config, str):
+            targets = {"unknown": ids_config}
+        elif isinstance(ids_config, list):
+             targets = {f"unknown_{i}": fid for i, fid in enumerate(ids_config)}
+        elif isinstance(ids_config, dict):
+            targets = ids_config
+            
         total_inserted = 0
         overall_status = "ok"
         errors = []
 
-        for idx, fid in enumerate(ids):
-            key = f"form_responses_{idx}" if len(ids) > 1 else "form_responses"
-            # We temporarily override the file_ids mapping for the _download helper
-            # or we refactor _download. For minimal change:
+        for platoon_alias, fid in targets.items():
+            # Use platoon alias in key for status tracking
+            key = f"form_responses_{platoon_alias}"
+            # Ensure _download can find the ID
             self.file_ids[key] = fid 
             
             try:
+                # If alias looks like a real name (not unknown_X), assume it is the platoon name
+                platoon_override = platoon_alias if not platoon_alias.startswith("unknown") else None
+                
                 inserted, _ = self._sync(
                     key,
                     lambda path: self.import_service.import_form_responses(
-                        path, source_id=fid
+                        path, source_id=fid, platoon=platoon_override
                     ),
                     user_token=user_token,
                 )
                 total_inserted += inserted
             except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to sync {key} (ID: {fid}): {e}")
                 overall_status = "partial_error"
                 errors.append(str(e))
         
-        # If we had multiple, we might want to consolidate status or just rely on the per-key status
-        # stored in self.status (form_responses_0, form_responses_1).
-        # But api/sync endpoint expects a single status object or we return aggregate?
-        # The return value is just int (count).
         return total_inserted
 
     def sync_all(self, user_token: Optional[str] = None) -> dict[str, int]:

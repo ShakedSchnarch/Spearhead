@@ -30,6 +30,7 @@ class FormResponsesAdapter:
         file_path: Path,
         mapper: Optional[FieldMapper] = None,
         source_id: Optional[str] = None,
+        platoon: Optional[str] = None,
     ) -> Tuple[List[FormResponseRow], SchemaSnapshot]:
         mapper = mapper or FieldMapper()
         wb = load_workbook(file_path, data_only=True)
@@ -51,7 +52,12 @@ class FormResponsesAdapter:
                 extra={"headers": snapshot.unmapped, "source_file": str(file_path)},
             )
 
-        platoon = mapper.infer_platoon(file_path, source_id=source_id)
+        if not platoon:
+            platoon = mapper.infer_platoon(file_path, source_id=source_id)
+        logger.info(f"DEBUG: Processing file {file_path.name}")
+        logger.info(f"DEBUG: Inferred Platoon: '{platoon}' (Source ID: {source_id})")
+        logger.info(f"DEBUG: Mapped Headers: {[m.to_dict() for m in snapshot.mapped]}")
+
         records: List[FormResponseRow] = []
 
         for idx, row in enumerate(rows[1:], start=2):
@@ -68,6 +74,9 @@ class FormResponsesAdapter:
             timestamp = cls._parse_timestamp(timestamp_val)
             week_label = cls._week_label(timestamp)
 
+            if idx <= 6: # Debug first 5 rows
+                logger.info(f"DEBUG Row {idx}: TankID='{tank_id}', TS_Val='{timestamp_val}', TS_Parsed='{timestamp}', Week='{week_label}'")
+
             records.append(
                 FormResponseRow(
                     source_file=file_path,
@@ -80,6 +89,7 @@ class FormResponsesAdapter:
                 )
             )
 
+        logger.info(f"DEBUG: Parsed {len(records)} records from {file_path.name}")
         return records, snapshot
 
     @staticmethod
@@ -111,7 +121,7 @@ class FormResponsesAdapter:
         if not ts:
             return None
         try:
-            return ts.strftime("%Y-W%W")
+            return ts.strftime("%G-W%V")
         except Exception:
             return None
 
