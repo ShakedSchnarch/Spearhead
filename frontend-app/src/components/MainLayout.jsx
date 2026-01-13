@@ -177,14 +177,17 @@ export function MainLayout() {
 
   const handleExport = async (mode) => {
       try {
-          const params = { week, platoon: mode === 'platoon' ? platoon : undefined };
+          const resolvedWeek = week || summaryData?.week;
+          if (!resolvedWeek) throw new Error("לא ניתן לייצא: לא זוהה שבוע נתונים");
+
+          const params = { week: resolvedWeek, platoon: mode === 'platoon' ? platoon : undefined };
           if (mode === 'platoon' && !platoon) throw new Error("בחר פלוגה");
           
           const blob = await exportMutation.mutateAsync({ mode, params });
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `export_${mode}_${week||'latest'}.xlsx`;
+          a.download = `Spearhead_Export_${mode === 'platoon' ? 'Platoon' : 'Battalion'}_${mode === 'platoon' ? platoon + '_' : ''}${resolvedWeek}.xlsx`;
           a.click();
           notifications.show({ title: "הורדה", message: "הקובץ ירד בהצלחה", color: "teal" });
       } catch (e) { handleApiError(e, "ייצוא נכשל"); }
@@ -285,14 +288,19 @@ export function MainLayout() {
             ) : (
                 <div className="grid two-col">
                    <ChartCard title="פערים" />
-                   <FormStatusTables issues={issueRows} />
+                   <ChartCard title="פערים" />
+                   <SummaryTable title="פירוט פערים" headers={["פריט", "צ' טנק", "מפקד", "דגשים"]} rows={issueRows} />
                 </div>
             )}
             
             {/* Debug Info (Hidden unless empty) */}
+            {/* Debug Info (Hidden unless empty) */}
             {!summaryData && (
-                <div style={{padding: 20, textAlign: 'center', opacity: 0.5}}>
-                    <p>אין נתונים להצגה. (Sync Status: {syncInfo.status}, Last: {syncInfo.last})</p>
+                <div style={{ maxWidth: 400, margin: "2rem auto" }}>
+                    <EmptyCard 
+                        title="אין נתונים" 
+                        message={`לא נמצאו נתונים להצגה. אנא ודא שהסנכרון פעיל. (סטטוס: ${syncInfo.status}, עדכון אחרון: ${syncInfo.last})`} 
+                    />
                 </div>
             )}
             </>

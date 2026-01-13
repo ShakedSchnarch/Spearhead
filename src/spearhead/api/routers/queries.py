@@ -97,9 +97,16 @@ def form_summary(
         target = platoon_override or platoon
         if not target:
             raise HTTPException(status_code=400, detail="platoon is required when mode=platoon")
+        
+        # Robust lookup
         platoon_data = serialized.get("platoons", {}).get(target)
         if not platoon_data:
+            # Check if platoon exists in "known" list?
+            # For now, just return specific 404 so UI can handle it gracefully if needed.
+            # Or better: return a partial object that implies empty?
+            # Let's stick to 404 but with clear detail the UI can parse if it wants to suppress.
             raise HTTPException(status_code=404, detail=f"No data found for platoon '{target}'")
+        
         return {"mode": "platoon", "platoon": target, "week": serialized.get("week"), "summary": platoon_data}
 
     return {"mode": "battalion", **serialized}
@@ -144,7 +151,7 @@ def insights(
 @router.get("/exports/platoon")
 def export_platoon(
     platoon: str = Query(..., description="Platoon name to export"),
-    week: Optional[str] = Query(None, description="Week label YYYY-Www; defaults to latest"),
+    week: str = Query(..., description="Week label YYYY-Www (Required)"),
     exporter: ExcelExporter = Depends(get_exporter),
     _auth=Depends(require_auth),
 ):
@@ -160,7 +167,7 @@ def export_platoon(
 
 @router.get("/exports/battalion")
 def export_battalion(
-    week: Optional[str] = Query(None, description="Week label YYYY-Www; defaults to latest"),
+    week: str = Query(..., description="Week label YYYY-Www (Required)"),
     exporter: ExcelExporter = Depends(get_exporter),
     _auth=Depends(require_auth),
 ):

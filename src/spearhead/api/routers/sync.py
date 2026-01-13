@@ -37,5 +37,27 @@ def sync_google(
     raise HTTPException(status_code=400, detail="Invalid target")
 
 @router.get("/status")
-def sync_status(sync_service: SyncService = Depends(get_sync_service)):
-    return sync_service.get_status()
+def sync_status(
+    sync_service: SyncService = Depends(get_sync_service),
+    oauth_session: Optional[str] = Header(None, alias="X-OAuth-Session"),
+):
+    base_status = sync_service.get_status()
+    
+    # Determine Auth Mode
+    auth_mode = "none"
+    user_email = None
+    
+    if oauth_session:
+        session = oauth_store.get(oauth_session)
+        if session:
+            auth_mode = "user"
+            user_email = session.email
+    elif settings.google.service_account_path:
+        auth_mode = "service"
+    
+    return {
+        **base_status,
+        "auth_mode": auth_mode,
+        "source": "google" if settings.google.enabled else "local",
+        "user": user_email
+    }

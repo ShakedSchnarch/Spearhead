@@ -15,8 +15,9 @@ export function useDashboardState() {
     section: defaultDashboardState.section,
     topN: defaultDashboardState.topN,
     week: defaultDashboardState.week,
-    // viewMode is persistent
+    // viewMode and platoon are persistent
     viewMode: defaultDashboardState.viewMode,
+    platoon: "", // Persist last selected platoon
   });
 
   const [auth, setAuth] = useState({
@@ -24,7 +25,6 @@ export function useDashboardState() {
     token: "",
     oauthSession: "",
     activeTab: "dashboard",
-    platoon: "", // Don't persist platoon selection if it's tied to auth usually, but user might want it. Let's keep it in auth/session.
   });
 
   const state = { ...preferences, ...auth };
@@ -41,7 +41,7 @@ export function useDashboardState() {
       let authChanged = false;
 
       Object.keys(incoming).forEach(k => {
-        if (["user", "token", "oauthSession", "activeTab", "platoon"].includes(k)) {
+        if (["user", "token", "oauthSession", "activeTab"].includes(k)) {
           nextAuth[k] = incoming[k];
           authChanged = true;
         } else {
@@ -65,14 +65,14 @@ export function useDashboardState() {
         section: defaultDashboardState.section,
         topN: defaultDashboardState.topN,
         week: defaultDashboardState.week,
-        viewMode: defaultDashboardState.viewMode
+        viewMode: defaultDashboardState.viewMode,
+        platoon: ""
     });
     setAuth({
         user: null,
         token: "",
         oauthSession: "",
         activeTab: "dashboard",
-        platoon: ""
     });
   }, [setPreferences, setAuth]);
 

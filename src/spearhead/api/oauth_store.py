@@ -11,6 +11,7 @@ class OAuthSession:
     email: Optional[str]
     platoon: Optional[str]
     view_mode: Optional[str]
+    created_at: float = 0.0
 
     def is_expired(self) -> bool:
         return self.expires_at is not None and self.expires_at < time()
@@ -22,14 +23,21 @@ class OAuthSessionStore:
     Intended for single-process deployments; swap with persistent store if needed.
     """
 
-    def __init__(self, ttl_seconds: int = 3600):
+    def __init__(self, ttl_seconds: int = 86400):  # Default 24h
         self.ttl_seconds = ttl_seconds
         self._sessions: Dict[str, OAuthSession] = {}
 
     def set(self, session_id: str, session: OAuthSession) -> None:
+        if not session.created_at:
+            session.created_at = time()
+        
         # normalize expiry if not provided by provider
         if session.expires_at is None and self.ttl_seconds:
-            session.expires_at = time() + self.ttl_seconds
+             # This is token expiry, not session expiry. 
+             # Session expiry is implicit via cleanup or check against created_at?
+             # Let's treat valid session as one that was created < TTL ago.
+             pass
+             
         self._sessions[session_id] = session
         self._purge()
 
@@ -43,40 +51,41 @@ class OAuthSessionStore:
             session.expires_at = time() + expires_in if expires_in else None
             if refresh_token:
                 session.refresh_token = refresh_token
+            # Refreshing tokens extends session life? Usually yes.
+            session.created_at = time() 
             self._sessions[session_id] = session
 
-    def get(self, session_id: Optional[str]) -> Optional[OAuthSession]:
+    def get_active_session(self, session_id: Optional[str]) -> Optional[OAuthSession]:
+        """
+        Returns session only if it exists and is within global TTL of the store (24h default).
+        Does NOT check token expiry (that's for the middleware to handle via refresh).
+        """
         if not session_id:
             return None
-        self._purge()
+            
         session = self._sessions.get(session_id)
         if not session:
             return None
-        
-        # We return the session even if expired if it has a refresh token?
-        # Typically the router middleware checks expiry and attempts refresh.
-        # But for 'get' in a store, typically we just return what we have.
-        # The is_expired() check in get() was destructive. 
-        # Better design: if I have a refresh token, I shouldn't auto-pop on generic expiry check, 
-        # unless I am also purging absolutely dead sessions.
-        
-        # Let's keep logic: if expired and NO refresh token -> pop.
-        # If expired and YES refresh token -> return it, caller handles refresh.
-        if session.is_expired():
-            if not session.refresh_token:
-                self._sessions.pop(session_id, None)
-                return None
-            # Has refresh token, return it so we can refresh
-            return session
+
+        # Check Global Session TTL (e.g. force re-login every 24h)
+        if time() - session.created_at > self.ttl_seconds:
+            self._sessions.pop(session_id, None)
+            return None
             
         return session
 
+    def get(self, session_id: Optional[str]) -> Optional[OAuthSession]:
+        # Legacy get, maps to active session check for safety
+        return self.get_active_session(session_id)
+
     def _purge(self) -> None:
-        # Purge only if expired AND no refresh token, or if expired > some long retention (e.g. 1 day)?
-        # For simplicity: purge if expired and no refresh token.
+        """
+        Removes sessions that have exceeded the global TTL.
+        """
+        now = time()
         expired = [
             sid for sid, s in self._sessions.items() 
-            if s.is_expired() and not s.refresh_token
+            if (now - s.created_at > self.ttl_seconds)
         ]
         for sid in expired:
             self._sessions.pop(sid, None)

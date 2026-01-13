@@ -23,7 +23,7 @@ export function DashboardProvider({ children }) {
   } = state;
 
   // Derive API client
-  const apiClient = useApiClient(apiBase, token, oauthSession || token);
+  const apiClient = useApiClient(apiBase, token, oauthSession);
 
   // Derive Data
   const enabled = Boolean(user);
@@ -37,6 +37,27 @@ export function DashboardProvider({ children }) {
   const { syncMutation, uploadMutation, exportMutation } = useDashboardActions(apiClient);
 
   // Auth Helpers
+  const logout = useCallback(
+    () =>
+      update((prev) => ({
+        ...prev,
+        user: null,
+        token: "",
+        oauthSession: "",
+        platoon: "",
+        viewMode: "battalion",
+      })),
+    [update]
+  );
+  
+  // 401 Handling Interceptor Setup (Ideally in useApiClient, but we need logout access)
+  // Since useApiClient is a hook returning an instance, we can't easily inject logout callback *into* it 
+  // unless we pass it or use an effect.
+  // Better pattern: useApiClient takes a `onUnauthorized` callback.
+  
+  // Let's defer strict interceptor to useApiClient modification, 
+  // but here we simply need to ensure we pass the right args.
+
   const login = useCallback(
     (payload) =>
       update((prev) => ({
@@ -44,25 +65,13 @@ export function DashboardProvider({ children }) {
         user: {
           platoon: payload.platoon,
           email: payload.email,
-          token: payload.token || "",
+          token: payload.token || "", 
         },
         token: payload.token || "",
-        oauthSession: payload.oauthSession || "",
+        oauthSession: payload.oauthSession || "", // Explicit separation
         platoon: payload.platoon || prev.platoon,
         viewMode: payload.viewMode || (payload.platoon ? "platoon" : "battalion"),
         activeTab: "dashboard",
-      })),
-    [update]
-  );
-
-  const logout = useCallback(
-    () =>
-      update((prev) => ({
-        ...prev,
-        user: null,
-        token: "",
-        platoon: "",
-        viewMode: "battalion",
       })),
     [update]
   );

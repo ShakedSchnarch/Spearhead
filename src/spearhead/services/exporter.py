@@ -73,7 +73,10 @@ class ExcelExporter:
         _autosize(ws_issues)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        path = self.output_dir / f"platoon_{platoon}_{week_label}.xlsx"
+        # Standardized naming
+        safe_platoon = platoon.replace(" ", "_").replace("/", "-")
+        filename = f"Spearhead_Export_Platoon_{safe_platoon}_{week_label}.xlsx"
+        path = self.output_dir / filename
         wb.save(path)
         return path
 
@@ -89,6 +92,7 @@ class ExcelExporter:
         # Zivud gaps per platoon + battalion total
         ws_zivud = wb.active
         ws_zivud.title = "זיווד גדודי"
+        ws_zivud.sheet_view.rightToLeft = True
         zivud_items = set()
         for p in summary["platoons"].values():
             zivud_items.update(p.zivud_gaps.keys())
@@ -115,6 +119,7 @@ class ExcelExporter:
 
         # Ammo totals and per-tank averages per platoon + battalion
         ws_ammo = wb.create_sheet("תחמושת גדודית")
+        ws_ammo.sheet_view.rightToLeft = True
         ammo_items = set()
         for p in summary["platoons"].values():
             ammo_items.update(p.ammo.keys())
@@ -141,6 +146,7 @@ class ExcelExporter:
 
         # Means / comm gaps per platoon
         ws_means = wb.create_sheet("אמצעים")
+        ws_means.sheet_view.rightToLeft = True
         means_items = set()
         for p in summary["platoons"].values():
             means_items.update(p.means.keys())
@@ -167,6 +173,7 @@ class ExcelExporter:
 
         # Tank counts
         ws_tanks = wb.create_sheet("צי טנקים")
+        ws_tanks.sheet_view.rightToLeft = True
         ws_tanks.append(["פלוגה", "מספר טנקים"])
         for platoon in platoon_names:
             ws_tanks.append([platoon, summary["platoons"][platoon].tank_count])
@@ -174,7 +181,8 @@ class ExcelExporter:
         _autosize(ws_tanks)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        path = self.output_dir / f"battalion_{week_label}.xlsx"
+        filename = f"Spearhead_Export_Battalion_{week_label}.xlsx"
+        path = self.output_dir / filename
         wb.save(path)
         return path
 

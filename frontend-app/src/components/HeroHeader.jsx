@@ -14,16 +14,16 @@ export function HeroHeader({ user, viewMode, platoon, health, syncEnabled, onLog
           <Text className="muted">סקירה פלוגתית/גדודית, סנכרון מגוגל, כיסוי ואנומליות.</Text>
           <Group gap="xs" mt="sm" wrap="wrap" className="header-actions">
             <Badge variant="light" color="gray">
-              משתמש: {user?.email || "לא צוין"}
+              מחובר כ: {user?.email || "אורח"}
             </Badge>
             <Badge variant="light" color="cyan">
-              מצב: {viewMode === "battalion" ? "גדוד" : "פלוגה"} {platoon ? `· ${platoon}` : ""}
+              תצוגה: {viewMode === "battalion" ? "גדוד" : "פלוגה"} {platoon ? `· ${platoon}` : ""}
             </Badge>
             <Badge variant="outline" color="green">
               {health}
             </Badge>
-            <Badge variant="outline" color={syncEnabled ? "teal" : "gray"}>
-              {syncEnabled ? "Google Sync פעיל" : "Google Sync כבוי"}
+            <Badge variant="outline" color={syncEnabled ? "teal" : "orange"}>
+              {syncEnabled ? "Google Sync מחובר" : "מצב מקומי (Offline)"}
             </Badge>
             <Button variant="light" size="xs" color="red" onClick={onLogout}>
               התנתק

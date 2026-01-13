@@ -24,7 +24,7 @@ const buildQuery = (params) => {
   return rendered ? `?${rendered}` : "";
 };
 
-export const createApiClient = ({ baseUrl, token, oauthSession } = {}) => {
+export const createApiClient = ({ baseUrl, token, oauthSession, onUnauthorized } = {}) => {
   const resolvedBase = normalizeBase(baseUrl);
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
   const sessionHeader = oauthSession || token;
@@ -42,6 +42,7 @@ export const createApiClient = ({ baseUrl, token, oauthSession } = {}) => {
     });
 
     if (res.status === 401) {
+      if (onUnauthorized) onUnauthorized();
       throw new ApiError("unauthorized", 401);
     }
 
