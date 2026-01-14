@@ -143,7 +143,12 @@ class FieldMapper:
             if platoon:
                 return platoon
 
-        stem_norm = self.normalize(file_path.stem)
+        # Clean the stem to remove noise like (1), (Copy), (תגובות)
+        raw_stem = file_path.stem
+        clean_stem = re.sub(r"\s*[\(\[]\s*(?:copy|תגובות|response|versions?|draft|v\d+)\s*[\)\]]", "", raw_stem, flags=re.IGNORECASE)
+        clean_stem = re.sub(r"\(\d+\)$", "", clean_stem) # Remove standard (1) suffix
+        
+        stem_norm = self.normalize(clean_stem)
 
         # 1. Configured Rules (Highest Priority)
         for rule in self.config.form.platoon_inference.file_names:
@@ -155,8 +160,7 @@ class FieldMapper:
                     return platoon_name
 
         # 2. Strict / Direct Matching against known mappings
-        # Search for any known match token in the raw stem to avoid normalization issues
-        raw_stem = file_path.stem
+        # Search for any known match token in the CLEAN or RAW stem
         for rule in self.config.form.platoon_inference.file_names:
             match_token = rule.get("match")
             platoon_name = rule.get("platoon")
@@ -165,7 +169,7 @@ class FieldMapper:
                 if self.normalize(match_token) in stem_norm:
                     return platoon_name
                 # Fallback: Check raw containment for Hebrew edge cases
-                if match_token in raw_stem:
+                if match_token in clean_stem or match_token in raw_stem:
                     return platoon_name
 
         # 3. Last Resort: Try to find any known platoon name in the tokens
