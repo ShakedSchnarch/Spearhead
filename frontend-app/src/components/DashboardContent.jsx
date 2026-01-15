@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Button,
   Group,
@@ -13,17 +13,34 @@ import { useDashboard } from "../context/DashboardContext";
 import { EmptyCard } from "./EmptyCard";
 import { KpiCard } from "./KpiCard";
 import { PlatoonCard } from "./PlatoonCard";
+import { PlatoonView } from "./views/PlatoonView";
+import { BattalionView } from "./views/BattalionView";
 import { SectionHeader } from "./SectionHeader";
-import { SummaryTable } from "./SummaryTable";
-import { UploadCard } from "./UploadCard"; // Unused in main view but available
-import { ChartCard } from "./ChartCard";
-import { FormStatusTables } from "./FormStatusTables"; // Unused in main view but available
+import { FormStatusTables } from "./FormStatusTables";
+import { QueryPanel } from "./QueryPanel";
+import { useIntelligence } from "../hooks/useIntelligence";
+import { mapBattalionIntel, mapPlatoonIntel } from "../mappers/intelligence";
 
 export function DashboardContent() {
   const { state, update, actions, data, helpers } = useDashboard();
   const { user, viewMode, platoon, week, activeTab } = state;
-  const { health, summary, coverage, syncStatus, tabular } = data;
-  const { syncMutation, uploadMutation, exportMutation } = actions;
+  const { summary, coverage, syncStatus, tabular } = data;
+  const { syncMutation, exportMutation } = actions;
+  const {
+    battalionData,
+    platoonData,
+    refetchBattalion,
+    refetchPlatoon,
+  } = useIntelligence();
+
+  const battalionIntel = useMemo(
+    () => mapBattalionIntel(battalionData),
+    [battalionData]
+  );
+  const platoonIntel = useMemo(
+    () => mapPlatoonIntel(platoonData),
+    [platoonData]
+  );
 
   const isRestricted = user?.platoon && user.platoon !== "battalion";
   const [banner, setBanner] = useState(null);
@@ -55,17 +72,52 @@ export function DashboardContent() {
   };
   const summaryData = summary.data;
   const coverageData = coverage.data;
-  const coverageTotals = {
-    forms: Object.values(coverageData?.platoons || {}).reduce(
-      (acc, p) => acc + (p.forms || 0),
-      0
-    ),
-    tanks: Object.values(coverageData?.platoons || {}).reduce(
-      (acc, p) => acc + (p.distinct_tanks || 0),
-      0
-    ),
-    anomalies: coverageData?.anomalies?.length || 0,
-  };
+  const normalizedCoverage = useCallback((raw) => {
+    if (!raw) return null;
+    return {
+      forms: raw.forms ?? raw.reports_this_week ?? 0,
+      distinct_tanks: raw.distinct_tanks ?? raw.expected ?? 0,
+      days_since_last: raw.days_since_last ?? raw.missing_reports ?? "-",
+      anomaly: raw.anomaly,
+    };
+  }, []);
+  const coverageTotals = useMemo(() => {
+    const base = { forms: 0, tanks: 0, anomalies: 0 };
+    const fromCoverage = coverageData?.platoons || {};
+    const fromIntel = battalionIntel?.platoons || [];
+
+    if (Object.keys(fromCoverage).length) {
+      base.forms = Object.values(fromCoverage).reduce(
+        (acc, p) => acc + (p.forms || 0),
+        0
+      );
+      base.tanks = Object.values(fromCoverage).reduce(
+        (acc, p) => acc + (p.distinct_tanks || 0),
+        0
+      );
+      base.anomalies = coverageData?.anomalies?.length || 0;
+      return base;
+    }
+
+    if (fromIntel.length) {
+      base.forms = fromIntel.reduce(
+        (acc, p) => acc + (p.coverage?.reports_this_week || 0),
+        0
+      );
+      base.tanks = fromIntel.reduce(
+        (acc, p) => acc + (p.coverage?.expected || 0),
+        0
+      );
+      return base;
+    }
+
+    if (platoonIntel?.coverage) {
+      base.forms = platoonIntel.coverage.reports_this_week || 0;
+      base.tanks = platoonIntel.coverage.expected || 0;
+    }
+
+    return base;
+  }, [coverageData, battalionIntel, platoonIntel]);
   const platoonCards = useMemo(() => {
     // We need logos here too for the cards
     // TODO: Move logos to shared constant
@@ -78,64 +130,53 @@ export function DashboardContent() {
       romach: logoPath("Romach_75_logo.JPG"),
     };
 
-    const list = helpers?.knownPlatoons || [];
-    return list
-      .map((name) => ({
-        name,
-        coverage: coverageData?.platoons?.[name],
-        logo: platoonLogos[name] || platoonLogos.romach,
-      }))
-      .filter((c) => {
-        // Strict filtering: If restricted, show ONLY their platoon
-        if (isRestricted && c.name !== user.platoon) return false;
-
-        // Otherwise standard logic
-        return c.coverage || activeTab === "dashboard";
-      });
-  }, [helpers, coverageData, activeTab, isRestricted, user.platoon]);
-
-  const platoonOptions = helpers?.knownPlatoons || [];
-
-  // --- Detailed Table Logic ---
-  const platoonSummary = useMemo(() => {
-    if (!summaryData) return null;
-    if (summaryData.mode === "platoon") return summaryData.summary;
-    if (
-      summaryData.mode === "battalion" &&
-      platoon &&
-      summaryData.platoons?.[platoon]
-    ) {
-      return summaryData.platoons[platoon];
-    }
-    return null;
-  }, [summaryData, platoon]);
-
-  const platoonRows = useMemo(() => {
-    if (!summaryData?.platoons) return [];
-    return Object.values(summaryData.platoons || {}).map((p) => {
-      const zivudTotal = Object.values(p.zivud_gaps || {}).reduce(
-        (acc, v) => acc + (v || 0),
-        0
-      );
-      const meansTotal = Object.values(p.means || {}).reduce(
-        (acc, v) => acc + (v?.count || 0),
-        0
-      );
-      return {
-        key: p.platoon,
-        cells: [p.platoon, p.tank_count, zivudTotal, meansTotal],
-      };
+    const intelCoverageMap = {};
+    (battalionIntel?.platoons || []).forEach((p) => {
+      intelCoverageMap[p.name] = normalizedCoverage(p.coverage);
     });
-  }, [summaryData]);
 
-  const issueRows = useMemo(
-    () =>
-      (platoonSummary?.issues || []).map((issue, idx) => ({
-        key: `${issue.item}-${idx}`,
-        cells: [issue.item, issue.tank_id, issue.commander || "", issue.detail],
-      })),
-    [platoonSummary]
-  );
+    const namesFromIntel = (battalionIntel?.platoons || []).map((p) => p.name);
+    const list =
+      helpers?.knownPlatoons?.length || namesFromIntel.length
+        ? Array.from(new Set([...(helpers?.knownPlatoons || []), ...namesFromIntel]))
+        : [];
+
+    return list
+      .map((name) => {
+        const coverage =
+          normalizedCoverage(coverageData?.platoons?.[name]) ||
+          intelCoverageMap[name] ||
+          (platoonIntel?.platoon === name ? normalizedCoverage(platoonIntel.coverage) : null) || {
+            forms: 0,
+            distinct_tanks: 0,
+            days_since_last: "-",
+          };
+        return {
+          name,
+          coverage,
+          logo: platoonLogos[name] || platoonLogos.romach,
+        };
+      })
+      .filter((c) => {
+        if (isRestricted && c.name !== user.platoon) return false;
+        return activeTab === "dashboard";
+      });
+  }, [
+    helpers,
+    coverageData,
+    battalionIntel,
+    platoonIntel,
+    activeTab,
+    isRestricted,
+    user.platoon,
+    normalizedCoverage,
+  ]);
+
+  const platoonOptions = useMemo(() => {
+    const base = helpers?.knownPlatoons || [];
+    const intelNames = (battalionIntel?.platoons || []).map((p) => p.name);
+    return Array.from(new Set([...base, ...intelNames]));
+  }, [helpers, battalionIntel]);
 
   // --- Handlers ---
   const handleSync = async () => {
@@ -151,6 +192,8 @@ export function DashboardContent() {
         coverage.refetch(),
         syncStatus.refetch(),
         tabular.refetch(),
+        refetchBattalion(),
+        refetchPlatoon(),
       ]);
     } catch (e) {
       handleApiError(e, "סנכרון נכשל");
@@ -231,9 +274,17 @@ export function DashboardContent() {
       <SimpleGrid
         cols={{ base: 1, sm: 2, lg: 4 }}
         spacing="md"
-        className="kpi-strip"
+          className="kpi-strip"
       >
-        <KpiCard label="שבוע" value={summaryData?.week || "latest"} />
+        <KpiCard
+          label="שבוע"
+          value={
+            summaryData?.week ||
+            battalionIntel?.week ||
+            platoonIntel?.week ||
+            "latest"
+          }
+        />
         <KpiCard label="דיווחים" value={coverageTotals.forms} />
         <KpiCard label="טנקים" value={coverageTotals.tanks} />
         <KpiCard
@@ -290,27 +341,29 @@ export function DashboardContent() {
 
           {/* Detailed Tables */}
           {viewMode === "battalion" ? (
-            <div className="grid two-col">
-              <SummaryTable
-                title="סיכום גדודי"
-                headers={["פלוגה", "טנקים", "פער זיווד", "אמצעים"]}
-                rows={platoonRows}
-              />
-            </div>
+            <>
+              <BattalionView />
+              <div style={{ marginTop: "1.5rem" }}>
+                <QueryPanel />
+              </div>
+            </>
           ) : (
-            <div className="grid two-col">
-              <ChartCard title="פערים" />
-              <ChartCard title="פערים" />
-              <SummaryTable
-                title="פירוט פערים"
-                headers={["פריט", "צ' טנק", "מפקד", "דגשים"]}
-                rows={issueRows}
-              />
-            </div>
+            <>
+              <PlatoonView />
+              <div style={{ marginTop: "2rem" }}>
+                <FormStatusTables
+                  formsOk={tabular.data?.forms?.ok}
+                  formsGaps={tabular.data?.forms?.gaps}
+                />
+              </div>
+              <div style={{ marginTop: "1.5rem" }}>
+                <QueryPanel />
+              </div>
+            </>
           )}
 
           {/* Debug Info (Hidden unless empty) */}
-          {!summaryData && (
+          {!summaryData && !battalionIntel && !platoonIntel && (
             <div style={{ maxWidth: 400, margin: "2rem auto" }}>
               <EmptyCard
                 title="אין נתונים"

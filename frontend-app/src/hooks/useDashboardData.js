@@ -1,8 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 
-export function useDashboardData(client, filters, enabled = true) {
+export function useDashboardData(
+  client,
+  filters,
+  enabled = true,
+  isRestricted = false
+) {
   const { section, topN, platoon, week, viewMode } = filters;
-  const summaryEnabled = enabled && (viewMode !== "platoon" || Boolean(platoon));
+  const summaryEnabled =
+    enabled && (viewMode !== "platoon" || Boolean(platoon));
 
   const health = useQuery({
     queryKey: ["health", client.baseUrl],
@@ -21,23 +27,32 @@ export function useDashboardData(client, filters, enabled = true) {
 
   const summary = useQuery({
     queryKey: ["summary", client.baseUrl, viewMode, week, platoon],
-    queryFn: ({ signal }) => client.summary({ mode: viewMode, week, platoon }, signal),
+    queryFn: ({ signal }) =>
+      client.summary({ mode: viewMode, week, platoon }, signal),
     enabled: summaryEnabled,
     staleTime: 10_000,
     keepPreviousData: true,
   });
 
+  // Coverage is primarily a Battalion metric. Platoon users get 403.
+  // Update: Backend now supports filtering.
   const coverage = useQuery({
     queryKey: ["coverage", client.baseUrl, week],
     queryFn: ({ signal }) => client.coverage({ week }, signal),
-    enabled,
+    enabled: enabled,
     staleTime: 10_000,
     keepPreviousData: true,
+    retry: (failureCount, error) => {
+      // Don't retry 403s
+      if (error?.status === 403) return false;
+      return failureCount < 3;
+    },
   });
 
   const tabular = useQuery({
     queryKey: ["tabular", client.baseUrl, section, topN, platoon, week],
-    queryFn: ({ signal }) => client.tabularBundle({ section, topN, platoon, week }, signal),
+    queryFn: ({ signal }) =>
+      client.tabularBundle({ section, topN, platoon, week }, signal),
     enabled,
     staleTime: 5_000,
     keepPreviousData: true,

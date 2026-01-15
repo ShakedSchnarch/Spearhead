@@ -1,107 +1,56 @@
-# Spearhead 2.0: Technical Roadmap & Implementation Guide
+# Fix Platoon Data Synchronization and Display Issues
 
-> **Version**: 2.0.0-PLAN
-> **Date**: 2026-01-14
-> **Objective**: Transition from Prototype to Operational System ("Mochacht Mivtzayi").
+The user is experiencing issues with missing components and synchronized data in the platoon and battalion views. The specific error found is a `403 Forbidden` response when the frontend attempts to fetch `/queries/forms/coverage` for a platoon-restricted user. Additional issues may exist in the frontend preventing data from being displayed even if the API call succeeds.
 
-## 🎯 Strategic Vision: "Data First, Then Polish"
+## Proposed Changes
 
-The immediate priority is **Operational Relevance**. The system must display correct, relevant data to the commander immediately upon login. We achieve this by:
+### Backend
 
-1.  **Ensuring Data Ingestion Works**: Fixing filename parsing logic so files aren't rejected.
-2.  **Displaying the Right View**: Strictly separating "Battalion Command" (Aggregates) from "Platoon Tactical" (Gaps).
-3.  **Stabilizing the Platform**: Fixing the infinite loop crash.
+1.  **Modify `src/spearhead/services/analytics.py`**:
 
----
+    - Update the `coverage` method to accept an optional `platoon` argument.
+    - If `platoon` is provided, filter the `df` or processing logic to only include data for that platoon.
+    - Ensure the returned structure is consistent with what the frontend expects, even for a single platoon.
+    - **New**: Sanitize the `week` argument in `coverage`, `summarize`, and `get_gaps` to strip potential corrupted characters (e.g. `%D6%BF`) from the frontend.
 
-## 🏗️ Architectural Changes
+2.  **Modify `src/spearhead/api/routers/queries.py`**:
+    - Update the `form_coverage` endpoint.
+    - Remove the `403 Forbidden` raise for restricted users.
+    - Instead, if `user.platoon` is set, pass it as the `platoon` argument to `analytics.coverage`.
 
-### 1. Frontend: "Context-Aware Views"
+### Frontend
 
-We are moving away from a monolithic `DashboardContent` to a modular View Architecture.
+1.  **Modify `frontend-app/src/hooks/useDashboardData.js`**:
+    - Update the `coverage` query definition.
+    - Remove the `!isRestricted` condition from the `enabled` flag.
+    - Ensure the query passes the correct parameters.
 
-- **`src/views/BattalionView.jsx`**:
-  - **Purpose**: High-level command overview.
-  - **Components**: `KpiStrip`, `SummaryTable` (Aggregated Totals).
-  - **Hidden**: Platoon-specific drill-down cards.
-  - **Data Source**: `GET /queries/tabular/by-platoon`.
-- **`src/views/PlatoonView.jsx`**:
-  - **Purpose**: Tactical drill-down for specific shortages.
-  - **Components**: `GapCard`, `IssuesTable` (Specific Item Anomalies).
-  - **Data Source**: `GET /queries/tabular/gaps`, `GET /queries/forms/gaps`.
-- **`src/hooks/useAutoSync.js`**:
-  - **Purpose**: "Invisible Sync" - "Push" model.
-  - **Logic**: Triggers `syncMutation` on successful authentication.
+## Current Status & Next Steps
 
-### 2. Backend: "Sterile & Layered"
+### Architecture Update
 
-We will refactor the "God Class" (`QueryService`) into a proper layered architecture.
+- **Internal Logic**: The backend now strictly enforces English keys internally (e.g., "Kfir").
+- **Data Ingestion**: The database contains _both_ Hebrew ("כפיר") and English ("Kfir") labels due to legacy imports.
+- **Filtering**: `BaseRepository.apply_scope` has been patched to perform "Reverse Alias Lookup", capturing rows in any language that map to the requested English key.
 
-- **Repository Layer** (`src/spearhead/data/repositories.py`):
-  - Pure SQL execution.
-  - Methods: `get_battalion_totals()`, `get_platoon_gaps(platoon)`.
-- **Service Layer** (`src/spearhead/services/`):
-  - Orchestration & Security Enforcement.
-  - **Tenant Isolation**: Logic that checks `current_user.platoon` and _forces_ the filter on Repository calls.
-- **Domain Layer** (`src/spearhead/logic/`):
-  - Gap definitions, Erosion scoring formulae.
+### Outstanding Issues
 
----
+1.  **Corrupted Week Parameter**: The frontend is sending `%D6%BF` (Rafe) characters in the week parameter (`%D6%BF2026-W01`). Backend sanitization exists but might be bypassed or insufficient if the variable persists in frontend state.
+2.  **Display Gaps**: User reports specific UI components (likely query-based tables) are not showing data, potentially due to the same parameter corruption or missing API endpoints for specific views.
+3.  **Local Files**: Data from local Excel files (not Google Sheets) is reported as "incorrect". This suggests the `ImportService` might need stricter validation or normalization during ingestion.
 
-## 📅 Phased Execution Plan
+### Verification Plan (Next Session)
 
-### 🚨 Phase 1: Data Visibility & Stability (Immediate)
+#### Backend
 
-_Goal: The user logs in and sees relevant numbers immediately._
+- [ ] Debug `ImportService` to ensure local file ingestion normalizes platoon names _before_ saving to DB.
+- [ ] Strengthen `FormAnalytics._sanitize_week` to aggressively strip non-ASCII/numeric characters at the API entry point.
 
-#### 1.1 Prerequisite: Hygiene
+#### Frontend
 
-- [ ] **Delete Garbage**: Remove `notebook_*.py`, legacy scripts (`config 2.py`), and unused assets to clear the workspace.
+- [ ] Audit `DashboardContent.jsx` to ensure it requests the correct API endpoints for "local file" data.
+- [ ] Clear browser storage/cache to remove persisting `%D6%BF` week values.
 
-#### 1.2 Prerequisite: Stability & Ingestion
+#### Tests
 
-- [ ] **Fix Frontend Loop**: Debug `MainLayout.jsx` / `useOAuthLanding` to strictly limit re-renders.
-- [ ] **Fix Ingestion Logic**: Update `FieldMapper.infer_platoon` in `src/spearhead/data/field_mapper.py` to handle:
-  - Suffixes: `(תגובות)`, `(Copy)`, `(1)`.
-  - Hebrew Filenames: Robust matching for "כפיר", "סופה" within complex strings.
-- [ ] **Verify**: Upload a "dirty" filename file and confirm it maps to the correct platoon.
-
-#### 1.3 Implement "Relevant Query Views"
-
-- [ ] **Create `BattalionView.jsx`**: Implement the aggregate summary view.
-- [ ] **Create `PlatoonView.jsx`**: Implement the detailed gap view.
-- [ ] **Refactor `DashboardContent.jsx`**:
-  - If `viewMode == 'battalion'`: Render `BattalionView`.
-  - If `viewMode == 'platoon'`: Render `PlatoonView`.
-- [ ] **Verify**: Login as Battalion -> See Totals. Login as Platoon -> See Gaps.
-
-### 🔄 Phase 2: "Invisible Sync" (UX)
-
-_Goal: Frictionless updates._
-
-- [ ] **Auto-Sync Hook**: Create `useAutoSync` that runs _once_ on auth.
-- [ ] **Remove UI Button**: Delete the manual "Search/Sync" button from `HeroHeader`.
-- [ ] **Status Indicator**: Add a subtle "Syncing / Up to date" indicator in the top bar.
-
-### 🛡️ Phase 3: Backend Architecture (Sterility)
-
-_Goal: Security and Code Health._
-
-- [ ] **Create `repositories.py`**: Migrate SQL from `QueryService`.
-- [ ] **Enforce Security**: Inject `CurrentUser` into all services and force `platoon={current_user.platoon}` filters in the Repository layer.
-
-### 📄 Phase 4: Reports (Polish)
-
-_Goal: Commander-ready documentation._
-
-- [ ] **Excel Styling**: Implement `apply_active_duty_styling()` in `exporter.py` (Borders, RTL, Bold Headers, Conditional Formatting for Gaps).
-
----
-
-## ✅ Definition of Done (v2.0)
-
-1.  **Zero Crashes**: Dashboard loads instantly.
-2.  **No "Sync" Button**: Data updates automatically.
-3.  **Distinct Views**: Battalion view never shows Platoon Cards; Platoon view shows Gaps.
-4.  **Sterile Data**: A "Kfir" user cannot access "Sufa" data via API hacking.
-5.  **Clean Repo**: No junk files.
+- [ ] Improve test coverage for `ImportService` with mixed Hebrew/English input files.

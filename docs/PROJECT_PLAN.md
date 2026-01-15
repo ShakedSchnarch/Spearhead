@@ -1,41 +1,43 @@
-# Spearhead Project Plan & Status
+# Task: Debugging Data Synchronization and Display Issues
 
-> **Last Updated**: 2026-01-13
-> **Status**: Freezing Phase 1. Preparing for Phase 2 (Refinement).
+- [x] Analyze logs and project structure <!-- id: 0 -->
+  - [x] Read terminal output from `Python` process <!-- id: 1 -->
+  - [x] Explore project structure <!-- id: 2 -->
+- [x] Investigate Backend Data Flow <!-- id: 3 -->
+  - [x] Check `src/spearhead/services/analytics.py` for data processing logic <!-- id: 4 -->
+  - [x] Check API endpoints for platoon/battalion data <!-- id: 5 -->
+- [x] Investigate Frontend Data Fetching and Display <!-- id: 6 -->
+  - [x] Identify React components for Platoon/Battalion dashboard <!-- id: 7 -->
+  - [x] Check data fetching logic in frontend <!-- id: 8 -->
+- [x] Verify Configuration and Environment <!-- id: 9 -->
+  - [x] Check `.env` and startup scripts <!-- id: 10 -->
+- [x] Fix identified issues <!-- id: 11 -->
+  - [x] Update `src/spearhead/services/analytics.py` to support platoon filtering <!-- id: 13 -->
+  - [x] Update `src/spearhead/api/routers/queries.py` to allow restricted access <!-- id: 14 -->
+  - [x] Update `frontend-app/src/hooks/useDashboardData.js` <!-- id: 16 -->
+  - [x] Fix and run unit tests <!-- id: 15 -->
+    - [x] Fix `BaseRepository.apply_scope` to support Hebrew keys <!-- id: 19 -->
+    - [x] Fix `_week_label` to sanitize hidden chars <!-- id: 20 -->
+    - [x] Fix `FormAnalytics` to sanitize week input <!-- id: 21 -->
+- [x] Refactor and Standardize <!-- id: 22 -->
+  - [x] Create `tests/test_architecture.py` compliance tests <!-- id: 23 -->
+  - [x] Create `tests/conftest.py` for shared fixtures <!-- id: 24 -->
+  - [x] Refactor `tests/test_analytics.py` to use fixtures and English keys <!-- id: 25 -->
+  - [x] Quarantine broken legacy tests into `tests/legacy/` <!-- id: 27 -->
+- [x] Verify fix <!-- id: 12 -->
+  - [x] Run pytest (clean suite) <!-- id: 17 -->
+  - [/] Request user manual verification <!-- id: 18 -->
 
-## 1. Completed Phase (Foundation & Debugging)
+# Outstanding Issues (Next Session)
 
-- [x] **Robust Data Ingestion**
-  - [x] Update `FieldMapper` to robustly infer platoon
-  - [x] Config: Explicit Platoon-to-ID Mapping (Fix "None" issue)
-  - [x] Backend: Support Dictionary Configuration
-- [x] **Sterile Authorization**
-  - [x] Implement User Context & Tenant Isolation
-  - [x] Fix 500/403 Error Handling
-- [x] **Core Functionality**
-  - [x] Google Sheets Sync (Manual)
-  - [x] Excel Export (Platoon & Battalion)
-  - [x] SPA Routing & Server Stability
+## High Priority
 
-## 2. Phase 5: Refinement & User Experience (Next Steps)
+- [ ] **Fix Corrupted Week Parameter** (%D6%BF): Frontend/Backend still processing corrupted strings logic despite sanitization attempt.
+- [ ] **Data Inconsistency**: User reports "local files" data is incorrect/not displaying.
+- [ ] **Frontend Updates**: Components not showing expected queries.
+- [ ] **Export Quality**: Generated Excel forms are "insufficient".
 
-- [ ] **Workflow Automation**
-  - [ ] **Auto-Sync on Login**: Remove manual sync button; trigger background sync immediately upon successful auth.
-  - [ ] **Context-Aware Dashboard**:
-    - [ ] **Battalion View**: Hide granular platoon cards? Show high-level summary only.
-    - [ ] **Sync Logic**: Disable/Hide sync controls when in Battalion view looking at Platoon specific mode?
-- [ ] **Export Excellence**
-  - [ ] **Format Overhaul**: Improve Excel styling (headers, colors, column widths).
-  - [ ] **Content**: Ensure export matches user expectations (fields, totals).
-- [ ] **Project Hygiene**
-  - [x] Cleanup junk files (`config 2.py`, debug scripts).
-  - [ ] **Further Cleanup**: Review unused frontend components (e.g., `UploadCard` if deprecated).
-- [ ] **Docs & Freeze**
-  - [ ] Update `implementation_plan.md` with detailed spec for formatted exports.
-  - [ ] Git Commit 1.0 Stable.
+## Architecture & Quality
 
-## 3. Future Phases (Tactical)
-
-- [ ] **Phase 3: Tactical Features**:
-  - [ ] **Tank Grid**: Visual representation of assets instead of tables.
-  - [ ] **Logistics Shopping List**: Dedicated view for supply gaps.
+- [ ] **Test Coverage**: User stated "tests are not good" (likely coverage or meaningful assertions).
+- [ ] **Consistency**: General cleanup of project structure and logic.
