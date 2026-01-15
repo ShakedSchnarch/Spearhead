@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Iterable, Optional
+import pandas as pd
 
 from spearhead.data.dto import TabularRecord, FormResponseRow
 
@@ -226,6 +227,13 @@ class Database:
                 (import_id, source_type, payload, datetime.now(UTC).isoformat()),
             )
             conn.commit()
+
+    def read_table(self, table: str) -> pd.DataFrame:
+        """
+        Convenience accessor to load a table into a DataFrame.
+        """
+        with self._connect() as conn:
+            return pd.read_sql_query(f"SELECT * FROM {table}", conn)
 
     def latest_schema_snapshot(self, source_type: str) -> Optional[dict]:
         with self._connect() as conn:

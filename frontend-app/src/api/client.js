@@ -1,5 +1,7 @@
 const fallbackBase =
-  typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : "http://localhost:8000";
+  typeof window !== "undefined"
+    ? window.location.origin.replace(/\/$/, "")
+    : "http://localhost:8000";
 
 export class ApiError extends Error {
   constructor(message, status, detail) {
@@ -15,7 +17,7 @@ const normalizeBase = (baseUrl) => (baseUrl || fallbackBase).replace(/\/$/, "");
 const buildQuery = (params) => {
   if (!params) return "";
   const entries = Object.entries(params).filter(
-    ([, value]) => value !== undefined && value !== null && value !== "",
+    ([, value]) => value !== undefined && value !== null && value !== ""
   );
   if (!entries.length) return "";
   const qs = new URLSearchParams();
@@ -24,12 +26,20 @@ const buildQuery = (params) => {
   return rendered ? `?${rendered}` : "";
 };
 
-export const createApiClient = ({ baseUrl, token, oauthSession, onUnauthorized } = {}) => {
+export const createApiClient = ({
+  baseUrl,
+  token,
+  oauthSession,
+  onUnauthorized,
+} = {}) => {
   const resolvedBase = normalizeBase(baseUrl);
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
   const sessionHeader = oauthSession || token;
 
-  const request = async (path, { method = "GET", headers, body, responseType = "json", signal } = {}) => {
+  const request = async (
+    path,
+    { method = "GET", headers, body, responseType = "json", signal } = {}
+  ) => {
     const res = await fetch(`${resolvedBase}${path}`, {
       method,
       headers: {
@@ -57,7 +67,11 @@ export const createApiClient = ({ baseUrl, token, oauthSession, onUnauthorized }
           detail = null;
         }
       }
-      throw new ApiError(detail?.detail || detail || res.statusText, res.status, detail);
+      throw new ApiError(
+        detail?.detail || detail || res.statusText,
+        res.status,
+        detail
+      );
     }
 
     if (responseType === "blob") return res.blob();
@@ -108,15 +122,20 @@ export const createApiClient = ({ baseUrl, token, oauthSession, onUnauthorized }
       platoon,
       week,
     };
-    const [totals, gaps, delta, variance, forms, insights, trends] = await Promise.all([
-      getJson("/queries/tabular/totals", scoped, { signal }),
-      getJson("/queries/tabular/gaps", scoped, { signal }),
-      getJson("/queries/tabular/delta", { section, top_n: topN }, { signal }),
-      getJson("/queries/tabular/variance", { section, top_n: topN }, { signal }),
-      getJson("/queries/forms/status", null, { signal }),
-      getJson("/insights", { section, top_n: topN, platoon }, { signal }),
-      getJson("/queries/trends", { section, top_n: 5, platoon }, { signal }),
-    ]);
+    const [totals, gaps, delta, variance, forms, insights, trends] =
+      await Promise.all([
+        getJson("/queries/tabular/totals", scoped, { signal }),
+        getJson("/queries/tabular/gaps", scoped, { signal }),
+        getJson("/queries/tabular/delta", { section, top_n: topN }, { signal }),
+        getJson(
+          "/queries/tabular/variance",
+          { section, top_n: topN },
+          { signal }
+        ),
+        getJson("/queries/forms/status", null, { signal }),
+        getJson("/insights", { section, top_n: topN, platoon }, { signal }),
+        getJson("/queries/trends", { section, top_n: 5, platoon }, { signal }),
+      ]);
     return { totals, gaps, delta, variance, forms, insights, trends };
   };
 
@@ -128,13 +147,33 @@ export const createApiClient = ({ baseUrl, token, oauthSession, onUnauthorized }
     download,
     health: (signal) => getJson("/health", null, { signal }),
     syncStatus: (signal) => getJson("/sync/status", null, { signal }),
-    syncGoogle: (target = "all", signal) => postJson("/sync/google", { target }, { signal }),
-    summary: (params, signal) => getJson("/queries/forms/summary", params, { signal }),
-    coverage: (params, signal) => getJson("/queries/forms/coverage", params, { signal }),
+    syncGoogle: (target = "all", signal) =>
+      postJson("/sync/google", { target }, { signal }),
+    summary: (params, signal) =>
+      getJson("/queries/forms/summary", params, { signal }),
+    coverage: (params, signal) =>
+      getJson("/queries/forms/coverage", params, { signal }),
     tabularBundle,
+    tabularByFamily: (params, signal) =>
+      getJson("/queries/tabular/by-family", params, { signal }),
+    tabularGapsByPlatoon: (params, signal) =>
+      getJson("/queries/tabular/gaps-by-platoon", params, { signal }),
+    tabularSearch: (params, signal) =>
+      getJson("/queries/tabular/search", params, { signal }),
     exportReport: (mode, params, signal) =>
-      download(mode === "platoon" ? "/exports/platoon" : "/exports/battalion", params, { signal }),
-    uploadImport: (kind, file, signal) => upload(`/imports/${kind}`, file, null, { signal }),
-    uploadForms: (file, signal) => upload("/imports/form-responses", file, null, { signal }),
+      download(
+        mode === "platoon" ? "/exports/platoon" : "/exports/battalion",
+        params,
+        { signal }
+      ),
+    uploadImport: (kind, file, signal) =>
+      upload(`/imports/${kind}`, file, null, { signal }),
+    uploadForms: (file, signal) =>
+      upload("/imports/form-responses", file, null, { signal }),
+    // Phase 4: Intelligence
+    getIntelligence: (platoon, params, signal) =>
+      getJson(`/intelligence/platoon/${platoon}`, params, { signal }),
+    getBattalionIntelligence: (params, signal) =>
+      getJson("/intelligence/battalion", params, { signal }),
   };
 };

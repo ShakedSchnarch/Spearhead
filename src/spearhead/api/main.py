@@ -15,7 +15,7 @@ from spearhead.api.middleware import add_request_id, enforce_body_size, log_requ
 from spearhead.api.deps import get_db
 
 # Routers
-from spearhead.api.routers import system, imports, queries, sync
+from spearhead.api.routers import system, imports, queries, sync, intelligence
 
 # Configure logging
 logging.basicConfig(level=getattr(logging, settings.logging.level.upper(), logging.INFO))
@@ -53,10 +53,12 @@ def create_app(db_path: Optional[Path] = None) -> FastAPI:
         app.middleware("http")(log_requests)
 
     # Include Routers
+    # Reverted /api prefix to match frontend expectation (root mounting)
     app.include_router(system.router)
     app.include_router(imports.router)
     app.include_router(queries.router)
     app.include_router(sync.router)
+    app.include_router(intelligence.router)
 
     # Locate built frontend assets relative to repo root (src/spearhead/api/main.py -> ../../.. = repo)
     dist_path = Path(__file__).resolve().parents[3] / "frontend-app" / "dist"

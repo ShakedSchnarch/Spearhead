@@ -12,6 +12,7 @@ from spearhead.ai import build_ai_client, InsightService
 from spearhead.sync.google_sheets import GoogleSheetsProvider, SyncService
 from spearhead.api.oauth_store import OAuthSessionStore
 from spearhead.domain.models import User
+from spearhead.data.repositories import FormRepository, TabularRepository
 
 # Global/Cached instances
 _db_instance: Optional[Database] = None
@@ -34,16 +35,25 @@ def get_import_service() -> Generator[ImportService, None, None]:
 
 def get_query_service() -> Generator[QueryService, None, None]:
     db = get_db()
-    yield QueryService(db=db)
+    repo = TabularRepository(db=db)
+    yield QueryService(repository=repo)
+
+# ... imports ...
 
 def get_form_analytics() -> Generator[FormAnalytics, None, None]:
     db = get_db()
-    yield FormAnalytics(db=db)
+    repo = FormRepository(db=db)
+    yield FormAnalytics(repository=repo)
 
 def get_exporter() -> Generator[ExcelExporter, None, None]:
     db = get_db()
-    analytics = FormAnalytics(db=db)
-    yield ExcelExporter(analytics=analytics)
+    repo = FormRepository(db=db)
+    analytics = FormAnalytics(repository=repo)
+    # New dependency
+    engine = ScoringEngine()
+    intel_service = IntelligenceService(repository=repo, scoring_engine=engine)
+    
+    yield ExcelExporter(analytics=analytics, intelligence=intel_service)
 
 def get_sync_service() -> Generator[SyncService, None, None]:
     db = get_db()
@@ -65,10 +75,22 @@ def get_sync_service() -> Generator[SyncService, None, None]:
         cache_dir=settings.google.cache_dir,
     )
 
+from spearhead.services.intelligence import IntelligenceService
+from spearhead.logic.scoring import ScoringEngine
+
+def get_intelligence_service() -> Generator[IntelligenceService, None, None]:
+    db = get_db()
+    repo = FormRepository(db=db)
+    # Default config for now
+    engine = ScoringEngine() 
+    yield IntelligenceService(repository=repo, scoring_engine=engine)
+
 def get_insight_service() -> Generator[InsightService, None, None]:
     db = get_db()
-    # Re-use query service
-    query_service = QueryService(db=db)
+    # Align instantiation with service definition
+    repo = TabularRepository(db=db)
+    query_service = QueryService(repository=repo)
+    
     ai_client = build_ai_client(settings)
     yield InsightService(db=db, query_service=query_service, ai_client=ai_client)
 
@@ -112,9 +134,9 @@ def get_current_user(
     Enforces strict access control.
     """
     if not x_oauth_session:
-        # For development/debug without auth, checking settings? 
-        # No, "Sterile Auth" means we require it.
-        # But maybe we allow basic auth fallback? For now, strict session.
+        # Development fallback: if no auth mechanism is configured, allow guest access
+        if not (settings.security.api_token or settings.security.basic_user):
+            return User(email="guest@spearhead.local", platoon=None, role="battalion")
         raise HTTPException(status_code=401, detail="Missing authentication")
 
     session = oauth_store.get_active_session(x_oauth_session)

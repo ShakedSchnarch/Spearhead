@@ -27,14 +27,18 @@ export function DashboardProvider({ children }) {
 
   // Derive Data
   const enabled = Boolean(user);
+  const isRestricted = user?.platoon && user.platoon !== "battalion";
+
   const { health, syncStatus, summary, coverage, tabular } = useDashboardData(
     apiClient,
     { section, topN, platoon, week, viewMode },
-    enabled
+    enabled,
+    isRestricted
   );
 
   // Derive Actions
-  const { syncMutation, uploadMutation, exportMutation } = useDashboardActions(apiClient);
+  const { syncMutation, uploadMutation, exportMutation } =
+    useDashboardActions(apiClient);
 
   // Auth Helpers
   const logout = useCallback(
@@ -49,13 +53,13 @@ export function DashboardProvider({ children }) {
       })),
     [update]
   );
-  
+
   // 401 Handling Interceptor Setup (Ideally in useApiClient, but we need logout access)
-  // Since useApiClient is a hook returning an instance, we can't easily inject logout callback *into* it 
+  // Since useApiClient is a hook returning an instance, we can't easily inject logout callback *into* it
   // unless we pass it or use an effect.
   // Better pattern: useApiClient takes a `onUnauthorized` callback.
-  
-  // Let's defer strict interceptor to useApiClient modification, 
+
+  // Let's defer strict interceptor to useApiClient modification,
   // but here we simply need to ensure we pass the right args.
 
   const login = useCallback(
@@ -65,23 +69,24 @@ export function DashboardProvider({ children }) {
         user: {
           platoon: payload.platoon,
           email: payload.email,
-          token: payload.token || "", 
+          token: payload.token || "",
         },
         token: payload.token || "",
         oauthSession: payload.oauthSession || "", // Explicit separation
         platoon: payload.platoon || prev.platoon,
-        viewMode: payload.viewMode || (payload.platoon ? "platoon" : "battalion"),
+        viewMode:
+          payload.viewMode || (payload.platoon ? "platoon" : "battalion"),
         activeTab: "dashboard",
       })),
     [update]
   );
-  
+
   const setBanner = useCallback((banner) => {
     // Ideally this should be in state or a separate UI context
     // For now we can expose a setter if we lift banner state here?
     // Let's keep banner local to App or Layout?
     // Actually, widespread use suggests it should be here.
-    // Adding to ref via state update or new state? 
+    // Adding to ref via state update or new state?
     // Let's defer banner to a UIContext or keep it simple in App.jsx initially.
   }, []);
 
@@ -90,11 +95,28 @@ export function DashboardProvider({ children }) {
       state,
       update,
       clear,
+      client: apiClient,
       data: { health, syncStatus, summary, coverage, tabular },
       actions: { syncMutation, uploadMutation, exportMutation, login, logout },
       helpers: { ...helpers, knownPlatoons, friendlyImportName: (k) => k }, // Add more helpers
     }),
-    [state, update, clear, helpers, health, syncStatus, summary, coverage, tabular, syncMutation, uploadMutation, exportMutation, login, logout]
+    [
+      state,
+      update,
+      clear,
+      helpers,
+      apiClient,
+      health,
+      syncStatus,
+      summary,
+      coverage,
+      tabular,
+      syncMutation,
+      uploadMutation,
+      exportMutation,
+      login,
+      logout,
+    ]
   );
 
   return (
@@ -106,6 +128,7 @@ export function DashboardProvider({ children }) {
 
 export const useDashboard = () => {
   const ctx = useContext(DashboardContext);
-  if (!ctx) throw new Error("useDashboard must be used within DashboardProvider");
+  if (!ctx)
+    throw new Error("useDashboard must be used within DashboardProvider");
   return ctx;
 };

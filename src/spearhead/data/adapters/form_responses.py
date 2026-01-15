@@ -121,7 +121,10 @@ class FormResponsesAdapter:
         if not ts:
             return None
         try:
-            return ts.strftime("%G-W%V")
+            val = ts.strftime("%G-W%V")
+            # Sanitize to strictly YYYY-Www format
+            import re
+            return re.sub(r"[^0-9A-Z\-]", "", val)
         except Exception:
             return None
 

@@ -9,6 +9,7 @@ from spearhead.config_fields import field_config
 from spearhead.data.field_mapper import FieldMapper
 from spearhead.data.storage import Database
 from spearhead.data.dto import GapReport, FormResponseRow
+from spearhead.data.repositories import FormRepository
 from spearhead.logic.gaps import GapAnalyzer
 
 
@@ -26,15 +27,11 @@ class PlatoonSummary:
 class FormAnalytics:
     """
     Aggregates normalized insights from stored form responses using config-driven header aliases.
-    - Dynamic tank counts per platoon/week (derived from distinct צ טנק)
-    - Zivud gaps (חוסר/בלאי) per item
-    - Ammo totals + per-tank averages
-    - Means/comm gaps and free-text issues (for downstream reporting)
-    - Optional פערי צלמים if present in form fields
+    Uses Repository Layer for data access to enforce tenant isolation.
     """
 
-    def __init__(self, db: Database):
-        self.db = db
+    def __init__(self, repository: FormRepository):
+        self.repo = repository
         self.mapper = FieldMapper()
         # Extend tokens for common "missing" phrasing
         gap_source = settings.status_tokens.gap_tokens + field_config.gap_tokens + ["אין"]
@@ -44,77 +41,60 @@ class FormAnalytics:
         self.ok_tokens = tuple(dict.fromkeys(ok_source))
         self.gap_analyzer = GapAnalyzer()
 
+    @staticmethod
+    def _sanitize_week(week_str: Optional[str]) -> Optional[str]:
+        if not week_str:
+            return None
+        # Remove any non-alphanumeric/dash chars (e.g. hidden LTR marks)
+        # Keep strictly YYYY-Www format
+        import re
+        clean = re.sub(r"[^0-9A-Z\-]", "", str(week_str).strip())
+        return clean or None
+
     def get_gaps(self, week: Optional[str] = None, platoon: Optional[str] = None) -> List[GapReport]:
         """
         Returns a detailed list of extracted gaps using the logic engine.
         """
-        filters = []
-        params = []
-        target_week = week or self.latest_week()
+        target_week = self._sanitize_week(week) or self.latest_week()
         
-        if target_week:
-            filters.append("week_label = ?")
-            params.append(target_week)
-        if platoon:
-            filters.append("platoon = ?")
-            params.append(platoon)
-            
-        where = " AND ".join(filters) if filters else "1=1"
+        # Repository handles tenant filtering via 'platoon' arg
+        df = self.repo.get_forms(week=target_week, platoon=platoon)
         
-        with self.db._connect() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                f"SELECT platoon, tank_id, week_label, fields_json, row_index FROM form_responses WHERE {where}",
-                 params
-            )
-            rows = cur.fetchall()
+        if df.empty:
+            return []
 
+        # Convert DataFrame rows to FormResponseRow objects
         response_rows = []
-        for pl, tid, wk, fields_json, idx in rows:
+        for _, row in df.iterrows():
             try:
-                fields = json.loads(fields_json)
-            except:
+                # Assuming 'fields_json' column exists
+                fields = json.loads(row.get("fields_json", "{}"))
+            except Exception:
                 fields = {}
-            
+
             response_rows.append(FormResponseRow(
-                source_file=None, # Not stored in db, simplistic approach
-                platoon=pl,
-                row_index=idx or 0,
-                tank_id=tid,
-                timestamp=None,
-                week_label=wk,
+                source_file=None, 
+                platoon=row.get("platoon", "unknown"),
+                row_index=row.get("row_index", 0),
+                tank_id=row.get("tank_id"),
+                timestamp=None, # could parse from row.get("timestamp")
+                week_label=row.get("week_label"),
                 fields=fields
             ))
             
         return self.gap_analyzer.analyze_batch(response_rows)
 
     def latest_week(self) -> Optional[str]:
-        with self.db._connect() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT week_label FROM form_responses WHERE week_label IS NOT NULL ORDER BY week_label DESC LIMIT 1"
-            )
-            row = cur.fetchone()
-        return row[0] if row else None
+        return self.repo.get_latest_week()
 
     @staticmethod
     def _current_week_label() -> str:
         return datetime.now(UTC).strftime("%Y-W%W")
 
     def platoons(self, week: Optional[str] = None) -> List[str]:
-        filters = []
-        params: List[str] = []
-        if week:
-            filters.append("week_label = ?")
-            params.append(week)
-        query = "SELECT DISTINCT platoon FROM form_responses WHERE platoon IS NOT NULL"
-        if filters:
-            query += " AND " + " AND ".join(filters)
-        with self.db._connect() as conn:
-            cur = conn.cursor()
-            cur.execute(query, params)
-            rows = cur.fetchall()
-        return [r[0] for r in rows]
+        target_week = self._sanitize_week(week)
+        raw = self.repo.get_unique_values("platoon", week=target_week)
+        return sorted(list({self._display_platoon(p) for p in raw}))
 
     def summarize(
         self,
@@ -122,6 +102,14 @@ class FormAnalytics:
         platoon_override: Optional[str] = None,
         prefer_latest: bool = False,
     ) -> Dict:
+        target_week = self._sanitize_week(week) or (self.latest_week() if prefer_latest else None)
+        
+        # If platoon_override is set, we fetch specific. 
+        # But 'summarize' usually needs context. 
+        # If this service is used by a Battalion user, platoon_override might be None (fetch all).
+        # Repository.get_forms(platoon=...) will filter if provided.
+        df = self.repo.get_forms(week=target_week, platoon=platoon_override)
+
         platoon_data: Dict[str, Dict] = defaultdict(
             lambda: {
                 "tank_ids": set(),
@@ -132,74 +120,61 @@ class FormAnalytics:
             }
         )
 
-        filters = []
-        params: List[str] = []
-        target_week = week or (self.latest_week() if prefer_latest else None)
-        if target_week:
-            filters.append("week_label = ?")
-            params.append(target_week)
-
-        query = "SELECT platoon, tank_id, week_label, fields_json FROM form_responses"
-        if filters:
-            query += " WHERE " + " AND ".join(filters)
-
-        with self.db._connect() as conn:
-            cur = conn.cursor()
-            cur.execute(query, params)
-            rows = cur.fetchall()
-
-        for platoon, tank_id, week_label, payload in rows:
-            platoon = platoon_override or platoon or "unknown"
-            tank_id = self._clean_str(tank_id) or "unknown"
-            try:
-                fields = json.loads(payload)
-            except Exception:
-                continue
-
-            data = platoon_data[platoon]
-            data["tank_ids"].add(tank_id)
-            commander = self._commander_name(fields)
-
-            for field_name, value in fields.items():
-                match = self.mapper.match_header(field_name)
-                if not match:
-                    continue
-                if not match.item:
+        if not df.empty:
+            for _, row in df.iterrows():
+                platoon_raw = platoon_override or row.get("platoon") or "unknown"
+                platoon = self._display_platoon(platoon_raw)
+                tank_id = self._clean_str(row.get("tank_id")) or "unknown"
+                week_label = row.get("week_label")
+                try:
+                    fields = json.loads(row.get("fields_json", "{}"))
+                except Exception:
                     continue
 
-                if match.family == "zivud":
-                    if self._is_gap(value):
-                        data["zivud_gaps"][match.item] += 1
-                elif match.family == "ammo":
-                    num = self._as_number(value)
-                    if num is not None:
-                        data["ammo_totals"][match.item] += num
-                elif match.family == "means":
-                    if self._is_gap(value):
-                        data["means_gaps"][match.item] += 1
-                elif match.family == "issues":
-                    if self._is_issue(value):
-                        data["issues"].append(
-                            {
-                                "item": match.item,
-                                "detail": str(value),
-                                "tank_id": tank_id,
-                                "week": week_label,
-                                "commander": commander,
-                            }
-                        )
-                elif match.family == "parsim":
-                    text = self._clean_str(value)
-                    if text:
-                        data["issues"].append(
-                            {
-                                "item": "פערי צלמים",
-                                "detail": text,
-                                "tank_id": tank_id,
-                                "week": week_label,
-                                "commander": commander,
-                            }
-                        )
+                data = platoon_data[platoon]
+                data["tank_ids"].add(tank_id)
+                commander = self._commander_name(fields)
+
+                for field_name, value in fields.items():
+                    match = self.mapper.match_header(field_name)
+                    if not match:
+                        continue
+                    if not match.item:
+                        continue
+
+                    if match.family == "zivud":
+                        if self._is_gap(value):
+                            data["zivud_gaps"][match.item] += 1
+                    elif match.family == "ammo":
+                        num = self._as_number(value)
+                        if num is not None:
+                            data["ammo_totals"][match.item] += num
+                    elif match.family == "means":
+                        if self._is_gap(value):
+                            data["means_gaps"][match.item] += 1
+                    elif match.family == "issues":
+                        if self._is_issue(value):
+                            data["issues"].append(
+                                {
+                                    "item": match.item,
+                                    "detail": str(value),
+                                    "tank_id": tank_id,
+                                    "week": week_label,
+                                    "commander": commander,
+                                }
+                            )
+                    elif match.family == "parsim":
+                        text = self._clean_str(value)
+                        if text:
+                            data["issues"].append(
+                                {
+                                    "item": "פערי צלמים",
+                                    "detail": text,
+                                    "tank_id": tank_id,
+                                    "week": week_label,
+                                    "commander": commander,
+                                }
+                            )
 
         platoon_summaries: Dict[str, PlatoonSummary] = {}
         for platoon, pdata in platoon_data.items():
@@ -265,7 +240,7 @@ class FormAnalytics:
         }
 
     def summarize_platoon(self, platoon: str, week: Optional[str] = None) -> Optional[PlatoonSummary]:
-        data = self.summarize(week=week)["platoons"]
+        data = self.summarize(week=week, platoon_override=platoon)["platoons"]
         return data.get(platoon)
 
     @staticmethod
@@ -291,52 +266,66 @@ class FormAnalytics:
         }
 
     def available_weeks(self) -> List[str]:
-        with self.db._connect() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT DISTINCT week_label FROM form_responses WHERE week_label IS NOT NULL")
-            rows = cur.fetchall()
-        weeks = [r[0] for r in rows if r[0]]
-        return sorted(set(weeks), reverse=True)
+        return self.repo.get_unique_values("week_label")
 
     def coverage(
         self,
         week: Optional[str] = None,
         window_weeks: int = 4,
         prefer_latest: bool = True,
+        platoon: Optional[str] = None,
     ) -> Dict[str, Any]:
-        target_week = week or (self.latest_week() if prefer_latest else None) or self._current_week_label()
+        target_week = self._sanitize_week(week) or (self.latest_week() if prefer_latest else None) or self._current_week_label()
+        platoon_filter = self._clean_str(platoon)
 
-        with self.db._connect() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT platoon, tank_id, timestamp, week_label FROM form_responses")
-            rows = cur.fetchall()
+        # Coverage needs context of all platoons to show who is missing.
+        # However, if we are in a 'platoon' scope (Repository restricted), we only see that platoon.
+        # That's correct for tenant isolation.
+        
+        # We need ALL forms to calculate history/last_seen. 
+        # So we fetch everything (subject to repository scope).
+        # Fetch Global weeks for context (anomaly detection needs full timeline)
+        available_weeks = sorted(self.repo.get_unique_values("week_label"), reverse=True)
+        
+        # Fetch Data (Filtered by repository if platoon provided)
+        # This handles Hebrew/English normalization (e.g. כפיר -> Kfir)
+        df = self.repo.get_forms(platoon=platoon)
+        
+        if df.empty:
+            return {"week": target_week, "platoons": {}, "anomalies": []}
 
-        available_weeks = sorted({r[3] for r in rows if r[3]}, reverse=True)
         week_forms: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         week_tanks: Dict[str, Dict[str, Set[str]]] = defaultdict(lambda: defaultdict(set))
         last_seen: Dict[str, Optional[datetime]] = defaultdict(lambda: None)
 
-        for platoon, tank_id, ts_raw, week_label in rows:
-            platoon = platoon or "unknown"
+        for _, row in df.iterrows():
+            platoon_row = row.get("platoon") or "unknown"
+            week_label = row.get("week_label")
+            tank_id = row.get("tank_id")
+            ts_raw = row.get("timestamp")
+
             if week_label:
-                week_forms[platoon][week_label] += 1
+                week_forms[platoon_row][week_label] += 1
                 if tank_id:
-                    week_tanks[platoon][week_label].add(str(tank_id))
+                    week_tanks[platoon_row][week_label].add(str(tank_id))
+            
             if ts_raw:
                 try:
-                    ts = datetime.fromisoformat(ts_raw)
+                    ts = datetime.fromisoformat(str(ts_raw))
                     if ts.tzinfo is None:
                         ts = ts.replace(tzinfo=UTC)
                 except Exception:
                     ts = None
-                if ts and (last_seen[platoon] is None or ts > last_seen[platoon]):
-                    last_seen[platoon] = ts
+                
+                if ts and (last_seen[platoon_row] is None or ts > last_seen[platoon_row]):
+                    last_seen[platoon_row] = ts
 
         coverage: Dict[str, Dict[str, Any]] = {}
         anomalies: List[Dict[str, Any]] = []
         now = datetime.now(UTC)
 
         for platoon in week_forms.keys():
+            display_platoon = self._display_platoon(platoon)
             forms_current = week_forms[platoon].get(target_week, 0)
             tanks_current = len(week_tanks[platoon].get(target_week, set()))
             platoon_last_seen = last_seen.get(platoon)
@@ -363,11 +352,11 @@ class FormAnalytics:
                 "avg_forms_recent": avg_forms_recent,
                 "anomaly": anomaly_reason,
             }
-            coverage[platoon] = entry
+            coverage[display_platoon] = entry
             if anomaly_reason:
                 anomalies.append(
                     {
-                        "platoon": platoon,
+                        "platoon": display_platoon,
                         "week": target_week,
                         "reason": anomaly_reason,
                         "forms": forms_current,
@@ -383,6 +372,16 @@ class FormAnalytics:
             "platoons": coverage,
             "anomalies": anomalies,
         }
+
+    @staticmethod
+    def _display_platoon(name: str) -> str:
+        aliases = {
+            "kfir": "כפיר",
+            "mahatz": "מחץ",
+            "sufa": "סופה",
+        }
+        key = (name or "").strip().lower()
+        return aliases.get(key, name)
 
     def _is_gap(self, value) -> bool:
         if value is None:

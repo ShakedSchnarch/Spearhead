@@ -72,3 +72,13 @@ def test_filtered_queries_and_trends(tmp_path):
     assert isinstance(trends, list)
     if trends:
         assert "points" in trends[0]
+
+def test_tabular_family_and_gaps_by_platoon(tmp_path):
+    db_path = bootstrap_db(tmp_path)
+    qs = QueryService(db=ImportService(db_path).db)
+
+    by_family = qs.tabular_by_family("zivud", top_n=5)
+    assert isinstance(by_family, list)
+
+    gaps_platoon = qs.tabular_gaps_by_platoon("zivud", top_n=5)
+    assert isinstance(gaps_platoon, list)

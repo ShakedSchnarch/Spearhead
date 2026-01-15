@@ -46,6 +46,43 @@ def tabular_gaps(
         platoon = user.platoon
     return qs.tabular_gaps(section=section, top_n=top_n, platoon=platoon, week=week)[:top_n]
 
+@router.get("/queries/tabular/by-family")
+def tabular_by_family(
+    section: str = Query(..., description="Section name, e.g., zivud or ammo"),
+    platoon: Optional[str] = Query(None, description="Optional platoon filter"),
+    week: Optional[str] = Query(None, description="Week label YYYY-Www"),
+    top_n: int = Query(50, ge=1, le=200),
+    qs: QueryService = Depends(get_query_service),
+    user: User = Depends(get_current_user),
+):
+    if user.platoon:
+        platoon = user.platoon
+    return qs.tabular_by_family(section=section, platoon=platoon, week=week, top_n=top_n)
+
+@router.get("/queries/tabular/gaps-by-platoon")
+def tabular_gaps_by_platoon(
+    section: str = Query(..., description="Section name, e.g., zivud or ammo"),
+    week: Optional[str] = Query(None, description="Week label YYYY-Www"),
+    top_n: int = Query(100, ge=1, le=500),
+    qs: QueryService = Depends(get_query_service),
+    _auth=Depends(require_query_auth),
+):
+    return qs.tabular_gaps_by_platoon(section=section, week=week, top_n=top_n)
+
+@router.get("/queries/tabular/search")
+def tabular_search(
+    q: str = Query(..., description="Free text to search (item/column/value)"),
+    section: Optional[str] = Query(None, description="Optional section filter (zivud|ammo|summary_zivud|summary_ammo)"),
+    platoon: Optional[str] = Query(None, description="Optional platoon filter"),
+    week: Optional[str] = Query(None, description="Week label YYYY-Www"),
+    limit: int = Query(50, ge=1, le=200),
+    qs: QueryService = Depends(get_query_service),
+    user: User = Depends(get_current_user),
+):
+    if user.platoon:
+        platoon = user.platoon
+    return qs.tabular_search(q=q, section=section, platoon=platoon, week=week, limit=limit)
+
 @router.get("/queries/tabular/by-platoon")
 def tabular_by_platoon(
     section: str = Query(..., description="Section name, e.g., zivud or ammo"),
@@ -138,12 +175,13 @@ def form_coverage(
 ):
     # Coverage is battalion-wide usually. 
     # If restricted, we might want to filtered coverage? 
-    # Current implementation of analytics.coverage is battalion level.
-    # For now, if restricted, we can trigger 403 OR implement filtered.
-    # Let's return 403 for now as "Overview" is blocked, but maybe return empty/mock if UI demands it.
+    # Update: Now we support filtered coverage via analytics.coverage(platoon=...)
+    platoon_filter = None
     if user.platoon:
-         raise HTTPException(status_code=403, detail="Battalion coverage view restricted")
-    return analytics.coverage(week=week, window_weeks=window_weeks, prefer_latest=True)
+         platoon_filter = user.platoon
+         # raise HTTPException(status_code=403, detail="Battalion coverage view restricted")
+    
+    return analytics.coverage(week=week, window_weeks=window_weeks, prefer_latest=True, platoon=platoon_filter)
 
 @router.get("/queries/forms/status")
 def form_status(
