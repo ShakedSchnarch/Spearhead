@@ -14,4 +14,23 @@ export PYTHONPATH="$ROOT/src"
 # Clear token to avoid auth in tests unless explicitly set by caller
 export SECURITY__API_TOKEN=${SECURITY__API_TOKEN-}
 
-exec "$ROOT/.venv/bin/pytest" "$@"
+INCLUDE_LEGACY=0
+ARGS=()
+
+for arg in "$@"; do
+  if [[ "$arg" == "--include-legacy" ]]; then
+    INCLUDE_LEGACY=1
+    continue
+  fi
+  ARGS+=("$arg")
+done
+
+if [[ ${#ARGS[@]} -eq 0 ]]; then
+  ARGS=(tests)
+fi
+
+if [[ "$INCLUDE_LEGACY" -eq 0 ]]; then
+  ARGS+=(--ignore=tests/legacy)
+fi
+
+exec "$ROOT/.venv/bin/pytest" "${ARGS[@]}"

@@ -1,62 +1,90 @@
-# Operational Runbook
+# Spearhead Runbook (v1 Responses-Only)
 
-## 1. Quick Start (Dev)
+## 1. Start Services
 
-To start the full environment (DB + Backend + Frontend):
+Single terminal startup:
 
 ```bash
 ./scripts/dev-one-click.sh
 ```
 
-To reset the database (DANGER: Deletes all data!):
+Equivalent:
 
 ```bash
-./scripts/dev-one-click.sh --reset-db
+./scripts/run-local.sh
 ```
 
-## 2. Logs & Debugging
+Open:
 
-Logs are output to the console.
+- `http://127.0.0.1:8000/spearhead/`
 
-- **Console Mode (Default)**: Human-readable logs.
-- **JSON Mode**: Set `LOGGING__FORMAT=json` for machine-readable logs with `request_id`, `path`, `status`.
+## 2. Health Checks
 
-Example tracing a request:
+- `GET /health`
+- `GET /v1/metadata/weeks`
 
-1. Trigger the error.
-2. Search logs for the `request_id` from the error response or headers.
-3. Observe `duration_ms` and `status`.
+## 3. Smoke Test (Ingestion -> Query)
 
-## 3. Environment Troubleshooting
+1. Ingest one event:
+```bash
+curl -X POST http://127.0.0.1:8000/v1/ingestion/forms/events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "schema_version":"v2",
+    "source_id":"manual-smoke",
+    "payload":{
+      "צ טנק":"צ\'653",
+      "חותמת זמן":"2026-02-08T10:00:00Z",
+      "פלוגה":"כפיר",
+      "דוח זיווד [חבל פריסה]":"חוסר"
+    }
+  }'
+```
 
-**Issue**: `ImportError` or `ModuleNotFoundError` despite packages being installed.
-**Cause**: Virtual environment corruption (e.g., `importlib` freeze).
-**Fix**: Run setup script to self-heal.
+2. Query overview:
+```bash
+curl "http://127.0.0.1:8000/v1/metrics/overview"
+```
+
+3. Query gaps:
+```bash
+curl "http://127.0.0.1:8000/v1/queries/gaps?group_by=item"
+```
+
+## 4. Deprecated Endpoints Behavior
+
+These endpoints intentionally return `410 Gone`:
+- `GET /exports/platoon`
+- `GET /exports/battalion`
+- `POST /imports/platoon-loadout`
+- `POST /imports/battalion-summary`
+
+## 5. Testing
+
+Run non-legacy suite:
+```bash
+./scripts/test.sh
+```
+
+Run v1 focused tests:
+```bash
+PYTHONPATH=src ./.venv/bin/pytest tests/test_v1_api.py -q
+```
+
+Release readiness check:
 
 ```bash
-./scripts/setup-venv.sh
+./scripts/release-check.sh
 ```
 
-**Issue**: Frontend assets not updating.
-**Fix**: Rebuild the UI.
+## 6. Production Checklist (Cloud)
 
-```bash
-./scripts/build-ui.sh
-```
-
-## 4. Auth Modes
-
-The system supports two auth modes (configured in `.env` or `config/settings.yaml`):
-
-1. **No Auth**: `security.require_auth_on_queries = false` (Default for dev).
-2. **Basic Auth**: Set `SECURITY__BASIC_USER` and `SECURITY__BASIC_PASS`.
-3. **Token Auth**: Set `SECURITY__API_TOKEN`.
-
-## 5. Sync Integration
-
-- The system syncs from Google Sheets or Excel files in `docs/Files`.
-- Run manual sync via:
-
-```bash
-./scripts/sync-and-export.sh
-```
+- GCP billing active
+- Cloud Run / PubSub / Scheduler / Firestore / Secret Manager enabled
+- OAuth client configured
+- Service accounts with least privilege
+- Secrets loaded to Secret Manager (no plaintext in repo)
+- API deployed with:
+  - `./scripts/cloud/deploy-api-cloudrun.sh <PROJECT_ID> <REGION> <SERVICE_NAME> [SERVICE_ACCOUNT_EMAIL]`
+- Optional reconciliation job deployed with:
+  - `./scripts/cloud/deploy-worker-cloudrun.sh <PROJECT_ID> <REGION> <JOB_NAME> <IMAGE_URI>`

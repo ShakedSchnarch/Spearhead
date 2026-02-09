@@ -30,7 +30,7 @@ def test_sync_service(tmp_path):
     db_path = tmp_path / "spearhead.db"
     import_service = ImportService(db_path=db_path)
 
-    fixture_dir = BASE / "docs/Files"
+    fixture_dir = BASE / "docs/archive/samples"
     provider = FakeSheetsProvider(fixture_dir)
     file_ids = {
         "platoon_loadout": "דוחות פלוגת כפיר.xlsx",
@@ -79,7 +79,7 @@ class FlakyProvider:
 def test_sync_status_and_cache_fallback(tmp_path, monkeypatch):
     db_path = tmp_path / "spearhead.db"
     import_service = ImportService(db_path=db_path)
-    fixture_dir = BASE / "docs/Files"
+    fixture_dir = BASE / "docs/archive/samples"
 
     # Prepare cache so fallback works when provider fails.
     cache_dir = tmp_path / "cache"
@@ -156,7 +156,7 @@ def test_google_provider_retries_and_uses_cache(tmp_path, monkeypatch):
 def test_sync_service_etag_tracked(tmp_path):
     db_path = tmp_path / "spearhead.db"
     import_service = ImportService(db_path=db_path)
-    fixture_dir = BASE / "docs/Files"
+    fixture_dir = BASE / "docs/archive/samples"
 
     class EtagProvider:
         def __init__(self, fixture_dir: Path):

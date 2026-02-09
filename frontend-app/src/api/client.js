@@ -17,13 +17,12 @@ const normalizeBase = (baseUrl) => (baseUrl || fallbackBase).replace(/\/$/, "");
 const buildQuery = (params) => {
   if (!params) return "";
   const entries = Object.entries(params).filter(
-    ([, value]) => value !== undefined && value !== null && value !== ""
+    ([, value]) => value !== undefined && value !== null && value !== "",
   );
   if (!entries.length) return "";
   const qs = new URLSearchParams();
   entries.forEach(([key, value]) => qs.append(key, String(value)));
-  const rendered = qs.toString();
-  return rendered ? `?${rendered}` : "";
+  return `?${qs.toString()}`;
 };
 
 export const createApiClient = ({
@@ -38,7 +37,7 @@ export const createApiClient = ({
 
   const request = async (
     path,
-    { method = "GET", headers, body, responseType = "json", signal } = {}
+    { method = "GET", headers, body, responseType = "json", signal } = {},
   ) => {
     const res = await fetch(`${resolvedBase}${path}`, {
       method,
@@ -68,9 +67,9 @@ export const createApiClient = ({
         }
       }
       throw new ApiError(
-        detail?.detail || detail || res.statusText,
+        detail?.detail || detail?.message || detail || res.statusText,
         res.status,
-        detail
+        detail,
       );
     }
 
@@ -86,94 +85,41 @@ export const createApiClient = ({
       method: options.method || "GET",
     });
 
-  const postJson = (path, params, options = {}) =>
-    request(`${path}${buildQuery(params)}`, {
+  const postJson = (path, body, options = {}) =>
+    request(path, {
       ...options,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(options.headers || {}),
       },
-      body: options.body ? JSON.stringify(options.body) : options.body,
+      body: JSON.stringify(body || {}),
     });
-
-  const upload = (path, file, params, options = {}) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request(`${path}${buildQuery(params)}`, {
-      ...options,
-      method: "POST",
-      body: form,
-    });
-  };
-
-  const download = (path, params, options = {}) =>
-    request(`${path}${buildQuery(params)}`, {
-      ...options,
-      method: options.method || "GET",
-      responseType: "blob",
-    });
-
-  const tabularBundle = async (params, signal) => {
-    const { section, topN, platoon, week } = params;
-    const scoped = {
-      section,
-      top_n: topN,
-      platoon,
-      week,
-    };
-    const [totals, gaps, delta, variance, forms, insights, trends] =
-      await Promise.all([
-        getJson("/queries/tabular/totals", scoped, { signal }),
-        getJson("/queries/tabular/gaps", scoped, { signal }),
-        getJson("/queries/tabular/delta", { section, top_n: topN }, { signal }),
-        getJson(
-          "/queries/tabular/variance",
-          { section, top_n: topN },
-          { signal }
-        ),
-        getJson("/queries/forms/status", null, { signal }),
-        getJson("/insights", { section, top_n: topN, platoon }, { signal }),
-        getJson("/queries/trends", { section, top_n: 5, platoon }, { signal }),
-      ]);
-    return { totals, gaps, delta, variance, forms, insights, trends };
-  };
 
   return {
     baseUrl: resolvedBase,
     getJson,
     postJson,
-    upload,
-    download,
     health: (signal) => getJson("/health", null, { signal }),
-    syncStatus: (signal) => getJson("/sync/status", null, { signal }),
-    syncGoogle: (target = "all", signal) =>
-      postJson("/sync/google", { target }, { signal }),
-    summary: (params, signal) =>
-      getJson("/queries/forms/summary", params, { signal }),
-    coverage: (params, signal) =>
-      getJson("/queries/forms/coverage", params, { signal }),
-    tabularBundle,
-    tabularByFamily: (params, signal) =>
-      getJson("/queries/tabular/by-family", params, { signal }),
-    tabularGapsByPlatoon: (params, signal) =>
-      getJson("/queries/tabular/gaps-by-platoon", params, { signal }),
-    tabularSearch: (params, signal) =>
-      getJson("/queries/tabular/search", params, { signal }),
-    exportReport: (mode, params, signal) =>
-      download(
-        mode === "platoon" ? "/exports/platoon" : "/exports/battalion",
-        params,
-        { signal }
-      ),
-    uploadImport: (kind, file, signal) =>
-      upload(`/imports/${kind}`, file, null, { signal }),
-    uploadForms: (file, signal) =>
-      upload("/imports/form-responses", file, null, { signal }),
-    // Phase 4: Intelligence
-    getIntelligence: (platoon, params, signal) =>
-      getJson(`/intelligence/platoon/${platoon}`, params, { signal }),
-    getBattalionIntelligence: (params, signal) =>
-      getJson("/intelligence/battalion", params, { signal }),
+
+    // v1 responses-only API
+    ingestFormEvent: (event, signal) =>
+      postJson("/v1/ingestion/forms/events", event, { signal }),
+    getWeeks: (params, signal) =>
+      getJson("/v1/metadata/weeks", params, { signal }),
+    getOverview: (params, signal) =>
+      getJson("/v1/metrics/overview", params, { signal }),
+    getPlatoonMetrics: (platoon, params, signal) =>
+      getJson(`/v1/metrics/platoons/${encodeURIComponent(platoon)}`, params, {
+        signal,
+      }),
+    getTankMetrics: (params, signal) =>
+      getJson("/v1/metrics/tanks", params, { signal }),
+    getGaps: (params, signal) =>
+      getJson("/v1/queries/gaps", params, { signal }),
+    getTrends: (params, signal) =>
+      getJson("/v1/queries/trends", params, { signal }),
+    searchResponses: (params, signal) =>
+      getJson("/v1/queries/search", params, { signal }),
   };
 };

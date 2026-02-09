@@ -31,6 +31,13 @@ class QueryService:
         self.gap_tokens = tuple(dict.fromkeys(gap_source))
         self.ok_tokens = tuple(dict.fromkeys(ok_source))
 
+    @staticmethod
+    def _week_label_from_datetime(ts: datetime) -> str:
+        """
+        Canonical week label helper retained for backward compatibility with tests and legacy callers.
+        """
+        return ts.astimezone(UTC).strftime("%Y-W%W")
+
     def tabular_totals(
         self,
         section: str,

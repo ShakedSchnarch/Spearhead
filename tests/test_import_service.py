@@ -12,7 +12,7 @@ def test_import_service_idempotent(tmp_path):
     svc = ImportService(db_path=db_path)
 
     # Use small test file (form responses) to validate idempotency
-    form_path = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
+    form_path = BASE / "docs/archive/samples/טופס דוחות סמפ כפיר. (תגובות).xlsx"
     inserted = svc.import_form_responses(form_path)
     assert inserted > 0
 
@@ -34,7 +34,7 @@ def test_import_service_tabular(tmp_path):
     db_path = tmp_path / "spearhead.db"
     svc = ImportService(db_path=db_path)
 
-    loadout_path = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"
+    loadout_path = BASE / "docs/archive/samples/דוחות פלוגת כפיר.xlsx"
     inserted = svc.import_platoon_loadout(loadout_path)
     assert inserted > 0
 

@@ -6,7 +6,7 @@ cd "$ROOT/frontend-app"
 
 # Install deps if missing
 if [[ ! -d node_modules ]]; then
-  npm install
+  npm ci
 fi
 
 npm run build

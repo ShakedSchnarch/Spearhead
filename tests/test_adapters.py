@@ -12,7 +12,7 @@ BASE = Path(__file__).resolve().parents[1]
 
 
 def test_platoon_loadout_zivud_and_ammo():
-    path = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"
+    path = BASE / "docs/archive/samples/דוחות פלוגת כפיר.xlsx"
     records = PlatoonLoadoutAdapter.load(path)
     assert records, "No records parsed from platoon loadout file"
 
@@ -33,7 +33,7 @@ def test_platoon_loadout_zivud_and_ammo():
 
 
 def test_battalion_summary_parses_gaps():
-    path = BASE / "docs/Files/מסמך דוחות גדודי.xlsx"
+    path = BASE / "docs/archive/samples/מסמך דוחות גדודי.xlsx"
     records = BattalionSummaryAdapter.load(path)
     assert records, "No records parsed from battalion summary"
 
@@ -46,7 +46,7 @@ def test_battalion_summary_parses_gaps():
 
 
 def test_form_responses_status_present():
-    path = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
+    path = BASE / "docs/archive/samples/טופס דוחות סמפ כפיר. (תגובות).xlsx"
     responses = FormResponsesAdapter.load(path)
     assert responses, "No responses parsed from form export"
     first = responses[0]
@@ -57,7 +57,7 @@ def test_form_responses_aliases_and_unmapped(tmp_path):
     """
     Headers with extra spacing/punctuation should still resolve via config, while unknown columns are tracked.
     """
-    src = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
+    src = BASE / "docs/archive/samples/טופס דוחות סמפ כפיר. (תגובות).xlsx"
     wb = load_workbook(src)
     ws = wb.active
 

@@ -16,7 +16,7 @@ def test_api_imports_and_queries(tmp_path):
     client = TestClient(app)
 
     # Import platoon loadout
-    loadout = BASE / "docs/Files/דוחות פלוגת כפיר.xlsx"
+    loadout = BASE / "docs/archive/samples/דוחות פלוגת כפיר.xlsx"
     with open(loadout, "rb") as f:
         resp = client.post(
             "/imports/platoon-loadout",
@@ -26,7 +26,7 @@ def test_api_imports_and_queries(tmp_path):
     assert resp.json()["inserted"] > 0
 
     # Import form responses
-    form_file = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
+    form_file = BASE / "docs/archive/samples/טופס דוחות סמפ כפיר. (תגובות).xlsx"
     with open(form_file, "rb") as f:
         resp = client.post(
             "/imports/form-responses",
@@ -107,7 +107,7 @@ def test_form_summary_modes(tmp_path):
     client = TestClient(app)
 
     # Seed form data
-    form_file = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
+    form_file = BASE / "docs/archive/samples/טופס דוחות סמפ כפיר. (תגובות).xlsx"
     with open(form_file, "rb") as f:
         resp = client.post(
             "/imports/form-responses",

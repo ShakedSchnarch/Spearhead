@@ -1,67 +1,72 @@
-from typing import Optional, Generator
-from pathlib import Path
-from fastapi import Header, HTTPException
-import base64
+from __future__ import annotations
 
-from spearhead.config import settings
-from spearhead.data.storage import Database
-from spearhead.data.import_service import ImportService
-from spearhead.services import QueryService, FormAnalytics
-from spearhead.services.exporter import ExcelExporter
-from spearhead.ai import build_ai_client, InsightService
-from spearhead.sync.google_sheets import GoogleSheetsProvider, SyncService
+import base64
+from typing import Generator, Optional
+
+from fastapi import Header, HTTPException
+
+from spearhead.ai import InsightService, build_ai_client
 from spearhead.api.oauth_store import OAuthSessionStore
-from spearhead.domain.models import User
+from spearhead.config import settings
+from spearhead.data.import_service import ImportService
 from spearhead.data.repositories import FormRepository, TabularRepository
+from spearhead.data.storage import Database
+from spearhead.domain.models import User
+from spearhead.logic.scoring import ScoringEngine
+from spearhead.services import FormAnalytics, QueryService
+from spearhead.services.exporter import ExcelExporter
+from spearhead.services.intelligence import IntelligenceService
+from spearhead.v1 import FormResponseParserV2, ResponseIngestionServiceV2, ResponseQueryServiceV2, ResponseStore
 
 # Global/Cached instances
 _db_instance: Optional[Database] = None
-# Shared Session Store (In-Memory)
-oauth_store = OAuthSessionStore(ttl_seconds=86400) # 24h explicitly
+_v1_store_instance: Optional[ResponseStore] = None
+_v1_query_instance: Optional[ResponseQueryServiceV2] = None
+_v1_ingest_instance: Optional[ResponseIngestionServiceV2] = None
+
+# Shared session store (in-memory)
+oauth_store = OAuthSessionStore(ttl_seconds=86400)
+
 
 def get_db() -> Database:
-    """
-    Returns the shared Database instance.
-    For tests, override this dependency or set settings.paths.db_path before first call.
-    """
     global _db_instance
     if _db_instance is None:
         _db_instance = Database(settings.paths.db_path)
     return _db_instance
 
+
 def get_import_service() -> Generator[ImportService, None, None]:
     db = get_db()
     yield ImportService(db_path=db.db_path)
+
 
 def get_query_service() -> Generator[QueryService, None, None]:
     db = get_db()
     repo = TabularRepository(db=db)
     yield QueryService(repository=repo)
 
-# ... imports ...
 
 def get_form_analytics() -> Generator[FormAnalytics, None, None]:
     db = get_db()
     repo = FormRepository(db=db)
     yield FormAnalytics(repository=repo)
 
+
 def get_exporter() -> Generator[ExcelExporter, None, None]:
     db = get_db()
     repo = FormRepository(db=db)
     analytics = FormAnalytics(repository=repo)
-    # New dependency
     engine = ScoringEngine()
     intel_service = IntelligenceService(repository=repo, scoring_engine=engine)
-    
     yield ExcelExporter(analytics=analytics, intelligence=intel_service)
 
-def get_sync_service() -> Generator[SyncService, None, None]:
+
+def get_sync_service() -> Generator["SyncService", None, None]:
     db = get_db()
-    # Note: ImportService is needed here. We create a fresh one or could reuse if we passed it.
-    # SyncService depends on ImportService.
-    # To keep it simple, we instantiate ImportService(db_path=db.db_path)
     import_service = ImportService(db_path=db.db_path)
-    
+
+    from spearhead.sync.google_sheets import GoogleSheetsProvider, SyncService
+
     provider = GoogleSheetsProvider(
         service_account_file=settings.google.service_account_file,
         api_key=settings.google.api_key,
@@ -75,24 +80,47 @@ def get_sync_service() -> Generator[SyncService, None, None]:
         cache_dir=settings.google.cache_dir,
     )
 
-from spearhead.services.intelligence import IntelligenceService
-from spearhead.logic.scoring import ScoringEngine
 
 def get_intelligence_service() -> Generator[IntelligenceService, None, None]:
     db = get_db()
     repo = FormRepository(db=db)
-    # Default config for now
-    engine = ScoringEngine() 
+    engine = ScoringEngine()
     yield IntelligenceService(repository=repo, scoring_engine=engine)
+
 
 def get_insight_service() -> Generator[InsightService, None, None]:
     db = get_db()
-    # Align instantiation with service definition
     repo = TabularRepository(db=db)
     query_service = QueryService(repository=repo)
-    
     ai_client = build_ai_client(settings)
     yield InsightService(db=db, query_service=query_service, ai_client=ai_client)
+
+
+# ----- v1 responses-only services -----
+def get_v1_store() -> ResponseStore:
+    global _v1_store_instance
+    if _v1_store_instance is None:
+        _v1_store_instance = ResponseStore(db=get_db())
+    return _v1_store_instance
+
+
+def get_v1_query_service() -> ResponseQueryServiceV2:
+    global _v1_query_instance
+    if _v1_query_instance is None:
+        _v1_query_instance = ResponseQueryServiceV2(store=get_v1_store())
+    return _v1_query_instance
+
+
+def get_v1_ingestion_service() -> ResponseIngestionServiceV2:
+    global _v1_ingest_instance
+    if _v1_ingest_instance is None:
+        _v1_ingest_instance = ResponseIngestionServiceV2(
+            store=get_v1_store(),
+            parser=FormResponseParserV2(),
+            metrics=get_v1_query_service(),
+        )
+    return _v1_ingest_instance
+
 
 def require_auth(
     authorization: Optional[str] = Header(None),
@@ -104,7 +132,11 @@ def require_auth(
     if not token and not (basic_user and basic_pass):
         return
 
-    if token and (authorization == f"Bearer {token}" or authorization == f"Token {token}" or x_api_key == token):
+    if token and (
+        authorization == f"Bearer {token}"
+        or authorization == f"Token {token}"
+        or x_api_key == token
+    ):
         return
 
     if authorization and authorization.startswith("Basic "):
@@ -118,6 +150,7 @@ def require_auth(
 
     raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Bearer"})
 
+
 def require_query_auth(
     authorization: Optional[str] = Header(None),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
@@ -127,14 +160,9 @@ def require_query_auth(
 
 
 def get_current_user(
-    x_oauth_session: Optional[str] = Header(None, alias="X-OAuth-Session")
+    x_oauth_session: Optional[str] = Header(None, alias="X-OAuth-Session"),
 ) -> User:
-    """
-    Resolves the authenticated user from the session ID.
-    Enforces strict access control.
-    """
     if not x_oauth_session:
-        # Development fallback: if no auth mechanism is configured, allow guest access
         if not (settings.security.api_token or settings.security.basic_user):
             return User(email="guest@spearhead.local", platoon=None, role="battalion")
         raise HTTPException(status_code=401, detail="Missing authentication")
@@ -143,8 +171,9 @@ def get_current_user(
     if not session:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
 
+    role = "platoon" if session.platoon and session.platoon.lower() != "battalion" else "battalion"
     return User(
         email=session.email or "unknown",
-        platoon=session.platoon, # This is the enforced/sterile platoon
-        role="viewer" # basic default
+        platoon=session.platoon,
+        role=role,
     )

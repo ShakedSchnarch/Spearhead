@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spearhead"
 version = "1.0.0"
-description = "A production-grade, offline-first battalion readiness system."
+description = "Responses-only readiness analytics API and dashboard."
 authors = [
     {name = "Principal Software Architect", email = "architect@spearhead.com"},
 ]
@@ -13,12 +13,12 @@ requires-python = ">=3.9"
 dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
-    "pandas>=2.0.0",
+    "pandas==2.2.0",
     "jinja2>=3.0.0",
     "typer>=0.9.0",
     "pyyaml>=6.0",
     "fastapi>=0.110.0",
-    "google-auth>=2.35.0",
+    "google-auth==2.48.0",
     "requests>=2.32.3",
     "openpyxl>=3.1.0",
     "python-multipart>=0.0.6",
@@ -32,7 +32,7 @@ test = [
 ]
 
 [project.scripts]
-spearhead = "spearhead.main:app"
+spearhead = "spearhead.main:cli"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

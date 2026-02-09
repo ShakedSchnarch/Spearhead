@@ -7,6 +7,7 @@ class AppSettings(BaseSettings):
     name: str = "Spearhead"
     version: str = "1.0.0"
     theme: str = "tactical_flat.css"  # Default theme
+    enable_legacy_routes: bool = False
 
 class PathSettings(BaseSettings):
     input_dir: Path = Path("./data/input")

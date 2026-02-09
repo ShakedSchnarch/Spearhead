@@ -87,7 +87,25 @@ class SyncService:
                 logging.getLogger(__name__).error(f"Failed to sync {key} (ID: {fid}): {e}")
                 overall_status = "partial_error"
                 errors.append(str(e))
-        
+
+        # Keep aggregate status under canonical key for API/UI compatibility.
+        aggregate = {
+            "last_sync": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "inserted": total_inserted,
+            "used_cache": any(v.get("used_cache") for k, v in self.status.items() if k.startswith("form_responses_")),
+            "status": overall_status,
+            "source": "mixed" if len(targets) > 1 else "remote",
+        }
+        if errors:
+            aggregate["error"] = "; ".join(errors)
+        try:
+            schema = self.import_service.db.latest_schema_snapshot(source_type="form_responses")
+            if schema:
+                aggregate["schema"] = schema
+        except Exception:
+            pass
+        self.status["form_responses"] = aggregate
+
         return total_inserted
 
     def sync_all(self, user_token: Optional[str] = None) -> dict[str, int]:

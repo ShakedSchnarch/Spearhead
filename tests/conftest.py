@@ -6,7 +6,7 @@ from spearhead.services.analytics import FormAnalytics
 
 BASE = Path(__file__).resolve().parents[1]
 # Use the file provided by the user, assuming it exists
-FORM_FILE = BASE / "docs/Files/טופס דוחות סמפ כפיר. (תגובות).xlsx"
+FORM_FILE = BASE / "docs/archive/samples/טופס דוחות סמפ כפיר. (תגובות).xlsx"
 
 @pytest.fixture
 def bootstrap_service(tmp_path):

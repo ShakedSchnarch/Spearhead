@@ -1,17 +1,13 @@
 from typing import Optional
 from fastapi import APIRouter, Query, Depends, HTTPException
-from fastapi.responses import FileResponse
 from spearhead.services import QueryService, FormAnalytics
-from spearhead.services.exporter import ExcelExporter
 from spearhead.ai import InsightService
 from spearhead.data.dto import GapReport, TrendPoint
 from spearhead.api.deps import (
     get_query_service,
     get_form_analytics,
     get_insight_service,
-    get_exporter,
     require_query_auth,
-    require_auth,
     get_current_user,
 )
 from spearhead.domain.models import User
@@ -212,42 +208,25 @@ def insights(
         platoon = user.platoon
     return svc.generate(section=section, platoon=platoon, top_n=top_n)
 
-# --- Exports ---
 @router.get("/exports/platoon")
 def export_platoon(
     platoon: str = Query(..., description="Platoon name to export"),
     week: str = Query(..., description="Week label YYYY-Www (Required)"),
-    exporter: ExcelExporter = Depends(get_exporter),
     user: User = Depends(get_current_user),
 ):
-    if user.platoon and platoon != user.platoon:
-        raise HTTPException(status_code=403, detail="Platoon export restricted")
-
-    try:
-        path = exporter.export_platoon(platoon=platoon, week=week)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    return FileResponse(
-        path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=path.name,
+    raise HTTPException(
+        status_code=410,
+        detail="Endpoint deprecated: exports were removed in responses-only mode.",
+        headers={"X-API-Deprecated": "true", "X-API-Remove-After": "2026-03-31"},
     )
 
 @router.get("/exports/battalion")
 def export_battalion(
     week: str = Query(..., description="Week label YYYY-Www (Required)"),
-    exporter: ExcelExporter = Depends(get_exporter),
     user: User = Depends(get_current_user),
 ):
-    if user.platoon:
-        raise HTTPException(status_code=403, detail="Battalion export restricted")
-
-    try:
-        path = exporter.export_battalion(week=week)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    return FileResponse(
-        path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=path.name,
+    raise HTTPException(
+        status_code=410,
+        detail="Endpoint deprecated: exports were removed in responses-only mode.",
+        headers={"X-API-Deprecated": "true", "X-API-Remove-After": "2026-03-31"},
     )

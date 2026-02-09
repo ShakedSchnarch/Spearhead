@@ -45,8 +45,8 @@ class ImportService:
     def import_form_responses(self, file_path: Path, source_id: Optional[str] = None, platoon: Optional[str] = None) -> int:
         responses, schema = FormResponsesAdapter.load_with_schema(file_path, source_id=source_id, platoon=platoon)
         import_id, is_new = self._register_import(file_path, settings.imports.form_responses_label)
-        # if not is_new:
-        #     return 0
+        if not is_new:
+            return 0
         logger.info(f"DEBUG: Inserting {len(responses)} records into DB (import_id={import_id})")
         inserted = self.db.insert_form_responses(import_id, responses)
         if schema:

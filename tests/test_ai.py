@@ -17,8 +17,8 @@ class FailingAIClient(BaseAIClient):
 def bootstrap_db(tmp_path):
     db_path = tmp_path / "spearhead.db"
     svc = ImportService(db_path=db_path)
-    svc.import_platoon_loadout(BASE / "docs/Files/דוחות פלוגת כפיר.xlsx")
-    svc.import_battalion_summary(BASE / "docs/Files/מסמך דוחות גדודי.xlsx")
+    svc.import_platoon_loadout(BASE / "docs/archive/samples/דוחות פלוגת כפיר.xlsx")
+    svc.import_battalion_summary(BASE / "docs/archive/samples/מסמך דוחות גדודי.xlsx")
     return svc.db
 
 

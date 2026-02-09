@@ -30,22 +30,24 @@ def _save_temp_file(upload: UploadFile) -> Path:
 @router.post("/platoon-loadout")
 async def import_platoon_loadout(
     file: UploadFile = File(...),
-    svc: ImportService = Depends(get_import_service),
     _auth=Depends(require_auth),
 ):
-    path = _save_temp_file(file)
-    inserted = svc.import_platoon_loadout(path)
-    return {"inserted": inserted}
+    raise HTTPException(
+        status_code=410,
+        detail="Endpoint deprecated: use /v1/ingestion/forms/events (responses-only mode).",
+        headers={"X-API-Deprecated": "true", "X-API-Remove-After": "2026-03-31"},
+    )
 
 @router.post("/battalion-summary")
 async def import_battalion_summary(
     file: UploadFile = File(...),
-    svc: ImportService = Depends(get_import_service),
     _auth=Depends(require_auth),
 ):
-    path = _save_temp_file(file)
-    inserted = svc.import_battalion_summary(path)
-    return {"inserted": inserted}
+    raise HTTPException(
+        status_code=410,
+        detail="Endpoint deprecated: use /v1/ingestion/forms/events (responses-only mode).",
+        headers={"X-API-Deprecated": "true", "X-API-Remove-After": "2026-03-31"},
+    )
 
 @router.post("/form-responses")
 async def import_form_responses(
