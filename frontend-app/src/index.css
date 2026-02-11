@@ -79,12 +79,18 @@ body {
 }
 
 .unit-logo-card {
+  cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease;
 }
 
 .unit-logo-card:hover {
   transform: translateY(-2px);
   border-color: rgba(18, 198, 192, 0.6) !important;
+}
+
+.unit-logo-card[data-active="true"] {
+  border-color: rgba(18, 198, 192, 0.95) !important;
+  box-shadow: 0 0 0 1px rgba(18, 198, 192, 0.55), 0 14px 28px rgba(2, 6, 23, 0.25);
 }
 
 .dashboard-hero {

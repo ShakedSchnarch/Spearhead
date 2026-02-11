@@ -4,14 +4,13 @@ import {
   Card,
   Group,
   Image,
-  SegmentedControl,
   SimpleGrid,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
 import { useState } from "react";
-import { battalionMeta, COMPANY_UNIT_METAS, getUnitMeta, LOGIN_UNIT_OPTIONS } from "../config/unitMeta";
+import { battalionMeta, COMPANY_KEYS, getUnitMeta } from "../config/unitMeta";
 
 const buildOAuthState = (selected) => {
   const platoon = selected === "battalion" ? "" : selected;
@@ -20,10 +19,11 @@ const buildOAuthState = (selected) => {
 };
 
 export function SimpleLogin({ onLogin }) {
-  const [selected, setSelected] = useState("battalion");
+  const [selected, setSelected] = useState("כפיר");
   const oauthUrl = import.meta.env.VITE_GOOGLE_OAUTH_URL || "";
   const allowGuest = (import.meta.env.VITE_ALLOW_GUEST_LOGIN || "").toLowerCase() === "true";
   const selectedMeta = getUnitMeta(selected);
+  const loginCards = ["battalion", ...COMPANY_KEYS].map((key) => getUnitMeta(key));
 
   const handleGoogleLogin = () => {
     if (!oauthUrl) {
@@ -77,11 +77,19 @@ export function SimpleLogin({ onLogin }) {
         </Group>
 
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-          {COMPANY_UNIT_METAS.map((meta) => (
-            <Card key={meta.key} withBorder radius="md" p="sm" className="unit-logo-card">
+          {loginCards.map((meta) => (
+            <Card
+              key={meta.key}
+              withBorder
+              radius="md"
+              p="sm"
+              className="unit-logo-card"
+              data-active={selected === meta.key ? "true" : "false"}
+              onClick={() => setSelected(meta.key)}
+            >
               <Stack align="center" gap={6}>
                 <Image src={meta.logo} alt={meta.shortLabel} radius="sm" h={58} w={58} fit="cover" />
-                <Text size="sm" fw={600}>
+                <Text size="sm" fw={700}>
                   {meta.shortLabel}
                 </Text>
               </Stack>
@@ -92,19 +100,11 @@ export function SimpleLogin({ onLogin }) {
         <Card withBorder radius="md" p="md" className="auth-controls-card">
           <Stack gap="md">
             <Group justify="space-between">
-              <Text fw={700}>בחירת תצוגת כניסה</Text>
+              <Text fw={700}>בחירת יחידה לכניסה</Text>
               <Badge variant="filled" style={{ backgroundColor: selectedMeta.color }}>
                 {selectedMeta.shortLabel}
               </Badge>
             </Group>
-
-            <SegmentedControl
-              fullWidth
-              value={selected}
-              onChange={setSelected}
-              data={LOGIN_UNIT_OPTIONS}
-              radius="md"
-            />
 
             <Button onClick={handleGoogleLogin} color="cyan" size="md">
               התחברות עם Google

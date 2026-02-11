@@ -31,10 +31,10 @@ const UNIT_CATALOG = {
     color: "#3b82f6",
     logo: logoPath("Sufa_logo.JPG"),
   },
-  "פלס\"ם": {
-    key: "פלס\"ם",
-    label: "פלס\"ם",
-    shortLabel: "פלס\"ם",
+  "פלס״מ": {
+    key: "פלס״מ",
+    label: "פלס״מ",
+    shortLabel: "פלס״מ",
     color: "#e11d48",
     logo: logoPath("Palsam_logo.JPG"),
   },
@@ -53,8 +53,11 @@ const NORMALIZED_ALIASES = {
   מחץ: "מחץ",
   sufa: "סופה",
   סופה: "סופה",
-  palsam: "פלס\"ם",
-  פלסם: "פלס\"ם",
+  palsam: "פלס״מ",
+  פלסם: "פלס״מ",
+  פלסמ: "פלס״מ",
+  "פלס״מ": "פלס״מ",
+  "פלס\"ם": "פלס״מ",
 };
 
 const normalizeKey = (value) => {
@@ -77,7 +80,7 @@ export const getUnitMeta = (value) => {
   };
 };
 
-export const COMPANY_KEYS = ["כפיר", "מחץ", "סופה", "פלס\"ם"];
+export const COMPANY_KEYS = ["כפיר", "מחץ", "סופה", "פלס״מ"];
 
 export const LOGIN_UNIT_OPTIONS = [
   { value: "battalion", label: UNIT_CATALOG.battalion.shortLabel },

@@ -70,9 +70,9 @@ export function DashboardContent({ client, user, onLogout }) {
   const fixedCompany = user?.platoon || "";
   const isRestricted = Boolean(fixedCompany);
 
-  const [scope, setScope] = useState(isRestricted ? "company" : "battalion");
+  const [scope, setScope] = useState("company");
   const [week, setWeek] = useState("");
-  const [company, setCompany] = useState(fixedCompany);
+  const [company, setCompany] = useState(fixedCompany || "Kfir");
   const [section, setSection] = useState(DEFAULT_SECTIONS[0]);
 
   const selectedScope = isRestricted ? "company" : scope;
