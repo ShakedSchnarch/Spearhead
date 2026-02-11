@@ -17,8 +17,9 @@ The system ingests response events, normalizes them, builds read models, and exp
 - Cloud setup: `docs/cloud/SETUP_STAGE_A.md`
 - Env checklist: `docs/cloud/ENV_SETUP_CHECKLIST.md`
 - Redesign roadmap: `docs/cloud/FOCUSED_REDESIGN_ROADMAP.md`
-- Latest session handoff: `docs/cloud/SESSION_HANDOFF_2026-02-10.md`
-- Next-agent prompt: `docs/cloud/NEXT_AGENT_PROMPT_2026-02-11.md`
+- Latest session handoff: `docs/cloud/SESSION_HANDOFF_2026-02-11.md`
+- Next-agent prompt: `docs/cloud/NEXT_AGENT_PROMPT_2026-02-12.md`
+- Tomorrow tasks: `docs/cloud/TOMORROW_TASKS_2026-02-12.md`
 - Remaining tasks status: `docs/cloud/REMAINING_TASKS_STATUS.md`
 - Forms track (draft): `docs/forms/README.md`
 - Historical plans/samples: `docs/archive/`
