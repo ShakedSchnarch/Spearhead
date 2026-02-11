@@ -14,7 +14,7 @@ class PathSettings(BaseSettings):
     output_dir: Path = Path("./reports")
     templates_dir: Path = Path("./templates")
     assets_dir: Path = Path("./assets")
-    db_path: Path = Path("./data/spearhead.db")
+    db_path: Path = Path("./data/ironview.db")
 
 
 class ImportSettings(BaseSettings):
@@ -36,13 +36,9 @@ class GoogleSettings(BaseSettings):
     oauth_client_secret: Optional[str] = None
     oauth_redirect_uri: Optional[str] = None
     file_ids: dict[str, dict[str, str] | list[str] | str] = {
-        "platoon_loadout": "1kkdR41tCHJQQDCGMLzch-YCcxMiM1uSp-5MrEl9AAVY", # Machatz placeholder if same sheet, or use separate logic
+        "platoon_loadout": "",
         "battalion_summary": "",
-        "form_responses": [
-            "1kkdR41tCHJQQDCGMLzch-YCcxMiM1uSp-5MrEl9AAVY", # Machatz
-            "11yfVvw2IcXQZUkfO1K69DwMXNUwBd-ffW7eWOpP2g6M", # Sufa
-             "1Jc8mEjAVMfuMoLTpVXG_C0anO1njy88q3MJfU6sTl3Y", # Kfir
-        ],
+        "form_responses": {},
     }
     cache_dir: Path = Path("./data/sync_cache")
     max_retries: int = 3
@@ -60,12 +56,7 @@ class SecuritySettings(BaseSettings):
     basic_pass: Optional[str] = None
     require_auth_on_queries: bool = False
     max_upload_mb: int = 15  # Hard cap for uploads (Content-Length guard)
-    authorized_users: dict[str, str] = {
-        "shakedsid@gmail.com": "battalion", # Admin/Battalion view
-        "kfir@spearhead.idf": "Kfir",
-        "mahatz@spearhead.idf": "Mahatz",
-        "sufa@spearhead.idf": "Sufa",
-    }
+    authorized_users: dict[str, str] = {}
 
 class LoggingSettings(BaseSettings):
     log_requests: bool = True
@@ -103,9 +94,14 @@ class OperationalViewSettings(BaseSettings):
     family_to_section: dict[str, str] = {
         "ammo": "Logistics",
         "zivud": "Logistics",
+        "kashpal": "Armament",
         "issues": "Communications",
         "parsim": "Armament",
         "means": "Communications",
+        "communications_core": "Communications",
+        "ranger": "Communications",
+        "device_issue_matrix": "Communications",
+        "office": "Communications",
     }
     critical_item_names: list[str] = [
         "חבל פריסה",

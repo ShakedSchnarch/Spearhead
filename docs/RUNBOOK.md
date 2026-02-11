@@ -20,6 +20,15 @@ Equivalent:
 ./scripts/run-local.sh
 ```
 
+Background mode (start/stop/status):
+
+```bash
+./scripts/local-dev.sh start
+./scripts/local-dev.sh status
+./scripts/local-dev.sh logs
+./scripts/local-dev.sh stop
+```
+
 Open:
 
 - `http://127.0.0.1:8000/spearhead/`

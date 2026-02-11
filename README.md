@@ -15,11 +15,24 @@ The system ingests response events, normalizes them, builds read models, and exp
 - Active architecture reference: `docs/ARCHITECTURE.md`
 - Operational runbook: `docs/RUNBOOK.md`
 - Cloud setup: `docs/cloud/SETUP_STAGE_A.md`
+- Env checklist: `docs/cloud/ENV_SETUP_CHECKLIST.md`
 - Redesign roadmap: `docs/cloud/FOCUSED_REDESIGN_ROADMAP.md`
 - Latest session handoff: `docs/cloud/SESSION_HANDOFF_2026-02-10.md`
 - Next-agent prompt: `docs/cloud/NEXT_AGENT_PROMPT_2026-02-11.md`
 - Remaining tasks status: `docs/cloud/REMAINING_TASKS_STATUS.md`
+- Forms track (draft): `docs/forms/README.md`
 - Historical plans/samples: `docs/archive/`
+
+## Forms Artifacts (Kfir Draft)
+
+```bash
+python3 scripts/forms/generate-kfir-form-blueprint.py
+python3 scripts/forms/generate-google-form-apps-script.py
+```
+
+Generated outputs:
+- `docs/forms/kfir_company_form_blueprint.json`
+- `docs/forms/kfir_google_form_apps_script.gs`
 
 ## Active API (v1)
 
@@ -69,6 +82,15 @@ This runs everything from one terminal:
 - builds frontend only when needed
 - runs FastAPI on `http://127.0.0.1:8000`
 - serves the UI from `/spearhead/`
+
+### Managed local server (background)
+
+```bash
+./scripts/local-dev.sh start
+./scripts/local-dev.sh status
+./scripts/local-dev.sh logs
+./scripts/local-dev.sh stop
+```
 
 ### Backend
 

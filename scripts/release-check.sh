@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 echo "[1/5] Validate shell scripts syntax"
-bash -n scripts/run-local.sh scripts/dev-one-click.sh scripts/build-ui.sh scripts/setup-venv.sh scripts/test.sh \
+bash -n scripts/run-local.sh scripts/local-dev.sh scripts/dev-one-click.sh scripts/build-ui.sh scripts/setup-venv.sh scripts/test.sh \
   scripts/cloud/enable-gcp-apis.sh scripts/cloud/deploy-api-cloudrun.sh scripts/cloud/deploy-worker-cloudrun.sh scripts/cloud/deploy-stage-a.sh
 
 echo "[2/5] Validate Python bytecode compile"

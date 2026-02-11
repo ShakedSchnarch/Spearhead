@@ -31,9 +31,11 @@ Create these secrets in Secret Manager:
 - `SPEARHEAD_API_TOKEN`
 - `SPEARHEAD_OAUTH_CLIENT_ID`
 - `SPEARHEAD_OAUTH_CLIENT_SECRET`
+- `SPEARHEAD_AUTHORIZED_USERS` (JSON map: `{"email":"battalion|Kfir|Mahatz|Sufa|Palsam"}`)
 
 `SPEARHEAD_API_TOKEN` is strongly recommended so ingestion/admin operations require explicit auth.
 Deployment script maps existing secrets automatically to Cloud Run env vars.
+If `SECURITY__REQUIRE_AUTH_ON_QUERIES=true` and `SPEARHEAD_AUTHORIZED_USERS` is missing/empty, OAuth login is blocked by design.
 
 ## 5. Deploy API (build + deploy)
 

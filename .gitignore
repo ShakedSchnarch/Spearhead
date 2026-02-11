@@ -86,3 +86,4 @@ data/*.xlsx
 # Project Specific
 reports/
 *.log
+.local-server*.pid

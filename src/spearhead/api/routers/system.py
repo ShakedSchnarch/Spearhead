@@ -141,14 +141,14 @@ def google_oauth_callback(
 
     # Authorization Check
     authorized_users = settings.security.authorized_users
-    # Allow wildcard or strictly enforce list? For Sterility logic, we enforce list if populated.
-    # If list is empty, maybe allow all (dev mode). But for this task, we assume strict.
-    
+    if settings.security.require_auth_on_queries and not authorized_users:
+        logger.error("OAuth blocked: SECURITY__AUTHORIZED_USERS is empty while auth is required.")
+        raise HTTPException(status_code=403, detail="Authorized users list is not configured")
+
     assigned_role = authorized_users.get(email)
-    if not assigned_role and authorized_users:
-         # Check if there is a wildcard domain rule? For now, strict email check.
-         logger.warning(f"Unauthorized login attempt: {email}")
-         raise HTTPException(status_code=403, detail="User not authorized")
+    if authorized_users and not assigned_role:
+        logger.warning(f"Unauthorized login attempt: {email}")
+        raise HTTPException(status_code=403, detail="User not authorized")
 
     # Determine effective platoon based on role
     # If role is a specific platoon (Kfir/Mahatz/Sufa), enforce it.

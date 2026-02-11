@@ -30,10 +30,6 @@ resolve_python_bin() {
     echo "$ROOT/.venv/bin/python"
     return 0
   fi
-  if [[ -x "$ROOT/.venv2/bin/python" ]]; then
-    echo "$ROOT/.venv2/bin/python"
-    return 0
-  fi
   return 1
 }
 

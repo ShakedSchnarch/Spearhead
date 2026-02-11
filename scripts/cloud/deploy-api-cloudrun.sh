@@ -69,6 +69,13 @@ for SECRET_NAME in SPEARHEAD_API_TOKEN SPEARHEAD_OAUTH_CLIENT_ID SPEARHEAD_OAUTH
   fi
 done
 
+# Optional but recommended for production auth policy:
+# Secret value should be JSON map:
+# {"user1@example.com":"battalion","user2@example.com":"Kfir"}
+if gcloud secrets describe "SPEARHEAD_AUTHORIZED_USERS" >/dev/null 2>&1; then
+  DEPLOY_ARGS+=(--set-secrets "SECURITY__AUTHORIZED_USERS=SPEARHEAD_AUTHORIZED_USERS:latest")
+fi
+
 "${DEPLOY_ARGS[@]}"
 
 echo "API deployed: $SERVICE_NAME"

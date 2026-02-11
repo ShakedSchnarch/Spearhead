@@ -1,0 +1,2228 @@
+{
+  "version": "draft-v1",
+  "company": "כפיר",
+  "source_file": "data/kfir_week7_form_schema.json",
+  "response_format": {
+    "type": "status_with_note",
+    "choices": [
+      "תקין",
+      "חסר",
+      "תקול"
+    ],
+    "requires_note_for": [
+      "חסר",
+      "תקול"
+    ]
+  },
+  "sections": {
+    "Logistics": [
+      {
+        "id": "logistics.zivud.001",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "חבל פריסה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.002",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פטיש 5",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.003",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ראשוני",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.004",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "איציק",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.005",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "לום",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.006",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מאריך חש\"ן",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.007",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "בייבי קוני",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.008",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "משלק",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.009",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פטיש קילו",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.010",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מפתח Y",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.011",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "2מפתח פלטות",
+        "standard": 2.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.012",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "בוקסה 1\\5\\16",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.013",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ידית כוח חצי",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.014",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ידית כוח 3\\4",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.015",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מחט ירי",
+        "standard": 2.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.016",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "אלונקה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.017",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מקלות חוטר",
+        "standard": 9.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.018",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מפתח כליר",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.019",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "תיק כלי עבודה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.020",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "בוקסה 1 1\\2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.021",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "בוקסה 9\\16",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.022",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מאריך ארוך 1\\2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.023",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מאריך קצר 1\\2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.024",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מאריך ארוך 3\\4",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.025",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מאריך קצר 3\\4",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.026",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מפרק חצי",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.027",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "גריקן 20 ליטר",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.028",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פוט שוש",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.029",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "גבקה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.030",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פטיש עיסית",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.031",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "אלונקת מעוז",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.032",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ראצר סדן",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.033",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "בורג עין",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.034",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פיסת אבטחה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.035",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "בוחן מעגלי ירי",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.036",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פודל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.037",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פליז",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.038",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "נגח חולץ",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.039",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "גביע חליצה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.040",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "כבל הנעה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.041",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מד מומנט",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.042",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "זרקור עזר",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.043",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מברג קנ\"ר",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.044",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "גק ערבי",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.045",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "שוש אייל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.046",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "את חפירה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.047",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מגרזת",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.048",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "עצר לטנק",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.049",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מפתח כיס",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.050",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "כיסוי תותח",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.051",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פנל זיהוי רק\"מ",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.052",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "קרינור",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.053",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "משמנת",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.054",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "כפפות אסבסט",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.055",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "פלייר",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.056",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "כיסוי מאג",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.057",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "כיסוי 05",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.058",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מברשת בית בליעה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.059",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ידית T",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.060",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ראצר 3\\4",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.061",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "ראצר חצי",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.062",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "איזמל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.063",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מברשת 4",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.064",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "שפכטל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.065",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מגזרי תיל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.066",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "מפתח שוודי",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.067",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "כיסוי תובה",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.zivud.068",
+        "section": "Logistics",
+        "family": "zivud",
+        "label_he": "משאבת סולר",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.001",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "מאג",
+        "standard": 40.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.002",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "0.5",
+        "standard": 2.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.003",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "חלול",
+        "standard": 10.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.004",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "חצב",
+        "standard": 17.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.005",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "כלנית",
+        "standard": 4.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.006",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "חץ",
+        "standard": 3.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.007",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "רימון רסס",
+        "standard": 4.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.008",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "מעיל רוח",
+        "standard": 6.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.009",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "מטען ניתוק זחל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.010",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "נונל",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.011",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "שרשרת גרירה",
+        "standard": 3.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.012",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "שאקל 25",
+        "standard": 2.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.013",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "שאקל קרנף",
+        "standard": 2.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.014",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "שאקל 5",
+        "standard": "4 פלוגתי",
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "logistics.ammo.015",
+        "section": "Logistics",
+        "family": "ammo",
+        "label_he": "סט שיני חזיר\\נג\"ח",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      }
+    ],
+    "Armament": [
+      {
+        "id": "armament.kashpal.001",
+        "section": "Armament",
+        "family": "kashpal",
+        "label_he": "מגבר 1",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "armament.kashpal.002",
+        "section": "Armament",
+        "family": "kashpal",
+        "label_he": "מגבר 2",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "armament.kashpal.003",
+        "section": "Armament",
+        "family": "kashpal",
+        "label_he": "מגבר 3",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      }
+    ],
+    "Communications": [
+      {
+        "id": "communications.communications_core.001",
+        "section": "Communications",
+        "family": "communications_core",
+        "label_he": "מקמש",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.communications_core.002",
+        "section": "Communications",
+        "family": "communications_core",
+        "label_he": "גנטקס",
+        "standard": 5.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.communications_core.003",
+        "section": "Communications",
+        "family": "communications_core",
+        "label_he": "פתיל",
+        "standard": 5.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.communications_core.004",
+        "section": "Communications",
+        "family": "communications_core",
+        "label_he": "מעד",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.communications_core.005",
+        "section": "Communications",
+        "family": "communications_core",
+        "label_he": "מיק חירום",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.communications_core.006",
+        "section": "Communications",
+        "family": "communications_core",
+        "label_he": "רמק",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.001",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "מכלול",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.002",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "נר לילה",
+        "standard": 587009.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.003",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "מבן",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.004",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "אנטנת מבן",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.005",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "2 שייקספיר",
+        "standard": 2.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.006",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "מעד",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.007",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "קפ שליטה",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.008",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "רמק",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.009",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "משיב מיקום",
+        "standard": 563365.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.ranger.010",
+        "section": "Communications",
+        "family": "ranger",
+        "label_he": "NFC",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.001",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מחשב 1",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.002",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מחשב 2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.003",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מחשב 3",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.004",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מסך 1",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.005",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מסך 2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.006",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מסך 3",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.007",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מקלדת 1",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.008",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מקלדת 2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.009",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מקלדת 3",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.010",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "עכבר 1",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.011",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "עכבר 2",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.012",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "עכבר 3",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.office.013",
+        "section": "Communications",
+        "family": "office",
+        "label_he": "מדפסת",
+        "standard": 1.0,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.001",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מאג 1",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.002",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מאג 2",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.003",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מקלע 05",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.004",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "אמרל",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.005",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "משקפת",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.006",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מצפן",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.007",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "אולר",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.008",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "בורוסייט",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.009",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "NFC",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.010",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מדיה\\נר לילה",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.011",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "סלולר",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.012",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מבן",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.013",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "מקמש\\מגן מכלול",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      },
+      {
+        "id": "communications.device_issue_matrix.014",
+        "section": "Communications",
+        "family": "device_issue_matrix",
+        "label_he": "אלעד ירוק",
+        "standard": null,
+        "response_type": "status_with_note",
+        "choices": [
+          "תקין",
+          "חסר",
+          "תקול"
+        ],
+        "requires_note_for": [
+          "חסר",
+          "תקול"
+        ]
+      }
+    ]
+  },
+  "counts": {
+    "Logistics": 83,
+    "Armament": 3,
+    "Communications": 43
+  },
+  "unmapped_families": [],
+  "notes": [
+    "Armament mapping is draft and must be finalized by domain approval.",
+    "This blueprint is intended for Google Forms generation and backend field mapping alignment."
+  ]
+}

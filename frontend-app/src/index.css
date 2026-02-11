@@ -131,6 +131,15 @@ body {
   background: var(--bg-panel);
 }
 
+.company-overview-card {
+  background: linear-gradient(160deg, rgba(8, 28, 51, 0.85) 0%, rgba(8, 45, 68, 0.72) 100%);
+}
+
+.score-ltr {
+  direction: ltr;
+  text-align: center;
+}
+
 .tank-status-card {
   cursor: pointer;
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;

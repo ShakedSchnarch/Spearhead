@@ -1,28 +1,42 @@
-# Remaining Tasks Status (as of 2026-02-10)
+# Remaining Tasks Status (as of 2026-02-11)
 
-## Completed Now (No External Dependency)
-1. UI redesign shipped to production Cloud Run.
-2. Professional battalion/company branding with logos integrated.
-3. Session handoff and continuation docs created.
-4. Dev environment bootstrap script added:
-   - `scripts/bootstrap-dev-env.sh`
-5. Test runner stabilized to avoid broken virtualenv activation path:
-   - `scripts/test.sh`
-6. README and runbook updated with consistent local workflow.
+## Completed
+1. Cloud foundation is active on GCP (Cloud Run + Firestore + OAuth + Secret Manager baseline).
+2. Authentication flow is stable (Google OAuth + session handoff to frontend).
+3. Dashboard UI was redesigned for battalion/company modes with Hebrew operational focus.
+4. Company visual cards now use clearer progress bars (instead of donut-only cards).
+5. Tank cards include report-state handling (`דיווח השבוע` / `לא דיווח`) and drill-down drawer.
+6. Local workflow was aligned:
+   - `scripts/setup-venv.sh`
+   - `scripts/run-local.sh`
+   - `scripts/local-dev.sh` (`start|stop|status|logs`)
+7. Environment docs were aligned:
+   - `.env.example`
+   - `docs/cloud/ENV_SETUP_CHECKLIST.md`
+8. Forms track was bootstrapped:
+   - `docs/forms/kfir_company_form_blueprint.json`
+   - `docs/forms/kfir_tank_ids.json`
+   - `docs/forms/kfir_google_form_apps_script.gs`
 
-## Blocked by User Validation / External Systems
-1. Final approval of Kfir form contract (`docs/cloud/KFIR_FORM_SPEC_DRAFT.md`).
-2. Actual creation/update of the Google Form fields after approval.
-3. Real response ingestion validation from the approved Google Form sheet.
-4. Battalion comparison rollout (requires at least 2 companies with data).
+## In Progress
+1. Battalion comparison polish:
+   - show all companies consistently
+   - keep no-data companies marked as `אין דיווחים`
+2. Final repository cleanup pass (remove leftovers, align docs/scripts naming).
 
-## Immediate Next Action for Next Session
-1. Review and approve Kfir form spec line-by-line with user.
-2. Create/adjust Google Form accordingly.
-3. Execute end-to-end ingest and verify dashboard output.
+## Blocked by Product/Domain Approval
+1. Final approved item list for Kfir form (especially Armament families and standards).
+2. Final wording/order for Google Form sections.
+3. Approved company-assets form content (assistant CO weekly form).
 
-## Backlog (After Core Scope Is Stable)
-1. Define access approvals and company-scoped authorization flow.
-2. Repository cleanup and structured documentation pass.
-3. Add CI/CD routine with automated tests (frontend + backend).
-4. Document a clear onboarding mechanism for adding new companies, forms, and tracked items with minimal code changes.
+## Immediate Next Steps
+1. Approve/fix Kfir item list and standards.
+2. Create the real Google Form from generated Apps Script.
+3. Connect new response sheet ID in env/secrets and verify end-to-end sync.
+4. Expand from Kfir-only to battalion-wide sources (Mahatz, Sufa, Palsam).
+
+## Deferred Backlog (after MVP stability)
+1. Company-scoped authorization workflow and access approval management.
+2. CI/CD pipeline with automated backend/frontend test gates.
+3. Test coverage expansion for analytics/read-model regressions.
+4. Clear onboarding guide for adding a new company/form with minimal code changes.
