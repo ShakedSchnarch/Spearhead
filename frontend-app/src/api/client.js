@@ -121,5 +121,23 @@ export const createApiClient = ({
       getJson("/v1/queries/trends", params, { signal }),
     searchResponses: (params, signal) =>
       getJson("/v1/queries/search", params, { signal }),
+
+    // command views (battalion/company hierarchy)
+    getBattalionView: (params, signal) =>
+      getJson("/v1/views/battalion", params, { signal }),
+    getCompanyView: (company, params, signal) =>
+      getJson(`/v1/views/companies/${encodeURIComponent(company)}`, params, {
+        signal,
+      }),
+    getCompanyTanks: (company, params, signal) =>
+      getJson(`/v1/views/companies/${encodeURIComponent(company)}/tanks`, params, {
+        signal,
+      }),
+    getCompanySectionTanks: (company, section, params, signal) =>
+      getJson(
+        `/v1/views/companies/${encodeURIComponent(company)}/sections/${encodeURIComponent(section)}/tanks`,
+        params,
+        { signal },
+      ),
   };
 };

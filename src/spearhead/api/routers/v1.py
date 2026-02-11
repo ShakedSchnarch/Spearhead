@@ -145,3 +145,57 @@ def metadata_weeks(
     scoped_platoon = _resolve_scope(user, platoon)
     weeks = svc.list_weeks(platoon_key=scoped_platoon)
     return {"weeks": weeks}
+
+
+@router.get("/views/battalion")
+def view_battalion(
+    week: Optional[str] = Query(None, alias="week"),
+    company: Optional[str] = Query(None, alias="company"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    return svc.battalion_sections_view(week_id=week, platoon_scope=scoped_company)
+
+
+@router.get("/views/companies/{company}")
+def view_company(
+    company: str,
+    week: Optional[str] = Query(None, alias="week"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    if not scoped_company:
+        raise HTTPException(status_code=400, detail="company is required")
+    return svc.company_sections_view(company_key=scoped_company, week_id=week)
+
+
+@router.get("/views/companies/{company}/sections/{section}/tanks")
+def view_company_section_tanks(
+    company: str,
+    section: str,
+    week: Optional[str] = Query(None, alias="week"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    if not scoped_company:
+        raise HTTPException(status_code=400, detail="company is required")
+    try:
+        return svc.company_section_tanks_view(company_key=scoped_company, section=section, week_id=week)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get("/views/companies/{company}/tanks")
+def view_company_tanks(
+    company: str,
+    week: Optional[str] = Query(None, alias="week"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    if not scoped_company:
+        raise HTTPException(status_code=400, detail="company is required")
+    return svc.company_tanks_view(company_key=scoped_company, week_id=week)

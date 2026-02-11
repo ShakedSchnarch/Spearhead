@@ -4,10 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Activate venv if not already active
-if [[ -z "${VIRTUAL_ENV:-}" && -x "$ROOT/.venv/bin/activate" ]]; then
-  # shellcheck disable=SC1091
-  source "$ROOT/.venv/bin/activate"
+# Prefer repo-local .venv, then currently activated virtualenv, then system python.
+PYTHON_BIN="python3"
+
+if [[ -x "$ROOT/.venv/bin/python" ]]; then
+  PYTHON_BIN="$ROOT/.venv/bin/python"
+elif [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then
+  PYTHON_BIN="${VIRTUAL_ENV}/bin/python"
 fi
 
 export PYTHONPATH="$ROOT/src"
@@ -33,4 +36,4 @@ if [[ "$INCLUDE_LEGACY" -eq 0 ]]; then
   ARGS+=(--ignore=tests/legacy)
 fi
 
-exec "$ROOT/.venv/bin/pytest" "${ARGS[@]}"
+exec "$PYTHON_BIN" -m pytest "${ARGS[@]}"

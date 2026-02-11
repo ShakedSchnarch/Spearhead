@@ -12,6 +12,7 @@ fastapi==0.128.0
 google-auth==2.48.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.4
+google-cloud-firestore==2.21.0
 h11==0.16.0
 httpcore==1.0.9
 httplib2==0.31.2

@@ -13,7 +13,8 @@ from spearhead.v1.models import MetricSnapshotV2, NormalizedResponseV2
 class ResponseStore:
     """
     Persistence layer for responses-only v1 API.
-    Backed by SQLite in local/dev. Firestore adapter can be added behind the same interface.
+    Backed by SQLite in local/dev.
+    Cloud runtime can switch to Firestore via `spearhead.v1.store_firestore.FirestoreResponseStore`.
     """
 
     def __init__(self, db: Database):

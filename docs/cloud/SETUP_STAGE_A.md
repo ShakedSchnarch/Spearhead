@@ -27,12 +27,13 @@ gcloud firestore databases create --database="(default)" --location=<REGION> --t
 
 ## 4. Store secrets
 
-Create these optional secrets in Secret Manager:
+Create these secrets in Secret Manager:
 - `SPEARHEAD_API_TOKEN`
 - `SPEARHEAD_OAUTH_CLIENT_ID`
 - `SPEARHEAD_OAUTH_CLIENT_SECRET`
 
-If they exist, deployment script maps them automatically to Cloud Run env vars.
+`SPEARHEAD_API_TOKEN` is strongly recommended so ingestion/admin operations require explicit auth.
+Deployment script maps existing secrets automatically to Cloud Run env vars.
 
 ## 5. Deploy API (build + deploy)
 
@@ -50,6 +51,8 @@ The script:
 - builds container from `Dockerfile`
 - pushes image to Artifact Registry
 - deploys Cloud Run with responses-only runtime defaults
+- configures Firestore backend (`STORAGE__BACKEND=firestore`)
+- enables query auth requirement (`SECURITY__REQUIRE_AUTH_ON_QUERIES=true`)
 
 ## 6. Deploy worker reconciliation job (optional)
 
@@ -80,4 +83,24 @@ And set in runtime env/secrets:
 
 - Stage A cost profile stays low with `min-instances=0`.
 - Cold starts are expected.
+- Cloud Run remains publicly reachable at network level, but data routes are guarded by app auth/session checks.
 - Move to Cloud SQL only after explicit performance/complexity triggers.
+
+## 9. First Data Load (Kfir Matrix Workbook)
+
+After first deploy + auth, load initial real data so dashboard is not empty:
+
+```bash
+PROJECT_ID="$(gcloud config get-value project)"
+REGION="europe-west1"
+SERVICE_NAME="spearhead-api"
+SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')"
+API_TOKEN="$(gcloud secrets versions access latest --secret=SPEARHEAD_API_TOKEN --project "$PROJECT_ID")"
+
+PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
+  --sheet-id 13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw \
+  --company Kfir \
+  --api-base-url "$SERVICE_URL" \
+  --api-token "$API_TOKEN" \
+  --year 2026
+```

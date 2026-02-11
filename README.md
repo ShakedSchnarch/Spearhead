@@ -15,6 +15,10 @@ The system ingests response events, normalizes them, builds read models, and exp
 - Active architecture reference: `docs/ARCHITECTURE.md`
 - Operational runbook: `docs/RUNBOOK.md`
 - Cloud setup: `docs/cloud/SETUP_STAGE_A.md`
+- Redesign roadmap: `docs/cloud/FOCUSED_REDESIGN_ROADMAP.md`
+- Latest session handoff: `docs/cloud/SESSION_HANDOFF_2026-02-10.md`
+- Next-agent prompt: `docs/cloud/NEXT_AGENT_PROMPT_2026-02-11.md`
+- Remaining tasks status: `docs/cloud/REMAINING_TASKS_STATUS.md`
 - Historical plans/samples: `docs/archive/`
 
 ## Active API (v1)
@@ -27,6 +31,14 @@ The system ingests response events, normalizes them, builds read models, and exp
 - `GET /v1/queries/trends?metric=reports|total_gaps|gap_rate|distinct_tanks&window_weeks=...&platoon=...`
 - `GET /v1/queries/search?q=...&week=...&platoon=...`
 - `GET /v1/metadata/weeks?platoon=...`
+- `GET /v1/views/battalion?week=...`
+- `GET /v1/views/companies/{company}?week=...`
+- `GET /v1/views/companies/{company}/tanks?week=...`
+- `GET /v1/views/companies/{company}/sections/{section}/tanks?week=...`
+
+Command views now include:
+- readiness scores (tank/section/company)
+- critical gap counts and top critical items
 
 ## Deprecated API
 
@@ -43,6 +55,7 @@ If you still need old query/intelligence routes for a migration window, set `APP
 ### One-click (recommended)
 
 ```bash
+./scripts/bootstrap-dev-env.sh
 ./scripts/dev-one-click.sh
 ```
 
@@ -60,10 +73,8 @@ This runs everything from one terminal:
 ### Backend
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-PYTHONPATH=src uvicorn spearhead.api.main:app --reload --port 8000
+./scripts/bootstrap-dev-env.sh
+./.venv/bin/python -m uvicorn spearhead.api.main:app --reload --port 8000
 ```
 
 ### Frontend
@@ -120,11 +131,11 @@ make release-check
 
 ### Stage A (low-cost)
 
-- Cloud Run (API + worker)
-- Firestore-first read/write path
-- Pub/Sub + Scheduler reconciliation
-- Firebase Hosting for UI
-- Secret Manager
+- Cloud Run (single API service serving backend + built frontend)
+- Firestore-backed v1 store (`STORAGE__BACKEND=firestore`)
+- Optional Cloud Run Job for reconciliation/sync
+- Secret Manager for API/OAuth secrets
+- `min-instances=0` for lowest idle cost
 
 ### Stage B (upgrade gate)
 
@@ -168,6 +179,17 @@ Deploy reconciliation worker as Cloud Run Job:
 ./scripts/cloud/deploy-worker-cloudrun.sh <PROJECT_ID> <REGION> <JOB_NAME> <IMAGE_URI>
 ```
 
+Bootstrap first real data from Kfir weekly matrix sheet:
+
+```bash
+PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
+  --sheet-id 13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw \
+  --company Kfir \
+  --api-base-url https://<SERVICE_URL> \
+  --api-token <SPEARHEAD_API_TOKEN> \
+  --year 2026
+```
+
 ## Required Setup (You Need To Configure)
 
 ### Now
@@ -175,19 +197,16 @@ Deploy reconciliation worker as Cloud Run Job:
 1. GCP billing-enabled project
 2. Enabled APIs:
    - Cloud Run
-   - Pub/Sub
-   - Cloud Scheduler
    - Firestore
    - Secret Manager
    - Artifact Registry
    - Cloud Build
-   - Firebase Hosting
    - Identity Toolkit / OAuth
+   - (Optional) Pub/Sub + Cloud Scheduler for automated reconciliation triggers
 3. OAuth consent screen + OAuth client IDs
 4. Local tools:
    - `gcloud`
    - `docker`
-   - `firebase-tools`
    - Node LTS
    - Python 3.11+
 

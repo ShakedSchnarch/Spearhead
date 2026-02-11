@@ -2,6 +2,12 @@
 
 ## 1. Start Services
 
+Prepare env once:
+
+```bash
+./scripts/bootstrap-dev-env.sh
+```
+
 Single terminal startup:
 
 ```bash
@@ -51,7 +57,63 @@ curl "http://127.0.0.1:8000/v1/metrics/overview"
 curl "http://127.0.0.1:8000/v1/queries/gaps?group_by=item"
 ```
 
-## 4. Deprecated Endpoints Behavior
+4. Query command views:
+```bash
+curl "http://127.0.0.1:8000/v1/views/battalion"
+curl "http://127.0.0.1:8000/v1/views/companies/Kfir"
+curl "http://127.0.0.1:8000/v1/views/companies/Kfir/tanks"
+curl "http://127.0.0.1:8000/v1/views/companies/Kfir/sections/Logistics/tanks"
+```
+
+### Readiness and critical gaps
+
+- Readiness score is calculated per section and per tank from checked items vs gaps.
+- Critical gap penalty is applied when a gap belongs to configured critical items.
+- Current critical baseline (Kfir) is derived from red-marked items in `שבוע 7`.
+
+## 4. Bootstrap Real Data From Weekly Matrix Sheet (Cloud)
+
+The Kfir workbook format is matrix-based (`שבוע X` tabs, tanks as columns).
+Use the helper script to convert it into v1 response events and ingest to Cloud Run.
+
+1. Set Cloud context and pull runtime values:
+```bash
+gcloud config set project <PROJECT_ID>
+PROJECT_ID="$(gcloud config get-value project)"
+REGION="europe-west1"
+SERVICE_NAME="spearhead-api"
+SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')"
+API_TOKEN="$(gcloud secrets versions access latest --secret=SPEARHEAD_API_TOKEN --project "$PROJECT_ID")"
+```
+
+2. Dry-run parse from Google Sheet ID:
+```bash
+PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
+  --sheet-id 13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw \
+  --company Kfir \
+  --api-base-url "$SERVICE_URL" \
+  --api-token "$API_TOKEN" \
+  --year 2026 \
+  --dry-run
+```
+
+3. Ingest to cloud:
+```bash
+PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
+  --sheet-id 13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw \
+  --company Kfir \
+  --api-base-url "$SERVICE_URL" \
+  --api-token "$API_TOKEN" \
+  --year 2026
+```
+
+4. Verify weeks and battalion view:
+```bash
+curl -H "X-API-Key: $API_TOKEN" "$SERVICE_URL/v1/metadata/weeks"
+curl -H "X-API-Key: $API_TOKEN" "$SERVICE_URL/v1/views/battalion"
+```
+
+## 5. Deprecated Endpoints Behavior
 
 These endpoints intentionally return `410 Gone`:
 - `GET /exports/platoon`
@@ -59,7 +121,7 @@ These endpoints intentionally return `410 Gone`:
 - `POST /imports/platoon-loadout`
 - `POST /imports/battalion-summary`
 
-## 5. Testing
+## 6. Testing
 
 Run non-legacy suite:
 ```bash
@@ -68,7 +130,7 @@ Run non-legacy suite:
 
 Run v1 focused tests:
 ```bash
-PYTHONPATH=src ./.venv/bin/pytest tests/test_v1_api.py -q
+PYTHONPATH=src ./.venv/bin/python -m pytest tests/test_v1_api.py -q
 ```
 
 Release readiness check:
@@ -77,7 +139,7 @@ Release readiness check:
 ./scripts/release-check.sh
 ```
 
-## 6. Production Checklist (Cloud)
+## 7. Production Checklist (Cloud)
 
 - GCP billing active
 - Cloud Run / PubSub / Scheduler / Firestore / Secret Manager enabled

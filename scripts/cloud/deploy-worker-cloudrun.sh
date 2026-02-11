@@ -18,7 +18,7 @@ gcloud run jobs deploy "$JOB_NAME" \
   --region "$REGION" \
   --tasks 1 \
   --max-retries 1 \
-  --set-env-vars "PYTHONPATH=src,APP__ENABLE_LEGACY_ROUTES=false" \
+  --set-env-vars "PYTHONPATH=src,APP__ENABLE_LEGACY_ROUTES=false,STORAGE__BACKEND=firestore,STORAGE__FIRESTORE_PROJECT_ID=${PROJECT_ID}" \
   --command python \
   --args=-m \
   --args=spearhead.v1.reconcile

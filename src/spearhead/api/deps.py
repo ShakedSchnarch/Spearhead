@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import base64
-from typing import Generator, Optional
+from typing import Any, Generator, Optional
 
 from fastapi import Header, HTTPException
 
@@ -20,9 +20,10 @@ from spearhead.v1 import FormResponseParserV2, ResponseIngestionServiceV2, Respo
 
 # Global/Cached instances
 _db_instance: Optional[Database] = None
-_v1_store_instance: Optional[ResponseStore] = None
+_v1_store_instance: Optional[Any] = None
 _v1_query_instance: Optional[ResponseQueryServiceV2] = None
 _v1_ingest_instance: Optional[ResponseIngestionServiceV2] = None
+_v1_store_backend: Optional[str] = None
 
 # Shared session store (in-memory)
 oauth_store = OAuthSessionStore(ttl_seconds=86400)
@@ -98,9 +99,20 @@ def get_insight_service() -> Generator[InsightService, None, None]:
 
 # ----- v1 responses-only services -----
 def get_v1_store() -> ResponseStore:
-    global _v1_store_instance
-    if _v1_store_instance is None:
-        _v1_store_instance = ResponseStore(db=get_db())
+    global _v1_store_instance, _v1_store_backend
+    backend = (settings.storage.backend or "sqlite").strip().lower()
+    if _v1_store_instance is None or _v1_store_backend != backend:
+        if backend == "firestore":
+            from spearhead.v1.store_firestore import FirestoreResponseStore
+
+            _v1_store_instance = FirestoreResponseStore(
+                project_id=settings.storage.firestore_project_id,
+                database=settings.storage.firestore_database,
+                collection_prefix=settings.storage.firestore_collection_prefix,
+            )
+        else:
+            _v1_store_instance = ResponseStore(db=get_db())
+        _v1_store_backend = backend
     return _v1_store_instance
 
 
@@ -161,11 +173,21 @@ def require_query_auth(
 
 def get_current_user(
     x_oauth_session: Optional[str] = Header(None, alias="X-OAuth-Session"),
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
 ) -> User:
     if not x_oauth_session:
-        if not (settings.security.api_token or settings.security.basic_user):
-            return User(email="guest@spearhead.local", platoon=None, role="battalion")
-        raise HTTPException(status_code=401, detail="Missing authentication")
+        if settings.security.api_token or settings.security.basic_user:
+            try:
+                require_auth(authorization=authorization, x_api_key=x_api_key)
+                return User(email="api@spearhead.local", platoon=None, role="battalion")
+            except HTTPException:
+                raise HTTPException(status_code=401, detail="Missing authentication")
+
+        if settings.security.require_auth_on_queries:
+            raise HTTPException(status_code=401, detail="Missing authentication")
+
+        return User(email="guest@spearhead.local", platoon=None, role="battalion")
 
     session = oauth_store.get_active_session(x_oauth_session)
     if not session:

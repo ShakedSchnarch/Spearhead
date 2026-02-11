@@ -10,7 +10,10 @@ import "./index.css";
 import App from "./App.jsx";
 
 const theme = createTheme({
-  fontFamily: '"Space Grotesk", "Inter", system-ui, -apple-system, sans-serif',
+  fontFamily: '"Heebo", "Rubik", system-ui, -apple-system, sans-serif',
+  headings: {
+    fontFamily: '"Sora", "Heebo", system-ui, sans-serif',
+  },
   defaultRadius: "md",
   primaryColor: "cyan",
   dir: "rtl",

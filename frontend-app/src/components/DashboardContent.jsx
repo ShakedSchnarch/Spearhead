@@ -4,33 +4,31 @@ import {
   Badge,
   Button,
   Card,
+  Divider,
   Group,
+  Image,
   Loader,
+  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
   Text,
-  TextInput,
-  Textarea,
   Title,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { DataTable } from "mantine-datatable";
+import { battalionMeta, getUnitMeta } from "../config/unitMeta";
 
-const KNOWN_PLATOONS = ["כפיר", "מחץ", "סופה", "Kfir", "Mahatz", "Sufa"];
-
-const trendMetricOptions = [
-  { value: "total_gaps", label: "סה\"כ פערים" },
-  { value: "reports", label: "מספר דיווחים" },
-  { value: "gap_rate", label: "פערים לדיווח" },
-  { value: "distinct_tanks", label: "טנקים מדווחים" },
-];
-
-const gapGroupOptions = [
-  { value: "item", label: "לפי פריט" },
-  { value: "tank", label: "לפי טנק" },
-  { value: "family", label: "לפי משפחה" },
-];
+const DEFAULT_SECTIONS = ["Logistics", "Armament", "Communications"];
+const SECTION_DISPLAY = {
+  Logistics: "לוגיסטיקה",
+  Armament: "חימוש",
+  Communications: "תקשוב",
+};
+const SECTION_SCOPE_NOTES = {
+  Logistics: "מקלעים, תחמושת, זיווד",
+  Armament: "אמצעים, חלפים, שמנים",
+  Communications: "ציוד, צופן תקלות",
+};
 
 function EmptyState({ label }) {
   return (
@@ -40,34 +38,45 @@ function EmptyState({ label }) {
   );
 }
 
+function deltaColor(value) {
+  if (value > 0) return "red";
+  if (value < 0) return "teal";
+  return "gray";
+}
+
+function formatDelta(value, digits = 0) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return "0";
+  const rendered = digits > 0 ? number.toFixed(digits) : Math.round(number).toString();
+  return number > 0 ? `+${rendered}` : rendered;
+}
+
+function readinessDeltaColor(value) {
+  if (value > 0) return "teal";
+  if (value < 0) return "red";
+  return "gray";
+}
+
+function formatScore(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  return `${Number(value).toFixed(1)}%`;
+}
+
+function displaySection(section, sectionNames = {}) {
+  return sectionNames?.[section] || SECTION_DISPLAY[section] || section;
+}
+
 export function DashboardContent({ client, user, onLogout }) {
-  const fixedPlatoon = user?.platoon || "";
-  const isRestricted = Boolean(fixedPlatoon);
+  const fixedCompany = user?.platoon || "";
+  const isRestricted = Boolean(fixedCompany);
 
-  const [viewMode, setViewMode] = useState(isRestricted ? "platoon" : "battalion");
+  const [scope, setScope] = useState(isRestricted ? "company" : "battalion");
   const [week, setWeek] = useState("");
-  const [platoon, setPlatoon] = useState(fixedPlatoon);
-  const [searchText, setSearchText] = useState("");
-  const [searchSubmitted, setSearchSubmitted] = useState("");
-  const [groupBy, setGroupBy] = useState("item");
-  const [trendMetric, setTrendMetric] = useState("total_gaps");
-  const [ingestJson, setIngestJson] = useState(`{
-  "schema_version": "v2",
-  "source_id": "manual-local",
-  "payload": {
-    "צ טנק": "צ'653",
-    "חותמת זמן": "2026-02-08T10:00:00Z",
-    "פלוגה": "כפיר",
-    "דוח זיווד [חבל פריסה]": "חוסר"
-  }
-}`);
+  const [company, setCompany] = useState(fixedCompany);
+  const [section, setSection] = useState(DEFAULT_SECTIONS[0]);
 
-  const scopedPlatoon = useMemo(() => {
-    if (isRestricted) return fixedPlatoon;
-    if (viewMode === "platoon") return platoon || undefined;
-    return undefined;
-  }, [isRestricted, fixedPlatoon, viewMode, platoon]);
-
+  const selectedScope = isRestricted ? "company" : scope;
+  const selectedCompany = isRestricted ? fixedCompany : company;
   const weekParam = week || undefined;
 
   const health = useQuery({
@@ -77,383 +86,568 @@ export function DashboardContent({ client, user, onLogout }) {
   });
 
   const weeks = useQuery({
-    queryKey: ["weeks", client.baseUrl, scopedPlatoon],
-    queryFn: ({ signal }) => client.getWeeks({ platoon: scopedPlatoon }, signal),
+    queryKey: ["weeks", client.baseUrl, selectedCompany],
+    queryFn: ({ signal }) =>
+      client.getWeeks({ platoon: isRestricted ? selectedCompany : undefined }, signal),
     staleTime: 30_000,
   });
 
-  const overview = useQuery({
-    queryKey: ["overview", client.baseUrl, weekParam, scopedPlatoon],
+  const battalionView = useQuery({
+    queryKey: ["battalion-view", client.baseUrl, weekParam, isRestricted ? selectedCompany : "all"],
     queryFn: ({ signal }) =>
-      scopedPlatoon
-        ? client.getPlatoonMetrics(scopedPlatoon, { week: weekParam }, signal)
-        : client.getOverview({ week: weekParam }, signal),
-    staleTime: 10_000,
-  });
-
-  const tankMetrics = useQuery({
-    queryKey: ["tanks", client.baseUrl, scopedPlatoon, weekParam],
-    queryFn: ({ signal }) =>
-      client.getTankMetrics({ platoon: scopedPlatoon, week: weekParam }, signal),
-    enabled: Boolean(scopedPlatoon),
-    staleTime: 10_000,
-  });
-
-  const gaps = useQuery({
-    queryKey: ["gaps", client.baseUrl, scopedPlatoon, weekParam, groupBy],
-    queryFn: ({ signal }) =>
-      client.getGaps(
-        { week: weekParam, platoon: scopedPlatoon, group_by: groupBy, limit: 100 },
-        signal,
-      ),
-    staleTime: 10_000,
-  });
-
-  const trends = useQuery({
-    queryKey: ["trends", client.baseUrl, scopedPlatoon, trendMetric],
-    queryFn: ({ signal }) =>
-      client.getTrends(
+      client.getBattalionView(
         {
-          metric: trendMetric,
-          window_weeks: 8,
-          platoon: scopedPlatoon,
-        },
-        signal,
-      ),
-    staleTime: 10_000,
-  });
-
-  const search = useQuery({
-    queryKey: ["search", client.baseUrl, scopedPlatoon, weekParam, searchSubmitted],
-    queryFn: ({ signal }) =>
-      client.searchResponses(
-        {
-          q: searchSubmitted,
           week: weekParam,
-          platoon: scopedPlatoon,
-          limit: 100,
+          company: isRestricted ? selectedCompany : undefined,
         },
         signal,
       ),
-    enabled: searchSubmitted.length >= 2,
-    staleTime: 5_000,
+    staleTime: 10_000,
+  });
+
+  const companyView = useQuery({
+    queryKey: ["company-view", client.baseUrl, selectedCompany, weekParam],
+    queryFn: ({ signal }) => client.getCompanyView(selectedCompany, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && selectedCompany),
+    staleTime: 10_000,
+  });
+
+  const companyTanks = useQuery({
+    queryKey: ["company-tanks", client.baseUrl, selectedCompany, weekParam],
+    queryFn: ({ signal }) => client.getCompanyTanks(selectedCompany, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && selectedCompany),
+    staleTime: 10_000,
   });
 
   const weekOptions = useMemo(
-    () => (weeks.data?.weeks || []).map((w) => ({ value: w, label: w })),
+    () => (weeks.data?.weeks || []).map((value) => ({ value, label: value })),
     [weeks.data],
   );
 
-  const platoonOptions = useMemo(() => {
-    const fromOverview = Object.keys(overview.data?.platoons || {});
-    const all = new Set([...KNOWN_PLATOONS, ...fromOverview]);
-    return Array.from(all).map((name) => ({ value: name, label: name }));
-  }, [overview.data]);
+  const companyOptions = useMemo(() => {
+    const fromView = battalionView.data?.companies || [];
+    const values = new Set(fromView);
+    if (fixedCompany) values.add(fixedCompany);
+    return Array.from(values)
+      .sort((a, b) => String(a).localeCompare(String(b), "he"))
+      .map((value) => ({ value, label: value }));
+  }, [battalionView.data, fixedCompany]);
+
+  const sectionRows = useMemo(() => companyView.data?.sections || [], [companyView.data]);
+  const sectionDisplayNames = useMemo(
+    () => companyView.data?.section_display_names || battalionView.data?.section_display_names || SECTION_DISPLAY,
+    [companyView.data, battalionView.data],
+  );
+  const sectionScopeNotes = useMemo(
+    () => companyView.data?.section_scope_notes || battalionView.data?.section_scope_notes || SECTION_SCOPE_NOTES,
+    [companyView.data, battalionView.data],
+  );
+  const sectionOptions = useMemo(() => {
+    const names = sectionRows.length
+      ? sectionRows.map((row) => row.section)
+      : battalionView.data?.sections || DEFAULT_SECTIONS;
+    return names.map((value) => ({ value, label: displaySection(value, sectionDisplayNames) }));
+  }, [sectionRows, battalionView.data, sectionDisplayNames]);
+
+  const effectiveSection = sectionOptions.some((option) => option.value === section)
+    ? section
+    : sectionOptions[0]?.value || DEFAULT_SECTIONS[0];
+
+  const effectiveCompany =
+    isRestricted || selectedScope !== "company"
+      ? selectedCompany
+      : selectedCompany || companyOptions[0]?.value || "";
+
+  const sectionTanks = useQuery({
+    queryKey: ["company-section-tanks", client.baseUrl, effectiveCompany, effectiveSection, weekParam],
+    queryFn: ({ signal }) =>
+      client.getCompanySectionTanks(effectiveCompany, effectiveSection, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && effectiveCompany && effectiveSection),
+    staleTime: 10_000,
+  });
+
+  const battalionRows = useMemo(
+    () =>
+      (battalionView.data?.rows || []).map((row, index) => ({
+        ...row,
+        _id: `${row.company}-${row.section}-${index}`,
+      })),
+    [battalionView.data],
+  );
+  const battalionCompanies = battalionView.data?.companies || [];
+  const hasBattalionComparison = battalionCompanies.length > 1;
+
+  const tanksRows = sectionTanks.data?.rows || [];
+  const companyTankRows = companyTanks.data?.rows || [];
+  const companyTankSummary = companyTanks.data?.summary || {};
+  const selectedSectionSummary = useMemo(
+    () => sectionRows.find((row) => row.section === effectiveSection),
+    [sectionRows, effectiveSection],
+  );
+
+  const availableCompanies = useMemo(() => {
+    const names = companyOptions.map((option) => option.value);
+    if (fixedCompany && !names.includes(fixedCompany)) {
+      names.unshift(fixedCompany);
+    }
+    return names;
+  }, [companyOptions, fixedCompany]);
+
+  const selectedCompanyMeta = selectedCompany ? getUnitMeta(selectedCompany) : battalionMeta;
 
   const refreshAll = () =>
     Promise.all([
       health.refetch(),
       weeks.refetch(),
-      overview.refetch(),
-      gaps.refetch(),
-      trends.refetch(),
-      tankMetrics.refetch(),
-      search.refetch(),
+      battalionView.refetch(),
+      companyView.refetch(),
+      companyTanks.refetch(),
+      sectionTanks.refetch(),
     ]);
-
-  const handleSearch = () => {
-    const value = searchText.trim();
-    if (value.length < 2) {
-      notifications.show({
-        title: "Search is too short",
-        message: "Enter at least 2 characters.",
-        color: "yellow",
-      });
-      return;
-    }
-    setSearchSubmitted(value);
-  };
-
-  const handleIngest = async () => {
-    try {
-      const payload = JSON.parse(ingestJson);
-      await client.ingestFormEvent(payload);
-      notifications.show({
-        title: "Event ingested",
-        message: "Data was saved and read models were refreshed.",
-        color: "teal",
-      });
-      await refreshAll();
-    } catch (error) {
-      notifications.show({
-        title: "Ingestion failed",
-        message: error?.message || String(error),
-        color: "red",
-      });
-    }
-  };
-
-  const kpis = overview.data || {
-    reports: 0,
-    tanks: 0,
-    total_gaps: 0,
-    gap_rate: 0,
-    avg_gaps_per_tank: 0,
-  };
-
-  const gapRows = gaps.data?.rows || [];
-  const tankRows = tankMetrics.data?.rows || [];
-  const trendRows = trends.data?.rows || [];
-  const searchRows = search.data?.rows || [];
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <div>
-          <Title order={3}>Spearhead Dashboard</Title>
+      <Card withBorder className="dashboard-hero">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Group gap="md" align="center">
+            <Image
+              src={battalionMeta.logo}
+              alt={battalionMeta.label}
+              radius="md"
+              w={72}
+              h={72}
+              fit="cover"
+            />
+            <div>
+              <Title order={2}>Spearhead Command Dashboard</Title>
+              <Text size="sm" c="dimmed">
+                גדוד 75 · דשבורד דיווחים פלוגתי
+              </Text>
+              <Text size="sm" c="dimmed">
+                משתמש: {user?.email || "unknown"}
+              </Text>
+            </div>
+          </Group>
+
+          <Group gap="xs" align="center">
+            <Badge color={health.isError ? "red" : "teal"} variant="filled" size="lg">
+              API {health.isError ? "OFFLINE" : "ONLINE"}
+            </Badge>
+            <Badge variant="light" size="lg" style={{ borderColor: selectedCompanyMeta.color }}>
+              {selectedScope === "company" ? selectedCompanyMeta.label : "תצוגה גדודית"}
+            </Badge>
+            <Button variant="subtle" color="gray" onClick={onLogout}>
+              יציאה
+            </Button>
+          </Group>
+        </Group>
+
+        <Divider my="sm" />
+
+        <Group justify="space-between" wrap="wrap">
           <Text size="sm" c="dimmed">
-            {user?.email || "unknown user"}
+            סנכרון מתבצע בעת כניסה או בלחיצה על רענון. הנתונים מוצגים לפי שבוע ויחידה.
           </Text>
-        </div>
-        <Group>
-          <Badge color={health.isError ? "red" : "teal"} variant="light">
-            API {health.isError ? "Offline" : "Online"}
-          </Badge>
-          <Button variant="light" color="gray" onClick={onLogout}>
-            Logout
+          <Button variant="light" onClick={refreshAll} loading={battalionView.isFetching || companyView.isFetching}>
+            רענון נתונים
           </Button>
         </Group>
-      </Group>
+      </Card>
 
-      <Card withBorder>
-        <Group align="end" wrap="wrap">
+      <Card withBorder className="dashboard-filter-card">
+        <Group align="end" wrap="wrap" gap="md">
           {!isRestricted ? (
-            <Select
-              label="Scope"
+            <SegmentedControl
               data={[
                 { value: "battalion", label: "גדוד" },
-                { value: "platoon", label: "פלוגה" },
+                { value: "company", label: "פלוגה" },
               ]}
-              value={viewMode}
-              onChange={(value) => setViewMode(value || "battalion")}
-              allowDeselect={false}
-              w={140}
+              value={selectedScope}
+              onChange={setScope}
             />
           ) : null}
 
           <Select
-            label="Week"
+            label="שבוע"
             data={weekOptions}
             value={week}
             onChange={(value) => setWeek(value || "")}
             searchable
             clearable
             w={180}
+            placeholder="latest"
           />
 
-          {viewMode === "platoon" || isRestricted ? (
+          {selectedScope === "company" || isRestricted ? (
             <Select
-              label="Platoon"
-              data={platoonOptions}
-              value={isRestricted ? fixedPlatoon : platoon}
-              onChange={(value) => setPlatoon(value || "")}
+              label="פלוגה"
+              data={companyOptions}
+              value={selectedCompany}
+              onChange={(value) => setCompany(value || "")}
               disabled={isRestricted}
               searchable
               clearable={!isRestricted}
-              w={180}
+              w={190}
             />
           ) : null}
-
-          <Button variant="light" onClick={refreshAll}>
-            Refresh
-          </Button>
         </Group>
       </Card>
 
-      <SimpleGrid cols={{ base: 1, md: 5 }}>
+      {!isRestricted && availableCompanies.length ? (
         <Card withBorder>
-          <Text size="sm" c="dimmed">
-            Week
-          </Text>
-          <Text fw={700}>{overview.data?.week_id || week || "latest"}</Text>
+          <Group gap="sm" wrap="wrap">
+            {availableCompanies.map((companyName) => {
+              const meta = getUnitMeta(companyName);
+              const active = selectedScope === "company" && selectedCompany === companyName;
+              return (
+                <Button
+                  key={companyName}
+                  variant={active ? "filled" : "light"}
+                  color={active ? "cyan" : "gray"}
+                  leftSection={<Image src={meta.logo} alt={meta.shortLabel} w={22} h={22} radius="xl" fit="cover" />}
+                  onClick={() => {
+                    setCompany(companyName);
+                    setScope("company");
+                  }}
+                >
+                  {meta.shortLabel}
+                </Button>
+              );
+            })}
+          </Group>
         </Card>
-        <Card withBorder>
-          <Text size="sm" c="dimmed">
-            Reports
-          </Text>
-          <Text fw={700}>{kpis.reports ?? 0}</Text>
-        </Card>
-        <Card withBorder>
-          <Text size="sm" c="dimmed">
-            Tanks
-          </Text>
-          <Text fw={700}>{kpis.tanks ?? 0}</Text>
-        </Card>
-        <Card withBorder>
-          <Text size="sm" c="dimmed">
-            Total gaps
-          </Text>
-          <Text fw={700}>{kpis.total_gaps ?? 0}</Text>
-        </Card>
-        <Card withBorder>
-          <Text size="sm" c="dimmed">
-            Gaps/report
-          </Text>
-          <Text fw={700}>{kpis.gap_rate ?? 0}</Text>
-        </Card>
-      </SimpleGrid>
+      ) : null}
 
-      <SimpleGrid cols={{ base: 1, xl: 2 }}>
+      {selectedScope === "battalion" ? (
         <Card withBorder>
           <Group justify="space-between" mb="sm">
-            <Text fw={700}>Gaps</Text>
-            <Select
-              data={gapGroupOptions}
-              value={groupBy}
-              onChange={(value) => setGroupBy(value || "item")}
-              allowDeselect={false}
-              w={170}
-            />
+            <div>
+              <Text fw={700}>השוואה גדודית</Text>
+              <Text size="sm" c="dimmed">
+                שבוע {battalionView.data?.week_id || week || "latest"}
+              </Text>
+            </div>
+            <Text size="sm" c="dimmed">
+              שבוע קודם: {battalionView.data?.previous_week_id || "-"}
+            </Text>
           </Group>
-          {gaps.isFetching ? (
+
+          {battalionView.isFetching ? (
             <Loader size="sm" />
-          ) : gapRows.length === 0 ? (
-            <EmptyState label="No gap data." />
+          ) : !hasBattalionComparison ? (
+            <EmptyState label="אין עדיין השוואה גדודית (נמצאה פלוגה אחת בלבד)." />
+          ) : battalionRows.length === 0 ? (
+            <EmptyState label="אין נתוני גדוד לשבוע שנבחר." />
           ) : (
             <DataTable
+              idAccessor="_id"
               withTableBorder
               withColumnBorders
               striped
-              minHeight={280}
-              records={gapRows}
+              minHeight={320}
+              records={battalionRows}
               columns={[
                 {
-                  accessor: "key",
-                  title:
-                    groupBy === "item"
-                      ? "Item"
-                      : groupBy === "tank"
-                        ? "Tank"
-                        : "Family",
+                  accessor: "company",
+                  title: "פלוגה",
+                  render: (row) => {
+                    const meta = getUnitMeta(row.company);
+                    return (
+                      <Group gap="xs" wrap="nowrap">
+                        <Image src={meta.logo} alt={meta.shortLabel} w={22} h={22} radius="xl" fit="cover" />
+                        <Text>{row.company}</Text>
+                      </Group>
+                    );
+                  },
                 },
-                { accessor: "gaps", title: "Gaps" },
+                {
+                  accessor: "section",
+                  title: "תחום",
+                  render: (row) => displaySection(row.section, sectionDisplayNames),
+                },
+                { accessor: "reports", title: "דיווחים" },
+                { accessor: "tanks", title: "טנקים" },
+                {
+                  accessor: "readiness_score",
+                  title: "כשירות",
+                  render: (row) => formatScore(row.readiness_score),
+                },
+                { accessor: "critical_gaps", title: "חריגים קריטיים" },
+                { accessor: "total_gaps", title: "פערים" },
+                { accessor: "gap_rate", title: "פערים/דיווח" },
+                {
+                  accessor: "delta_gaps",
+                  title: "פערים שבועי",
+                  render: (row) => (
+                    <Text c={deltaColor(row.delta_gaps)} fw={600}>
+                      {formatDelta(row.delta_gaps)}
+                    </Text>
+                  ),
+                },
+                {
+                  accessor: "delta_readiness",
+                  title: "כשירות שבועית",
+                  render: (row) => (
+                    <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                      {row.delta_readiness === null || row.delta_readiness === undefined
+                        ? "-"
+                        : formatDelta(row.delta_readiness, 1)}
+                    </Text>
+                  ),
+                },
+                {
+                  accessor: "drilldown",
+                  title: "מעבר",
+                  render: (row) => (
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={() => {
+                        setCompany(row.company);
+                        setScope("company");
+                      }}
+                    >
+                      פתיחה
+                    </Button>
+                  ),
+                },
               ]}
             />
           )}
         </Card>
-
-        <Card withBorder>
-          <Text fw={700} mb="sm">
-            Tank metrics
-          </Text>
-          {!scopedPlatoon ? (
-            <EmptyState label="Switch to platoon view to see tank metrics." />
-          ) : tankMetrics.isFetching ? (
-            <Loader size="sm" />
-          ) : tankRows.length === 0 ? (
-            <EmptyState label="No tank data." />
-          ) : (
-            <DataTable
-              withTableBorder
-              withColumnBorders
-              striped
-              minHeight={280}
-              records={tankRows}
-              columns={[
-                { accessor: "tank_id", title: "Tank" },
-                { accessor: "reports", title: "Reports" },
-                { accessor: "gaps", title: "Gaps" },
-                { accessor: "dominant_family", title: "Top family" },
-              ]}
-            />
-          )}
-        </Card>
-      </SimpleGrid>
-
-      <SimpleGrid cols={{ base: 1, xl: 2 }}>
-        <Card withBorder>
-          <Group justify="space-between" mb="sm">
-            <Text fw={700}>Trends</Text>
-            <Select
-              data={trendMetricOptions}
-              value={trendMetric}
-              onChange={(value) => setTrendMetric(value || "total_gaps")}
-              allowDeselect={false}
-              w={220}
-            />
-          </Group>
-          {trends.isFetching ? (
-            <Loader size="sm" />
-          ) : trendRows.length === 0 ? (
-            <EmptyState label="No trend data." />
-          ) : (
-            <DataTable
-              withTableBorder
-              withColumnBorders
-              striped
-              minHeight={220}
-              records={trendRows}
-              columns={[
-                { accessor: "week_id", title: "Week" },
-                { accessor: "value", title: "Value" },
-              ]}
-            />
-          )}
-        </Card>
-
-        <Card withBorder>
-          <Group justify="space-between" mb="sm">
-            <Text fw={700}>Search</Text>
-            <Group>
-              <TextInput
-                placeholder="Item / value / tank"
-                value={searchText}
-                onChange={(event) => setSearchText(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") handleSearch();
-                }}
-              />
-              <Button onClick={handleSearch}>Search</Button>
+      ) : (
+        <>
+          <Card withBorder>
+            <Group justify="space-between" mb="sm" wrap="wrap">
+              <div>
+                <Text fw={700}>תמונת מצב פלוגתית: {selectedCompany || "-"}</Text>
+                <Text size="sm" c="dimmed">
+                  שבוע {companyView.data?.week_id || week || "latest"}
+                </Text>
+              </div>
+              <Text size="sm" c="dimmed">
+                שבוע קודם: {companyView.data?.previous_week_id || "-"}
+              </Text>
             </Group>
-          </Group>
-          {search.isFetching ? (
-            <Loader size="sm" />
-          ) : searchRows.length === 0 ? (
-            <EmptyState label="No results." />
-          ) : (
-            <DataTable
-              withTableBorder
-              withColumnBorders
-              striped
-              minHeight={220}
-              records={searchRows}
-              columns={[
-                { accessor: "tank_id", title: "Tank" },
-                { accessor: "platoon_key", title: "Platoon" },
-                { accessor: "week_id", title: "Week" },
-                { accessor: "match_count", title: "Matches" },
-              ]}
-            />
-          )}
-        </Card>
-      </SimpleGrid>
 
-      <Card withBorder>
-        <Text fw={700} mb="sm">
-          Manual ingestion (JSON)
-        </Text>
-        <Textarea
-          minRows={8}
-          value={ingestJson}
-          onChange={(event) => setIngestJson(event.currentTarget.value)}
-          styles={{ input: { fontFamily: "monospace" } }}
-        />
-        <Group mt="sm" justify="flex-end">
-          <Button color="cyan" onClick={handleIngest}>
-            Ingest event
-          </Button>
-        </Group>
-      </Card>
+            {companyView.isFetching ? (
+              <Loader size="sm" />
+            ) : sectionRows.length === 0 ? (
+              <EmptyState label="אין נתוני פלוגה לשבוע שנבחר." />
+            ) : (
+              <SimpleGrid cols={{ base: 1, md: 3 }}>
+                {sectionRows.map((row) => {
+                  const selected = row.section === section;
+                  return (
+                    <Card
+                      key={row.section}
+                      withBorder
+                      className="section-summary-card"
+                      style={{
+                        cursor: "pointer",
+                        borderColor: selected ? "var(--mantine-color-cyan-5)" : undefined,
+                      }}
+                      onClick={() => setSection(row.section)}
+                    >
+                      <Group justify="space-between" mb="xs">
+                        <Text fw={700}>{displaySection(row.section, sectionDisplayNames)}</Text>
+                        <Badge color={deltaColor(row.delta_gaps)} variant="light">
+                          {formatDelta(row.delta_gaps)} פערים
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {sectionScopeNotes?.[row.section] || SECTION_SCOPE_NOTES[row.section] || ""}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        טנקים: {row.tanks} | דיווחים: {row.reports}
+                      </Text>
+                      <Text size="sm">כשירות: {formatScore(row.readiness_score)}</Text>
+                      <Text size="sm">חריגים קריטיים: {row.critical_gaps || 0}</Text>
+                      <Text size="sm">פערים: {row.total_gaps}</Text>
+                    </Card>
+                  );
+                })}
+              </SimpleGrid>
+            )}
+          </Card>
+
+          <Card withBorder>
+            <Group justify="space-between" mb="sm" wrap="wrap">
+              <div>
+                <Text fw={700}>טבלת כשירות טנקים</Text>
+                <Text size="sm" c="dimmed">
+                  תחומים: לוגיסטיקה, חימוש, תקשוב
+                </Text>
+              </div>
+              <Group gap="xs">
+                <Badge variant="light" color="cyan">
+                  כשירות פלוגתית: {formatScore(companyTankSummary.avg_readiness)}
+                </Badge>
+                <Badge variant="light" color="red">
+                  טנקים עם חריג קריטי: {companyTankSummary.critical_tanks || 0}
+                </Badge>
+              </Group>
+            </Group>
+
+            {companyTanks.isFetching ? (
+              <Loader size="sm" />
+            ) : companyTankRows.length === 0 ? (
+              <EmptyState label="אין נתוני טנקים לשבוע זה." />
+            ) : (
+              <DataTable
+                withTableBorder
+                withColumnBorders
+                striped
+                minHeight={280}
+                records={companyTankRows}
+                columns={[
+                  { accessor: "tank_id", title: "טנק" },
+                  { accessor: "status", title: "סטטוס" },
+                  {
+                    accessor: "readiness_score",
+                    title: "כשירות כוללת",
+                    render: (row) => formatScore(row.readiness_score),
+                  },
+                  {
+                    accessor: "delta_readiness",
+                    title: "כשירות שבועית",
+                    render: (row) => (
+                      <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                        {row.delta_readiness === null || row.delta_readiness === undefined
+                          ? "-"
+                          : formatDelta(row.delta_readiness, 1)}
+                      </Text>
+                    ),
+                  },
+                  {
+                    accessor: "logistics_readiness",
+                    title: "לוגיסטיקה",
+                    render: (row) => formatScore(row.logistics_readiness),
+                  },
+                  {
+                    accessor: "armament_readiness",
+                    title: "חימוש",
+                    render: (row) => formatScore(row.armament_readiness),
+                  },
+                  {
+                    accessor: "communications_readiness",
+                    title: "תקשוב",
+                    render: (row) => formatScore(row.communications_readiness),
+                  },
+                  { accessor: "critical_gaps", title: "חריגים קריטיים" },
+                  {
+                    accessor: "critical_items",
+                    title: "אמצעים קריטיים בפער",
+                    render: (row) =>
+                      row.critical_items?.length
+                        ? row.critical_items
+                            .slice(0, 3)
+                            .map((item) => `${item.item} (${item.gaps})`)
+                            .join(", ")
+                        : "-",
+                  },
+                ]}
+              />
+            )}
+          </Card>
+
+          <Card withBorder>
+            <Group justify="space-between" mb="sm" align="end" wrap="wrap">
+              <div>
+                <Text fw={700}>סטטוס לפי תחום</Text>
+                <Text size="sm" c="dimmed">
+                  תחום: {displaySection(effectiveSection, sectionDisplayNames)}
+                </Text>
+              </div>
+              <Select
+                label="תחום"
+                data={sectionOptions}
+                value={effectiveSection}
+                onChange={(value) => {
+                  if (value) setSection(value);
+                }}
+                allowDeselect={false}
+                w={220}
+              />
+            </Group>
+
+            {selectedSectionSummary?.top_gap_items?.length ? (
+              <Text size="sm" c="dimmed" mb="sm">
+                פערים מובילים: {selectedSectionSummary.top_gap_items.map((item) => `${item.item} (${item.gaps})`).join(", ")}
+              </Text>
+            ) : null}
+
+            {sectionTanks.isFetching ? (
+              <Loader size="sm" />
+            ) : tanksRows.length === 0 ? (
+              <EmptyState label="אין נתוני טנקים לתחום שנבחר." />
+            ) : (
+              <DataTable
+                withTableBorder
+                withColumnBorders
+                striped
+                minHeight={320}
+                records={tanksRows}
+                columns={[
+                  { accessor: "tank_id", title: "טנק" },
+                  { accessor: "status", title: "סטטוס" },
+                  { accessor: "reports", title: "דיווחים" },
+                  { accessor: "checked_items", title: "נבדקו" },
+                  {
+                    accessor: "readiness_score",
+                    title: "כשירות",
+                    render: (row) => formatScore(row.readiness_score),
+                  },
+                  { accessor: "critical_gaps", title: "קריטיים" },
+                  { accessor: "gaps", title: "פערים" },
+                  {
+                    accessor: "delta_gaps",
+                    title: "פערים שבועי",
+                    render: (row) => (
+                      <Text c={deltaColor(row.delta_gaps)} fw={600}>
+                        {formatDelta(row.delta_gaps)}
+                      </Text>
+                    ),
+                  },
+                  {
+                    accessor: "delta_readiness",
+                    title: "כשירות שבועית",
+                    render: (row) => (
+                      <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                        {row.delta_readiness === null || row.delta_readiness === undefined
+                          ? "-"
+                          : formatDelta(row.delta_readiness, 1)}
+                      </Text>
+                    ),
+                  },
+                  {
+                    accessor: "gap_items",
+                    title: "אמצעים בפער",
+                    render: (row) =>
+                      row.gap_items?.length
+                        ? row.gap_items
+                            .slice(0, 3)
+                            .map((item) => `${item.item} (${item.gaps})`)
+                            .join(", ")
+                        : "-",
+                  },
+                  {
+                    accessor: "critical_items",
+                    title: "אמצעים קריטיים",
+                    render: (row) =>
+                      row.critical_items?.length
+                        ? row.critical_items
+                            .slice(0, 3)
+                            .map((item) => `${item.item} (${item.gaps})`)
+                            .join(", ")
+                        : "-",
+                  },
+                ]}
+              />
+            )}
+          </Card>
+        </>
+      )}
     </Stack>
   );
 }

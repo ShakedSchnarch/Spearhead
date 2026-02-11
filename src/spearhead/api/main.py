@@ -24,6 +24,7 @@ def _reset_cached_dependencies() -> None:
     deps._v1_store_instance = None
     deps._v1_query_instance = None
     deps._v1_ingest_instance = None
+    deps._v1_store_backend = None
 
 
 def _include_legacy_routes(app: FastAPI) -> None:

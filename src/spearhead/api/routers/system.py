@@ -5,7 +5,7 @@ import time
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from urllib.parse import unquote
+from urllib.parse import urlencode, unquote
 from uuid import uuid4
 from typing import Optional
 
@@ -23,6 +23,36 @@ router = APIRouter()
 def health():
     return {"status": "ok", "version": settings.app.version}
 
+
+@router.get("/auth/google/start")
+def google_oauth_start(
+    state: Optional[str] = Query(None),
+):
+    """
+    Starts Google OAuth flow by redirecting to Google authorization endpoint.
+    Keeps UI simple in cloud deployments where build-time frontend env vars are not set.
+    """
+    cid = settings.google.oauth_client_id
+    redirect_uri = settings.google.oauth_redirect_uri or "http://127.0.0.1:8000/auth/google/callback"
+    if not cid:
+        raise HTTPException(status_code=400, detail="OAuth client is not configured on server")
+
+    params = {
+        "client_id": cid,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile https://www.googleapis.com/auth/drive.readonly",
+        "access_type": "offline",
+        "include_granted_scopes": "true",
+        "prompt": "consent",
+    }
+    if state:
+        params["state"] = state
+
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+    return RedirectResponse(url=auth_url, status_code=307)
+
+
 @router.get("/auth/google/callback")
 def google_oauth_callback(
     code: Optional[str] = Query(None),
@@ -35,7 +65,8 @@ def google_oauth_callback(
     if error:
         raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
     if not code:
-        raise HTTPException(status_code=400, detail="Missing OAuth code")
+        # Happens when callback URL is opened manually from console/docs.
+        return RedirectResponse(url="/spearhead/?authError=missing_oauth_code", status_code=307)
 
     # Parse state for context
     platoon = None
@@ -56,7 +87,7 @@ def google_oauth_callback(
 
     cid = settings.google.oauth_client_id
     csecret = settings.google.oauth_client_secret
-    redirect_uri = settings.google.oauth_redirect_uri or "http://127.0.0.1:8000/spearhead/"
+    redirect_uri = settings.google.oauth_redirect_uri or "http://127.0.0.1:8000/auth/google/callback"
     if not cid or not csecret:
         raise HTTPException(status_code=400, detail="OAuth client not configured on server")
 

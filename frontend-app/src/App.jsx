@@ -65,13 +65,15 @@ const extractSessionFromUrl = () => {
 };
 
 function App() {
-  const [session, setSession] = useState(() => readStoredSession());
+  const [session, setSession] = useState(() => {
+    const fromUrl = extractSessionFromUrl();
+    return fromUrl || readStoredSession();
+  });
   const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     const fromUrl = extractSessionFromUrl();
     if (!fromUrl) return;
-    setSession(fromUrl);
     persistSession(fromUrl);
     const cleanUrl = `${window.location.origin}${window.location.pathname}`;
     window.history.replaceState({}, document.title, cleanUrl);
@@ -100,7 +102,7 @@ function App() {
         token: session?.token || "",
         oauthSession: session?.session || "",
         onUnauthorized: () => {
-          setAuthError("Your session expired. Please sign in again.");
+          setAuthError("פג תוקף ההתחברות. יש להתחבר מחדש.");
           handleLogout();
         },
       }),
@@ -111,7 +113,7 @@ function App() {
     <Container fluid px="md" py="md">
       <Stack gap="md">
         {authError ? (
-          <Alert color="red" variant="light" title="Authentication error">
+          <Alert color="red" variant="light" title="שגיאת הזדהות">
             {authError}
           </Alert>
         ) : null}

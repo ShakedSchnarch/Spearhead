@@ -1,19 +1,121 @@
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap");
+
 :root {
-  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --bg-main: #031529;
+  --bg-surface: rgba(8, 28, 51, 0.74);
+  --bg-panel: rgba(255, 255, 255, 0.03);
+  --line-soft: rgba(148, 163, 184, 0.28);
+  --text-strong: #e6f0ff;
+  --text-muted: #90a7c0;
+  --accent: #12c6c0;
+  --accent-soft: rgba(18, 198, 192, 0.24);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  min-height: 100%;
+}
+
+body {
   direction: rtl;
   text-align: right;
-  background: #0b1220;
-  color: #e2e8f0;
+  color: var(--text-strong);
+  background:
+    radial-gradient(circle at 88% 12%, rgba(18, 198, 192, 0.22), transparent 34%),
+    radial-gradient(circle at 8% 78%, rgba(59, 130, 246, 0.2), transparent 36%),
+    linear-gradient(145deg, #021223 0%, #04172d 48%, #031221 100%);
 }
 
 #root {
   min-height: 100vh;
+}
+
+.auth-shell,
+.dashboard-hero,
+.dashboard-filter-card,
+.section-summary-card,
+.unit-logo-card,
+.auth-controls-card {
+  background: var(--bg-surface);
+  border-color: var(--line-soft) !important;
+  backdrop-filter: blur(10px);
+}
+
+.auth-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-shell::before {
+  content: "";
+  position: absolute;
+  inset: -40% auto auto -16%;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(18, 198, 192, 0.22), transparent 65%);
+  pointer-events: none;
+}
+
+.auth-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto -14% -52% auto;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2), transparent 65%);
+  pointer-events: none;
+}
+
+.auth-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.unit-logo-card {
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.unit-logo-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(18, 198, 192, 0.6) !important;
+}
+
+.dashboard-hero {
+  border-width: 1px;
+}
+
+.section-summary-card {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.section-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.22);
+}
+
+.mantine-DataTable-root {
+  border-color: var(--line-soft) !important;
+}
+
+.mantine-DataTable-header {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.mantine-DataTable-headerCell {
+  color: #d2e7ff;
+}
+
+@media (max-width: 48em) {
+  body {
+    background:
+      radial-gradient(circle at 90% 4%, rgba(18, 198, 192, 0.18), transparent 28%),
+      linear-gradient(165deg, #021223 0%, #04172d 60%, #031221 100%);
+  }
 }

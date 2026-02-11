@@ -72,6 +72,63 @@ class LoggingSettings(BaseSettings):
     format: str = "console"  # console | json
     level: str = "INFO"
 
+class StorageSettings(BaseSettings):
+    """
+    Runtime persistence selection:
+    - sqlite (local/dev default)
+    - firestore (cloud stage A)
+    """
+    backend: str = "sqlite"  # sqlite|firestore
+    firestore_project_id: Optional[str] = None
+    firestore_database: str = "(default)"
+    firestore_collection_prefix: str = "spearhead_v1"
+
+
+class OperationalViewSettings(BaseSettings):
+    """
+    Fixed operational structure for command dashboard views.
+    Keys map internal field families -> fixed sections.
+    """
+    sections: list[str] = ["Armament", "Logistics", "Communications"]
+    section_display_names: dict[str, str] = {
+        "Armament": "חימוש",
+        "Logistics": "לוגיסטיקה",
+        "Communications": "תקשוב",
+    }
+    section_scope_notes: dict[str, str] = {
+        "Armament": "אמצעים, חלפים, שמנים",
+        "Logistics": "מקלעים, תחמושת, זיווד",
+        "Communications": "ציוד, צופן תקלות",
+    }
+    family_to_section: dict[str, str] = {
+        "ammo": "Logistics",
+        "zivud": "Logistics",
+        "issues": "Communications",
+        "parsim": "Armament",
+        "means": "Communications",
+    }
+    critical_item_names: list[str] = [
+        "חבל פריסה",
+        "פטיש 5",
+        "ראשוני",
+        "איציק",
+        "לום",
+        'מאריך חש"ן',
+        "בייבי קוני",
+        "משלק",
+        "פטיש קילו",
+        "מפתח Y",
+        "2מפתח פלטות",
+        "בוקסה 1\\5\\16",
+        "ידית כוח חצי",
+        "ידית כוח 3\\4",
+        "מחט ירי",
+        "אלונקה",
+        "מקלות חוטר",
+    ]
+    critical_gap_penalty: float = 12.0
+
+
 class AISettings(BaseSettings):
     enabled: bool = False
     provider: str = "offline"  # offline|http
@@ -92,6 +149,8 @@ class Settings(BaseSettings):
     thresholds: ThresholdSettings = ThresholdSettings()
     security: SecuritySettings = SecuritySettings()
     logging: LoggingSettings = LoggingSettings()
+    storage: StorageSettings = StorageSettings()
+    operational: OperationalViewSettings = OperationalViewSettings()
     ai: AISettings = AISettings()
 
     @classmethod

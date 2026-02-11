@@ -25,6 +25,7 @@ Legacy endpoints/modules are optional and disabled by default.
 
 3. **Persistence Layer**
    - `src/spearhead/v1/store.py`
+   - `src/spearhead/v1/store_firestore.py`
    - `src/spearhead/data/storage.py`
 
 4. **Frontend**
@@ -67,3 +68,4 @@ Legacy endpoints/modules are optional and disabled by default.
 - Keep `APP__ENABLE_LEGACY_ROUTES=false` in production unless migration requires otherwise.
 - Do not add heavy business logic to frontend; calculations stay in backend `v1`.
 - Keep API contract versioned under `/v1`.
+- Cloud deployment should use `STORAGE__BACKEND=firestore` (SQLite remains local/dev only).

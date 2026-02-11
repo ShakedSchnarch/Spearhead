@@ -33,7 +33,7 @@ DEPLOY_ARGS=(
   --min-instances 0
   --max-instances 2
   --port 8080
-  --set-env-vars "PYTHONPATH=src,APP__ENABLE_LEGACY_ROUTES=false"
+  --set-env-vars "PYTHONPATH=src,APP__ENABLE_LEGACY_ROUTES=false,STORAGE__BACKEND=firestore,STORAGE__FIRESTORE_PROJECT_ID=${PROJECT_ID},SECURITY__REQUIRE_AUTH_ON_QUERIES=true"
 )
 
 if [[ -n "$SERVICE_ACCOUNT_EMAIL" ]]; then
