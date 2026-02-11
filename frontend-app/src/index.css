@@ -40,7 +40,9 @@ body {
 .dashboard-filter-card,
 .section-summary-card,
 .unit-logo-card,
-.auth-controls-card {
+.auth-controls-card,
+.auth-mode-card,
+.battalion-login-card {
   background: var(--bg-surface);
   border-color: var(--line-soft) !important;
   backdrop-filter: blur(10px);
@@ -89,6 +91,25 @@ body {
 }
 
 .unit-logo-card[data-active="true"] {
+  border-color: rgba(18, 198, 192, 0.95) !important;
+  box-shadow: 0 0 0 1px rgba(18, 198, 192, 0.55), 0 14px 28px rgba(2, 6, 23, 0.25);
+}
+
+.auth-mode-card {
+  background: rgba(15, 23, 42, 0.33);
+}
+
+.battalion-login-card {
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.battalion-login-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(18, 198, 192, 0.6) !important;
+}
+
+.battalion-login-card[data-active="true"] {
   border-color: rgba(18, 198, 192, 0.95) !important;
   box-shadow: 0 0 0 1px rgba(18, 198, 192, 0.55), 0 14px 28px rgba(2, 6, 23, 0.25);
 }

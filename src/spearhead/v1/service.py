@@ -564,32 +564,58 @@ class ResponseQueryServiceV2:
         current_rows = self.store.list_normalized(week_id=target_week, platoon_key=company)
         previous_week = self._previous_week(target_week, company)
         previous_rows = self.store.list_normalized(week_id=previous_week, platoon_key=company) if previous_week else []
+        all_rows = self.store.list_normalized(platoon_key=company)
 
         current_metrics = self._compute_tank_overall_metrics(current_rows)
         previous_metrics = self._compute_tank_overall_metrics(previous_rows)
         summary = self._aggregate_company_readiness(current_metrics.values())
+        known_tank_ids = sorted(
+            {
+                str(row.get("tank_id") or "").strip()
+                for row in all_rows
+                if str(row.get("tank_id") or "").strip()
+            }
+        )
+        if not known_tank_ids:
+            known_tank_ids = sorted(current_metrics.keys())
+
+        reported_tanks = sum(
+            1 for tank_id in known_tank_ids if int(current_metrics.get(tank_id, {}).get("reports") or 0) > 0
+        )
+        summary["known_tanks"] = len(known_tank_ids)
+        summary["reported_tanks"] = reported_tanks
+        summary["missing_reports"] = max(len(known_tank_ids) - reported_tanks, 0)
 
         rows: list[dict[str, Any]] = []
-        for tank_id in sorted(current_metrics.keys()):
-            current = current_metrics[tank_id]
+        for tank_id in known_tank_ids:
+            current = current_metrics.get(tank_id, {})
             previous = previous_metrics.get(tank_id, {})
-
+            current_reports = int(current.get("reports") or 0)
+            reported_this_week = current_reports > 0
+            current_gaps = int(current.get("gaps") or 0)
+            current_critical = int(current.get("critical_gaps") or 0)
             per_section = current.get("sections", {})
+            previous_gaps = int(previous.get("gaps") or 0)
             rows.append(
                 {
                     "tank_id": tank_id,
-                    "status": "Critical" if current.get("critical_gaps", 0) > 0 else ("Gap" if current.get("gaps", 0) > 0 else "OK"),
-                    "reports": current.get("reports", 0),
-                    "checked_items": current.get("checked_items", 0),
-                    "gaps": current.get("gaps", 0),
-                    "critical_gaps": current.get("critical_gaps", 0),
+                    "status": "NoReport"
+                    if not reported_this_week
+                    else ("Critical" if current_critical > 0 else ("Gap" if current_gaps > 0 else "OK")),
+                    "reported_this_week": reported_this_week,
+                    "reports": current_reports,
+                    "checked_items": int(current.get("checked_items") or 0),
+                    "gaps": current_gaps,
+                    "critical_gaps": current_critical,
                     "critical_items": current.get("critical_items", []),
                     "readiness_score": current.get("readiness_score"),
-                    "delta_readiness": self._score_delta(
+                    "delta_readiness": None
+                    if not reported_this_week
+                    else self._score_delta(
                         current.get("readiness_score"),
                         previous.get("readiness_score"),
                     ),
-                    "delta_gaps": current.get("gaps", 0) - previous.get("gaps", 0),
+                    "delta_gaps": None if not reported_this_week else current_gaps - previous_gaps,
                     "sections": per_section,
                     "logistics_readiness": self._section_score_value(per_section, "Logistics"),
                     "armament_readiness": self._section_score_value(per_section, "Armament"),
@@ -599,6 +625,7 @@ class ResponseQueryServiceV2:
 
         rows.sort(
             key=lambda row: (
+                row.get("reported_this_week", False),
                 row.get("critical_gaps", 0),
                 self._sort_readiness_key(row.get("readiness_score")),
                 row.get("gaps", 0),

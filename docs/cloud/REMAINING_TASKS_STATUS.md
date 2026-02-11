@@ -20,3 +20,9 @@
 1. Review and approve Kfir form spec line-by-line with user.
 2. Create/adjust Google Form accordingly.
 3. Execute end-to-end ingest and verify dashboard output.
+
+## Backlog (After Core Scope Is Stable)
+1. Define access approvals and company-scoped authorization flow.
+2. Repository cleanup and structured documentation pass.
+3. Add CI/CD routine with automated tests (frontend + backend).
+4. Document a clear onboarding mechanism for adding new companies, forms, and tracked items with minimal code changes.

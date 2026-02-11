@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Badge,
@@ -47,6 +47,7 @@ function deltaColor(value) {
 }
 
 function formatDelta(value, digits = 0) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
   const number = Number(value || 0);
   if (!Number.isFinite(number)) return "0";
   const rendered = digits > 0 ? number.toFixed(digits) : Math.round(number).toString();
@@ -64,7 +65,10 @@ function formatScore(value) {
   return `${Number(value).toFixed(1)}%`;
 }
 
-function readinessVisual(score) {
+function readinessVisual(score, { reportedThisWeek = true } = {}) {
+  if (!reportedThisWeek) {
+    return { color: "gray", label: "ללא דיווח", accent: "#64748b" };
+  }
   const value = Number(score);
   if (!Number.isFinite(value)) {
     return { color: "gray", label: "ללא נתון", accent: "#64748b" };
@@ -82,6 +86,15 @@ function displaySection(section, sectionNames = {}) {
   return sectionNames?.[section] || SECTION_DISPLAY[section] || section;
 }
 
+function formatTankLabel(value) {
+  const raw = `${value || ""}`.trim();
+  if (!raw) return "צ׳-";
+  const digits = raw.match(/\d{2,4}/)?.[0];
+  if (digits) return `צ׳${digits}`;
+  if (raw.startsWith("צ׳") || raw.startsWith("צ'")) return raw.replace(/^צ[׳']+/, "צ׳");
+  return raw;
+}
+
 export function DashboardContent({ client, user, onLogout }) {
   const fixedCompany = user?.platoon || "";
   const isRestricted = Boolean(fixedCompany);
@@ -91,6 +104,8 @@ export function DashboardContent({ client, user, onLogout }) {
   const [company, setCompany] = useState(fixedCompany || "Kfir");
   const [section, setSection] = useState(DEFAULT_SECTIONS[0]);
   const [selectedTankId, setSelectedTankId] = useState(null);
+  const [detailsView, setDetailsView] = useState("section");
+  const detailsCardRef = useRef(null);
 
   const selectedScope = isRestricted ? "company" : scope;
   const selectedCompany = isRestricted ? fixedCompany : company;
@@ -107,6 +122,26 @@ export function DashboardContent({ client, user, onLogout }) {
       client.getWeeks({ platoon: isRestricted ? selectedCompany : undefined }, signal),
     staleTime: 30_000,
   });
+
+  const weekOptions = useMemo(() => {
+    const metadataOptions = weeks.data?.week_options || [];
+    if (metadataOptions.length) {
+      return metadataOptions.map((option) => ({
+        value: option.value,
+        label: option.label || option.value,
+      }));
+    }
+    return (weeks.data?.weeks || []).map((value) => ({ value, label: value }));
+  }, [weeks.data]);
+
+  const currentWeekFromApi = weeks.data?.current_week || "";
+  const selectedWeek = useMemo(() => {
+    const values = new Set(weekOptions.map((option) => option.value));
+    if (week && values.has(week)) return week;
+    if (currentWeekFromApi && values.has(currentWeekFromApi)) return currentWeekFromApi;
+    return weekOptions[0]?.value || "";
+  }, [week, weekOptions, currentWeekFromApi]);
+  const weekParam = selectedWeek || undefined;
 
   const battalionView = useQuery({
     queryKey: ["battalion-view", client.baseUrl, weekParam, isRestricted ? selectedCompany : "all"],
@@ -134,26 +169,6 @@ export function DashboardContent({ client, user, onLogout }) {
     enabled: Boolean((selectedScope === "company" || isRestricted) && selectedCompany),
     staleTime: 10_000,
   });
-
-  const weekOptions = useMemo(() => {
-    const metadataOptions = weeks.data?.week_options || [];
-    if (metadataOptions.length) {
-      return metadataOptions.map((option) => ({
-        value: option.value,
-        label: option.label || option.value,
-      }));
-    }
-    return (weeks.data?.weeks || []).map((value) => ({ value, label: value }));
-  }, [weeks.data]);
-
-  const currentWeekFromApi = weeks.data?.current_week || "";
-  const selectedWeek = useMemo(() => {
-    const values = new Set(weekOptions.map((option) => option.value));
-    if (week && values.has(week)) return week;
-    if (currentWeekFromApi && values.has(currentWeekFromApi)) return currentWeekFromApi;
-    return weekOptions[0]?.value || "";
-  }, [week, weekOptions, currentWeekFromApi]);
-  const weekParam = selectedWeek || undefined;
 
   const companyOptions = useMemo(() => {
     const fromView = battalionView.data?.companies || [];
@@ -205,6 +220,53 @@ export function DashboardContent({ client, user, onLogout }) {
       })),
     [battalionView.data],
   );
+  const battalionCompanyCards = useMemo(() => {
+    const grouped = new Map();
+    battalionRows.forEach((row) => {
+      const companyName = row.company || "Unknown";
+      if (!grouped.has(companyName)) {
+        grouped.set(companyName, {
+          company: companyName,
+          readinessValues: [],
+          totalGaps: 0,
+          criticalGaps: 0,
+          deltaReadiness: [],
+        });
+      }
+      const item = grouped.get(companyName);
+      if (row.readiness_score !== null && row.readiness_score !== undefined && Number.isFinite(Number(row.readiness_score))) {
+        item.readinessValues.push(Number(row.readiness_score));
+      }
+      if (row.delta_readiness !== null && row.delta_readiness !== undefined && Number.isFinite(Number(row.delta_readiness))) {
+        item.deltaReadiness.push(Number(row.delta_readiness));
+      }
+      item.totalGaps += Number(row.total_gaps || 0);
+      item.criticalGaps += Number(row.critical_gaps || 0);
+    });
+
+    return Array.from(grouped.values())
+      .map((item) => {
+        const avgReadiness = item.readinessValues.length
+          ? Number((item.readinessValues.reduce((sum, value) => sum + value, 0) / item.readinessValues.length).toFixed(1))
+          : null;
+        const avgDeltaReadiness = item.deltaReadiness.length
+          ? Number((item.deltaReadiness.reduce((sum, value) => sum + value, 0) / item.deltaReadiness.length).toFixed(1))
+          : null;
+        return {
+          company: item.company,
+          avgReadiness,
+          avgDeltaReadiness,
+          totalGaps: item.totalGaps,
+          criticalGaps: item.criticalGaps,
+          visual: readinessVisual(avgReadiness),
+        };
+      })
+      .sort((a, b) => {
+        const left = a.avgReadiness ?? -1;
+        const right = b.avgReadiness ?? -1;
+        return right - left;
+      });
+  }, [battalionRows]);
   const battalionCompanies = battalionView.data?.companies || [];
   const hasBattalionComparison = battalionCompanies.length > 1;
 
@@ -215,6 +277,7 @@ export function DashboardContent({ client, user, onLogout }) {
     () => companyTankRows.find((row) => row.tank_id === selectedTankId) || null,
     [companyTankRows, selectedTankId],
   );
+  const selectedTankReported = selectedTank ? (selectedTank.reported_this_week ?? Number(selectedTank.reports || 0) > 0) : false;
   const tankStatusCards = useMemo(
     () =>
       companyTankRows
@@ -222,7 +285,11 @@ export function DashboardContent({ client, user, onLogout }) {
         .sort((a, b) => String(a.tank_id).localeCompare(String(b.tank_id), "he"))
         .map((row) => ({
           ...row,
-          readiness: readinessVisual(row.readiness_score),
+          tank_label: formatTankLabel(row.tank_id),
+          reported_this_week: Number(row.reports || 0) > 0,
+          readiness: readinessVisual(row.readiness_score, {
+            reportedThisWeek: Number(row.reports || 0) > 0,
+          }),
         })),
     [companyTankRows],
   );
@@ -240,6 +307,18 @@ export function DashboardContent({ client, user, onLogout }) {
   }, [companyOptions, fixedCompany]);
 
   const selectedCompanyMeta = selectedCompany ? getUnitMeta(selectedCompany) : battalionMeta;
+  const scopeMeta = selectedScope === "company" ? selectedCompanyMeta : battalionMeta;
+  const companyVisual = readinessVisual(companyTankSummary.avg_readiness);
+  const reportedRatio =
+    Number(companyTankSummary.known_tanks || 0) > 0
+      ? `${companyTankSummary.reported_tanks || 0}/${companyTankSummary.known_tanks}`
+      : `${companyTankSummary.reported_tanks || 0}/${companyTankSummary.tanks || 0}`;
+
+  const focusSectionDetails = (sectionValue) => {
+    if (sectionValue) setSection(sectionValue);
+    setDetailsView("section");
+    detailsCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const refreshAll = () =>
     Promise.all([
@@ -256,18 +335,37 @@ export function DashboardContent({ client, user, onLogout }) {
       <Card withBorder className="dashboard-hero">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Group gap="md" align="center">
-            <Image
-              src={battalionMeta.logo}
-              alt={battalionMeta.label}
-              radius="md"
-              w={72}
-              h={72}
-              fit="cover"
-            />
+            <Group gap="xs" wrap="nowrap" align="center">
+              <Image
+                src={battalionMeta.logo}
+                alt={battalionMeta.label}
+                radius="md"
+                w={72}
+                h={72}
+                fit="cover"
+              />
+              {selectedScope === "company" ? (
+                <>
+                  <Text c="dimmed" fw={700}>
+                    +
+                  </Text>
+                  <Image
+                    src={selectedCompanyMeta.logo}
+                    alt={selectedCompanyMeta.label}
+                    radius="md"
+                    w={62}
+                    h={62}
+                    fit="cover"
+                  />
+                </>
+              ) : null}
+            </Group>
             <div>
               <Title order={2}>Spearhead Command Dashboard</Title>
               <Text size="sm" c="dimmed">
-                גדוד 75 · דשבורד דיווחים פלוגתי
+                {selectedScope === "company"
+                  ? `גדוד 75 · מצב פלוגתי (${selectedCompanyMeta.shortLabel})`
+                  : "גדוד 75 · מצב גדודי והשוואה בין פלוגות"}
               </Text>
               <Text size="sm" c="dimmed">
                 משתמש: {user?.email || "unknown"}
@@ -279,7 +377,7 @@ export function DashboardContent({ client, user, onLogout }) {
             <Badge color={health.isError ? "red" : "teal"} variant="filled" size="lg">
               API {health.isError ? "OFFLINE" : "ONLINE"}
             </Badge>
-            <Badge variant="light" size="lg" style={{ borderColor: selectedCompanyMeta.color }}>
+            <Badge variant="light" size="lg" style={{ borderColor: scopeMeta.color }}>
               {selectedScope === "company" ? selectedCompanyMeta.label : "תצוגה גדודית"}
             </Badge>
             <Button variant="subtle" color="gray" onClick={onLogout}>
@@ -320,7 +418,7 @@ export function DashboardContent({ client, user, onLogout }) {
             onChange={(value) => setWeek(value || "")}
             searchable
             clearable={false}
-            w={180}
+            w={340}
             placeholder="latest"
           />
 
@@ -377,6 +475,45 @@ export function DashboardContent({ client, user, onLogout }) {
               שבוע קודם: {battalionView.data?.previous_week_id || "-"}
             </Text>
           </Group>
+
+          {hasBattalionComparison && battalionCompanyCards.length ? (
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mb="md">
+              {battalionCompanyCards.map((row) => {
+                const companyMeta = getUnitMeta(row.company);
+                return (
+                  <Card
+                    key={`battalion-company-${row.company}`}
+                    withBorder
+                    className="visual-summary-card"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      setCompany(row.company);
+                      setScope("company");
+                    }}
+                  >
+                    <Stack gap={6}>
+                      <Group justify="space-between" align="center">
+                        <Group gap="xs" wrap="nowrap">
+                          <Image src={companyMeta.logo} alt={companyMeta.shortLabel} w={28} h={28} radius="xl" fit="cover" />
+                          <Text fw={700}>{companyMeta.shortLabel}</Text>
+                        </Group>
+                        <Badge variant="light" color={row.visual.color}>
+                          {row.visual.label}
+                        </Badge>
+                      </Group>
+                      <Text size="sm">כשירות ממוצעת: {formatScore(row.avgReadiness)}</Text>
+                      <Text size="sm" c="dimmed">
+                        חריגים קריטיים: {row.criticalGaps} | פערים: {row.totalGaps}
+                      </Text>
+                      <Text size="sm" c={readinessDeltaColor(row.avgDeltaReadiness)}>
+                        שינוי שבועי: {formatDelta(row.avgDeltaReadiness, 1)}
+                      </Text>
+                    </Stack>
+                  </Card>
+                );
+              })}
+            </SimpleGrid>
+          ) : null}
 
           {battalionView.isFetching ? (
             <Loader size="sm" />
@@ -472,20 +609,56 @@ export function DashboardContent({ client, user, onLogout }) {
                     אינדיקציה מהירה לישיבה: צבע = מצב כשירות
                   </Text>
                 </div>
-                <Badge variant="light" color="cyan">
-                  כשירות ממוצעת: {formatScore(companyTankSummary.avg_readiness)}
-                </Badge>
+                <Group gap="xs">
+                  <Badge variant="light" color="cyan">
+                    כשירות כוללת: {formatScore(companyTankSummary.avg_readiness)}
+                  </Badge>
+                  <Badge variant="light" color="gray">
+                    דיווחו השבוע: {reportedRatio}
+                  </Badge>
+                </Group>
               </Group>
               {companyView.isFetching ? (
                 <Loader size="sm" />
               ) : sectionRows.length === 0 ? (
                 <EmptyState label="אין נתוני תחומים להצגה חזותית." />
               ) : (
-                <SimpleGrid cols={{ base: 1, md: 3 }}>
+                <SimpleGrid cols={{ base: 1, md: 4 }}>
+                  <Card withBorder className="visual-summary-card">
+                    <Stack align="center" gap={6}>
+                      <Text fw={700}>סך כשירות פלוגתית</Text>
+                      <RingProgress
+                        size={126}
+                        thickness={13}
+                        roundCaps
+                        sections={[
+                          {
+                            value: Number.isFinite(Number(companyTankSummary.avg_readiness))
+                              ? Math.max(0, Math.min(100, Number(companyTankSummary.avg_readiness)))
+                              : 0,
+                            color: companyVisual.color,
+                          },
+                        ]}
+                        label={<Text fw={700}>{formatScore(companyTankSummary.avg_readiness)}</Text>}
+                      />
+                      <Badge variant="light" color={companyVisual.color}>
+                        {companyVisual.label}
+                      </Badge>
+                      <Text size="sm" c="dimmed">
+                        טנקים עם חריג קריטי: {companyTankSummary.critical_tanks || 0}
+                      </Text>
+                    </Stack>
+                  </Card>
                   {sectionRows.map((row) => {
                     const visual = readinessVisual(row.readiness_score);
                     return (
-                      <Card key={`visual-${row.section}`} withBorder className="visual-summary-card">
+                      <Card
+                        key={`visual-${row.section}`}
+                        withBorder
+                        className="visual-summary-card"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => focusSectionDetails(row.section)}
+                      >
                         <Stack align="center" gap={6}>
                           <Text fw={700}>{displaySection(row.section, sectionDisplayNames)}</Text>
                           <RingProgress
@@ -508,6 +681,9 @@ export function DashboardContent({ client, user, onLogout }) {
                           <Text size="sm" c="dimmed">
                             פערים: {row.total_gaps} | קריטיים: {row.critical_gaps || 0}
                           </Text>
+                          <Badge size="xs" variant="outline" color="gray">
+                            לחיצה לפירוט תחום
+                          </Badge>
                         </Stack>
                       </Card>
                     );
@@ -526,17 +702,9 @@ export function DashboardContent({ client, user, onLogout }) {
                     לחיצה על טנק פותחת פירוט לפי לוגיסטיקה, חימוש ותקשוב
                   </Text>
                 </div>
-                <Group gap="xs">
-                  <Badge variant="light" color="teal">
-                    כשיר
-                  </Badge>
-                  <Badge variant="light" color="yellow">
-                    בינוני
-                  </Badge>
-                  <Badge variant="light" color="red">
-                    דורש טיפול
-                  </Badge>
-                </Group>
+                <Badge variant="light" color="gray">
+                  אפור = ללא דיווח השבוע
+                </Badge>
               </Group>
               {companyTanks.isFetching ? (
                 <Loader size="sm" />
@@ -560,12 +728,12 @@ export function DashboardContent({ client, user, onLogout }) {
                     >
                       <Stack gap={4}>
                         <Group justify="space-between" align="center">
-                          <Text fw={700}>צ׳{row.tank_id}</Text>
-                          <Badge variant="filled" color={row.readiness.color}>
-                            {row.readiness.label}
+                          <Text fw={700}>{row.tank_label}</Text>
+                          <Badge variant="light" color={row.reported_this_week ? "teal" : "gray"}>
+                            {row.reported_this_week ? "דיווח השבוע" : "לא דיווח"}
                           </Badge>
                         </Group>
-                        <Text size="sm">כשירות: {formatScore(row.readiness_score)}</Text>
+                        <Text size="sm">כשירות: {row.reported_this_week ? formatScore(row.readiness_score) : "ללא דיווח"}</Text>
                         <Text size="xs" c="dimmed">
                           קריטיים: {row.critical_gaps || 0}
                         </Text>
@@ -580,15 +748,21 @@ export function DashboardContent({ client, user, onLogout }) {
           <Drawer
             opened={Boolean(selectedTank)}
             onClose={() => setSelectedTankId(null)}
-            title={selectedTank ? `פירוט טנק צ׳${selectedTank.tank_id}` : "פירוט טנק"}
+            title={selectedTank ? `פירוט טנק ${formatTankLabel(selectedTank.tank_id)}` : "פירוט טנק"}
             position="left"
             size="lg"
           >
             {selectedTank ? (
               <Stack gap="sm">
                 <Group gap="xs">
-                  <Badge variant="light" color={readinessVisual(selectedTank.readiness_score).color}>
-                    כשירות כוללת: {formatScore(selectedTank.readiness_score)}
+                  <Badge
+                    variant="light"
+                    color={readinessVisual(selectedTank.readiness_score, { reportedThisWeek: selectedTankReported }).color}
+                  >
+                    כשירות כוללת: {selectedTankReported ? formatScore(selectedTank.readiness_score) : "ללא דיווח"}
+                  </Badge>
+                  <Badge variant="light" color={selectedTankReported ? "teal" : "gray"}>
+                    {selectedTankReported ? "דיווח השבוע" : "לא דווח השבוע"}
                   </Badge>
                   <Badge variant="light" color="red">
                     חריגים קריטיים: {selectedTank.critical_gaps || 0}
@@ -672,7 +846,7 @@ export function DashboardContent({ client, user, onLogout }) {
                         cursor: "pointer",
                         borderColor: selected ? "var(--mantine-color-cyan-5)" : undefined,
                       }}
-                      onClick={() => setSection(row.section)}
+                      onClick={() => focusSectionDetails(row.section)}
                     >
                       <Group justify="space-between" mb="xs">
                         <Text fw={700}>{displaySection(row.section, sectionDisplayNames)}</Text>
@@ -696,179 +870,190 @@ export function DashboardContent({ client, user, onLogout }) {
             )}
           </Card>
 
-          <Card withBorder>
-            <Group justify="space-between" mb="sm" wrap="wrap">
+          <Card withBorder ref={detailsCardRef}>
+            <Group justify="space-between" mb="sm" align="end" wrap="wrap">
               <div>
-                <Text fw={700}>טבלת כשירות טנקים</Text>
+                <Text fw={700}>פירוט מתקדם</Text>
                 <Text size="sm" c="dimmed">
-                  תחומים: לוגיסטיקה, חימוש, תקשוב
+                  מעבר בין פירוט לפי תחום או טבלת טנקים מלאה
                 </Text>
               </div>
-              <Group gap="xs">
-                <Badge variant="light" color="cyan">
-                  כשירות פלוגתית: {formatScore(companyTankSummary.avg_readiness)}
-                </Badge>
-                <Badge variant="light" color="red">
-                  טנקים עם חריג קריטי: {companyTankSummary.critical_tanks || 0}
-                </Badge>
+              <Group gap="sm" wrap="wrap">
+                <SegmentedControl
+                  data={[
+                    { value: "section", label: "לפי תחום" },
+                    { value: "tanks", label: "טבלת טנקים" },
+                  ]}
+                  value={detailsView}
+                  onChange={setDetailsView}
+                />
+                {detailsView === "section" ? (
+                  <Select
+                    label="תחום"
+                    data={sectionOptions}
+                    value={effectiveSection}
+                    onChange={(value) => {
+                      if (value) setSection(value);
+                    }}
+                    allowDeselect={false}
+                    w={220}
+                  />
+                ) : null}
               </Group>
             </Group>
 
-            {companyTanks.isFetching ? (
-              <Loader size="sm" />
-            ) : companyTankRows.length === 0 ? (
-              <EmptyState label="אין נתוני טנקים לשבוע זה." />
+            {detailsView === "tanks" ? (
+              companyTanks.isFetching ? (
+                <Loader size="sm" />
+              ) : companyTankRows.length === 0 ? (
+                <EmptyState label="אין נתוני טנקים לשבוע זה." />
+              ) : (
+                <DataTable
+                  withTableBorder
+                  withColumnBorders
+                  striped
+                  minHeight={280}
+                  records={companyTankRows}
+                  columns={[
+                    {
+                      accessor: "tank_id",
+                      title: "טנק",
+                      render: (row) => formatTankLabel(row.tank_id),
+                    },
+                    {
+                      accessor: "reported_this_week",
+                      title: "דיווח השבוע",
+                      render: (row) => (
+                        <Badge variant="light" color={(row.reported_this_week ?? Number(row.reports || 0) > 0) ? "teal" : "gray"}>
+                          {(row.reported_this_week ?? Number(row.reports || 0) > 0) ? "דיווח" : "לא דיווח"}
+                        </Badge>
+                      ),
+                    },
+                    { accessor: "status", title: "סטטוס" },
+                    {
+                      accessor: "readiness_score",
+                      title: "כשירות כוללת",
+                      render: (row) =>
+                        (row.reported_this_week ?? Number(row.reports || 0) > 0)
+                          ? formatScore(row.readiness_score)
+                          : "ללא דיווח",
+                    },
+                    {
+                      accessor: "delta_readiness",
+                      title: "כשירות שבועית",
+                      render: (row) => (
+                        <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                          {formatDelta(row.delta_readiness, 1)}
+                        </Text>
+                      ),
+                    },
+                    {
+                      accessor: "logistics_readiness",
+                      title: "לוגיסטיקה",
+                      render: (row) =>
+                        (row.reported_this_week ?? Number(row.reports || 0) > 0)
+                          ? formatScore(row.logistics_readiness)
+                          : "-",
+                    },
+                    {
+                      accessor: "armament_readiness",
+                      title: "חימוש",
+                      render: (row) =>
+                        (row.reported_this_week ?? Number(row.reports || 0) > 0)
+                          ? formatScore(row.armament_readiness)
+                          : "-",
+                    },
+                    {
+                      accessor: "communications_readiness",
+                      title: "תקשוב",
+                      render: (row) =>
+                        (row.reported_this_week ?? Number(row.reports || 0) > 0)
+                          ? formatScore(row.communications_readiness)
+                          : "-",
+                    },
+                    { accessor: "critical_gaps", title: "חריגים קריטיים" },
+                  ]}
+                />
+              )
             ) : (
-              <DataTable
-                withTableBorder
-                withColumnBorders
-                striped
-                minHeight={280}
-                records={companyTankRows}
-                columns={[
-                  { accessor: "tank_id", title: "טנק" },
-                  { accessor: "status", title: "סטטוס" },
-                  {
-                    accessor: "readiness_score",
-                    title: "כשירות כוללת",
-                    render: (row) => formatScore(row.readiness_score),
-                  },
-                  {
-                    accessor: "delta_readiness",
-                    title: "כשירות שבועית",
-                    render: (row) => (
-                      <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
-                        {row.delta_readiness === null || row.delta_readiness === undefined
-                          ? "-"
-                          : formatDelta(row.delta_readiness, 1)}
-                      </Text>
-                    ),
-                  },
-                  {
-                    accessor: "logistics_readiness",
-                    title: "לוגיסטיקה",
-                    render: (row) => formatScore(row.logistics_readiness),
-                  },
-                  {
-                    accessor: "armament_readiness",
-                    title: "חימוש",
-                    render: (row) => formatScore(row.armament_readiness),
-                  },
-                  {
-                    accessor: "communications_readiness",
-                    title: "תקשוב",
-                    render: (row) => formatScore(row.communications_readiness),
-                  },
-                  { accessor: "critical_gaps", title: "חריגים קריטיים" },
-                  {
-                    accessor: "critical_items",
-                    title: "אמצעים קריטיים בפער",
-                    render: (row) =>
-                      row.critical_items?.length
-                        ? row.critical_items
-                            .slice(0, 3)
-                            .map((item) => `${item.item} (${item.gaps})`)
-                            .join(", ")
-                        : "-",
-                  },
-                ]}
-              />
-            )}
-          </Card>
+              <>
+                {selectedSectionSummary?.top_gap_items?.length ? (
+                  <Text size="sm" c="dimmed" mb="sm">
+                    פערים מובילים: {selectedSectionSummary.top_gap_items.map((item) => `${item.item} (${item.gaps})`).join(", ")}
+                  </Text>
+                ) : null}
 
-          <Card withBorder>
-            <Group justify="space-between" mb="sm" align="end" wrap="wrap">
-              <div>
-                <Text fw={700}>סטטוס לפי תחום</Text>
-                <Text size="sm" c="dimmed">
-                  תחום: {displaySection(effectiveSection, sectionDisplayNames)}
-                </Text>
-              </div>
-              <Select
-                label="תחום"
-                data={sectionOptions}
-                value={effectiveSection}
-                onChange={(value) => {
-                  if (value) setSection(value);
-                }}
-                allowDeselect={false}
-                w={220}
-              />
-            </Group>
-
-            {selectedSectionSummary?.top_gap_items?.length ? (
-              <Text size="sm" c="dimmed" mb="sm">
-                פערים מובילים: {selectedSectionSummary.top_gap_items.map((item) => `${item.item} (${item.gaps})`).join(", ")}
-              </Text>
-            ) : null}
-
-            {sectionTanks.isFetching ? (
-              <Loader size="sm" />
-            ) : tanksRows.length === 0 ? (
-              <EmptyState label="אין נתוני טנקים לתחום שנבחר." />
-            ) : (
-              <DataTable
-                withTableBorder
-                withColumnBorders
-                striped
-                minHeight={320}
-                records={tanksRows}
-                columns={[
-                  { accessor: "tank_id", title: "טנק" },
-                  { accessor: "status", title: "סטטוס" },
-                  { accessor: "reports", title: "דיווחים" },
-                  { accessor: "checked_items", title: "נבדקו" },
-                  {
-                    accessor: "readiness_score",
-                    title: "כשירות",
-                    render: (row) => formatScore(row.readiness_score),
-                  },
-                  { accessor: "critical_gaps", title: "קריטיים" },
-                  { accessor: "gaps", title: "פערים" },
-                  {
-                    accessor: "delta_gaps",
-                    title: "פערים שבועי",
-                    render: (row) => (
-                      <Text c={deltaColor(row.delta_gaps)} fw={600}>
-                        {formatDelta(row.delta_gaps)}
-                      </Text>
-                    ),
-                  },
-                  {
-                    accessor: "delta_readiness",
-                    title: "כשירות שבועית",
-                    render: (row) => (
-                      <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
-                        {row.delta_readiness === null || row.delta_readiness === undefined
-                          ? "-"
-                          : formatDelta(row.delta_readiness, 1)}
-                      </Text>
-                    ),
-                  },
-                  {
-                    accessor: "gap_items",
-                    title: "אמצעים בפער",
-                    render: (row) =>
-                      row.gap_items?.length
-                        ? row.gap_items
-                            .slice(0, 3)
-                            .map((item) => `${item.item} (${item.gaps})`)
-                            .join(", ")
-                        : "-",
-                  },
-                  {
-                    accessor: "critical_items",
-                    title: "אמצעים קריטיים",
-                    render: (row) =>
-                      row.critical_items?.length
-                        ? row.critical_items
-                            .slice(0, 3)
-                            .map((item) => `${item.item} (${item.gaps})`)
-                            .join(", ")
-                        : "-",
-                  },
-                ]}
-              />
+                {sectionTanks.isFetching ? (
+                  <Loader size="sm" />
+                ) : tanksRows.length === 0 ? (
+                  <EmptyState label="אין נתוני טנקים לתחום שנבחר." />
+                ) : (
+                  <DataTable
+                    withTableBorder
+                    withColumnBorders
+                    striped
+                    minHeight={320}
+                    records={tanksRows}
+                    columns={[
+                      {
+                        accessor: "tank_id",
+                        title: "טנק",
+                        render: (row) => formatTankLabel(row.tank_id),
+                      },
+                      { accessor: "status", title: "סטטוס" },
+                      { accessor: "reports", title: "דיווחים" },
+                      { accessor: "checked_items", title: "נבדקו" },
+                      {
+                        accessor: "readiness_score",
+                        title: "כשירות",
+                        render: (row) => formatScore(row.readiness_score),
+                      },
+                      { accessor: "critical_gaps", title: "קריטיים" },
+                      { accessor: "gaps", title: "פערים" },
+                      {
+                        accessor: "delta_gaps",
+                        title: "פערים שבועי",
+                        render: (row) => (
+                          <Text c={deltaColor(row.delta_gaps)} fw={600}>
+                            {formatDelta(row.delta_gaps)}
+                          </Text>
+                        ),
+                      },
+                      {
+                        accessor: "delta_readiness",
+                        title: "כשירות שבועית",
+                        render: (row) => (
+                          <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                            {formatDelta(row.delta_readiness, 1)}
+                          </Text>
+                        ),
+                      },
+                      {
+                        accessor: "gap_items",
+                        title: "אמצעים בפער",
+                        render: (row) =>
+                          row.gap_items?.length
+                            ? row.gap_items
+                                .slice(0, 3)
+                                .map((item) => `${item.item} (${item.gaps})`)
+                                .join(", ")
+                            : "-",
+                      },
+                      {
+                        accessor: "critical_items",
+                        title: "אמצעים קריטיים",
+                        render: (row) =>
+                          row.critical_items?.length
+                            ? row.critical_items
+                                .slice(0, 3)
+                                .map((item) => `${item.item} (${item.gaps})`)
+                                .join(", ")
+                            : "-",
+                      },
+                    ]}
+                  />
+                )}
+              </>
             )}
           </Card>
         </>

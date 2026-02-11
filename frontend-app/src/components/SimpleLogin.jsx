@@ -23,7 +23,7 @@ export function SimpleLogin({ onLogin }) {
   const oauthUrl = import.meta.env.VITE_GOOGLE_OAUTH_URL || "";
   const allowGuest = (import.meta.env.VITE_ALLOW_GUEST_LOGIN || "").toLowerCase() === "true";
   const selectedMeta = getUnitMeta(selected);
-  const loginCards = ["battalion", ...COMPANY_KEYS].map((key) => getUnitMeta(key));
+  const companyCards = COMPANY_KEYS.map((key) => getUnitMeta(key));
 
   const handleGoogleLogin = () => {
     if (!oauthUrl) {
@@ -55,52 +55,78 @@ export function SimpleLogin({ onLogin }) {
     <Card withBorder shadow="lg" maw={880} mx="auto" mt="xl" p="lg" className="auth-shell">
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Group gap="md">
-            <Image
-              src={battalionMeta.logo}
-              alt={battalionMeta.label}
-              radius="md"
-              w={68}
-              h={68}
-              fit="cover"
-            />
-            <div>
-              <Title order={2}>קצה הרומח · גדוד 75</Title>
-              <Text c="dimmed" size="sm">
-                דשבורד מבצעי פלוגתי על בסיס דיווחי Google Forms
-              </Text>
-            </div>
-          </Group>
+          <div>
+            <Title order={2}>קצה הרומח · גדוד 75</Title>
+            <Text c="dimmed" size="sm">
+              מרכז מצב מבצעי פלוגתי וגדודי על בסיס דיווחי Google Forms
+            </Text>
+          </div>
           <Badge variant="light" color="cyan" size="lg">
-            Spearhead v1
+            Spearhead v2
           </Badge>
         </Group>
 
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-          {loginCards.map((meta) => (
-            <Card
-              key={meta.key}
-              withBorder
-              radius="md"
-              p="sm"
-              className="unit-logo-card"
-              data-active={selected === meta.key ? "true" : "false"}
-              onClick={() => setSelected(meta.key)}
-            >
-              <Stack align="center" gap={6}>
-                <Image src={meta.logo} alt={meta.shortLabel} radius="sm" h={58} w={58} fit="cover" />
-                <Text size="sm" fw={700}>
-                  {meta.shortLabel}
+        <Card withBorder radius="md" p="sm" className="auth-mode-card">
+          <Stack gap="sm">
+            <Text fw={700}>כניסה במצב פלוגה</Text>
+            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+              {companyCards.map((meta) => (
+                <Card
+                  key={meta.key}
+                  withBorder
+                  radius="md"
+                  p="sm"
+                  className="unit-logo-card"
+                  data-active={selected === meta.key ? "true" : "false"}
+                  onClick={() => setSelected(meta.key)}
+                >
+                  <Stack align="center" gap={6}>
+                    <Image src={meta.logo} alt={meta.shortLabel} radius="sm" h={58} w={58} fit="cover" />
+                    <Text size="sm" fw={700}>
+                      {meta.shortLabel}
+                    </Text>
+                  </Stack>
+                </Card>
+              ))}
+            </SimpleGrid>
+          </Stack>
+        </Card>
+
+        <Card
+          withBorder
+          radius="md"
+          p="md"
+          className="battalion-login-card"
+          data-active={selected === "battalion" ? "true" : "false"}
+          onClick={() => setSelected("battalion")}
+        >
+          <Group justify="space-between" wrap="wrap" gap="md">
+            <Group gap="md" wrap="nowrap">
+              <Image
+                src={battalionMeta.logo}
+                alt={battalionMeta.label}
+                radius="md"
+                w={58}
+                h={58}
+                fit="cover"
+              />
+              <div>
+                <Text fw={700}>כניסה במצב גדודי</Text>
+                <Text size="sm" c="dimmed">
+                  תצוגת השוואה רוחבית בין כלל הפלוגות
                 </Text>
-              </Stack>
-            </Card>
-          ))}
-        </SimpleGrid>
+              </div>
+            </Group>
+            <Badge variant="light" color="cyan">
+              גדוד 75
+            </Badge>
+          </Group>
+        </Card>
 
         <Card withBorder radius="md" p="md" className="auth-controls-card">
           <Stack gap="md">
             <Group justify="space-between">
-              <Text fw={700}>בחירת יחידה לכניסה</Text>
+              <Text fw={700}>בחירת מצב כניסה</Text>
               <Badge variant="filled" style={{ backgroundColor: selectedMeta.color }}>
                 {selectedMeta.shortLabel}
               </Badge>
@@ -113,9 +139,7 @@ export function SimpleLogin({ onLogin }) {
         </Card>
 
         <Text size="xs" c="dimmed">
-          {oauthUrl
-            ? "הכניסה מתבצעת דרך OAuth מאובטח של Google."
-            : "VITE_GOOGLE_OAUTH_URL לא הוגדר, המערכת משתמשת בנתיב /auth/google/start של השרת."}
+          הכניסה מתבצעת דרך OAuth מאובטח של Google.
         </Text>
       </Stack>
     </Card>
