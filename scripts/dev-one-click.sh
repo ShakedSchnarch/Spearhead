@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-if [[ ! -x "$ROOT/.venv/bin/uvicorn" ]]; then
+if [[ ! -x "$ROOT/.venv/bin/python" && ! -x "$ROOT/.venv2/bin/python" ]]; then
   echo "Setting up Python environment..."
   "$ROOT/scripts/setup-venv.sh"
 fi

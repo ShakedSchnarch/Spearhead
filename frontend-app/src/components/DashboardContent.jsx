@@ -86,6 +86,16 @@ function displaySection(section, sectionNames = {}) {
   return sectionNames?.[section] || SECTION_DISPLAY[section] || section;
 }
 
+function displayStatus(status) {
+  const map = {
+    OK: "תקין",
+    Gap: "פערים",
+    Critical: "קריטי",
+    NoReport: "ללא דיווח",
+  };
+  return map[status] || status || "-";
+}
+
 function formatTankLabel(value) {
   const raw = `${value || ""}`.trim();
   if (!raw) return "צ׳-";
@@ -309,6 +319,8 @@ export function DashboardContent({ client, user, onLogout }) {
   const selectedCompanyMeta = selectedCompany ? getUnitMeta(selectedCompany) : battalionMeta;
   const scopeMeta = selectedScope === "company" ? selectedCompanyMeta : battalionMeta;
   const companyVisual = readinessVisual(companyTankSummary.avg_readiness);
+  const selectedWeekLabel =
+    weekOptions.find((option) => option.value === selectedWeek)?.label || selectedWeek || "latest";
   const reportedRatio =
     Number(companyTankSummary.known_tanks || 0) > 0
       ? `${companyTankSummary.reported_tanks || 0}/${companyTankSummary.known_tanks}`
@@ -418,7 +430,7 @@ export function DashboardContent({ client, user, onLogout }) {
             onChange={(value) => setWeek(value || "")}
             searchable
             clearable={false}
-            w={340}
+            w={{ base: "100%", sm: 340 }}
             placeholder="latest"
           />
 
@@ -435,6 +447,9 @@ export function DashboardContent({ client, user, onLogout }) {
             />
           ) : null}
         </Group>
+        <Text size="xs" c="dimmed" mt="xs">
+          שבוע פעיל: {selectedWeekLabel}
+        </Text>
       </Card>
 
       {!isRestricted && availableCompanies.length ? (
@@ -929,7 +944,11 @@ export function DashboardContent({ client, user, onLogout }) {
                         </Badge>
                       ),
                     },
-                    { accessor: "status", title: "סטטוס" },
+                    {
+                      accessor: "status",
+                      title: "סטטוס",
+                      render: (row) => displayStatus(row.status),
+                    },
                     {
                       accessor: "readiness_score",
                       title: "כשירות כוללת",
@@ -1000,7 +1019,11 @@ export function DashboardContent({ client, user, onLogout }) {
                         title: "טנק",
                         render: (row) => formatTankLabel(row.tank_id),
                       },
-                      { accessor: "status", title: "סטטוס" },
+                      {
+                        accessor: "status",
+                        title: "סטטוס",
+                        render: (row) => displayStatus(row.status),
+                      },
                       { accessor: "reports", title: "דיווחים" },
                       { accessor: "checked_items", title: "נבדקו" },
                       {

@@ -25,15 +25,29 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ ! -x "$ROOT/.venv/bin/uvicorn" ]]; then
+resolve_python_bin() {
+  if [[ -x "$ROOT/.venv/bin/python" ]]; then
+    echo "$ROOT/.venv/bin/python"
+    return 0
+  fi
+  if [[ -x "$ROOT/.venv2/bin/python" ]]; then
+    echo "$ROOT/.venv2/bin/python"
+    return 0
+  fi
+  return 1
+}
+
+PYTHON_BIN="$(resolve_python_bin || true)"
+if [[ -z "$PYTHON_BIN" ]]; then
   echo "Missing Python environment. Run: ./scripts/setup-venv.sh"
   exit 1
 fi
+VENV_BIN="$(dirname "$PYTHON_BIN")"
 
 # Activate venv
-if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+if [[ -z "${VIRTUAL_ENV:-}" && -f "$VENV_BIN/activate" ]]; then
   # shellcheck disable=SC1091
-  source "$ROOT/.venv/bin/activate"
+  source "$VENV_BIN/activate"
 fi
 
 export PYTHONPATH="$ROOT/src"
@@ -71,6 +85,6 @@ fi
 PORT="${PORT:-8000}"
 echo "Serving Spearhead at http://127.0.0.1:${PORT}/spearhead/"
 if [[ "$RELOAD" -eq 1 ]]; then
-  exec "$ROOT/.venv/bin/uvicorn" --app-dir src spearhead.api.main:app --reload --port "$PORT"
+  exec "$PYTHON_BIN" -m uvicorn --app-dir src spearhead.api.main:app --reload --port "$PORT"
 fi
-exec "$ROOT/.venv/bin/uvicorn" --app-dir src spearhead.api.main:app --port "$PORT"
+exec "$PYTHON_BIN" -m uvicorn --app-dir src spearhead.api.main:app --port "$PORT"
