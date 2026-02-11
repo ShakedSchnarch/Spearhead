@@ -7,6 +7,8 @@ import { SimpleLogin } from "./components/SimpleLogin";
 
 const SESSION_STORAGE_KEY = "spearhead.session.v1";
 
+const BATTALION_ALIASES = new Set(["battalion", "גדוד", "גדוד75", "romach", "romach75"]);
+
 const readStoredSession = () => {
   if (typeof window === "undefined") return null;
   try {
@@ -28,8 +30,19 @@ const persistSession = (session) => {
 
 const normalizePlatoon = (value) => {
   const platoon = (value || "").trim();
-  if (!platoon || platoon.toLowerCase() === "battalion") return "";
+  if (!platoon) return "";
+  const key = platoon.toLowerCase().replace(/[\s_-]/g, "");
+  if (BATTALION_ALIASES.has(key)) return "";
   return platoon;
+};
+
+const normalizeViewMode = (value, normalizedPlatoon) => {
+  const raw = `${value || ""}`.trim();
+  if (!raw) return normalizedPlatoon ? "platoon" : "battalion";
+  const key = raw.toLowerCase().replace(/[\s_-]/g, "");
+  if (key === "battalion" || key === "גדוד") return "battalion";
+  if (key === "platoon" || key === "company" || key === "פלוגה") return "platoon";
+  return normalizedPlatoon ? "platoon" : "battalion";
 };
 
 const buildSession = ({
@@ -40,6 +53,7 @@ const buildSession = ({
   viewMode = "",
 }) => {
   const normalizedPlatoon = normalizePlatoon(platoon);
+  const normalizedViewMode = normalizeViewMode(viewMode, normalizedPlatoon);
   return {
     token,
     session: session || token,
@@ -47,7 +61,7 @@ const buildSession = ({
       email: email || "guest@spearhead.local",
       platoon: normalizedPlatoon,
       role: normalizedPlatoon ? "platoon" : "battalion",
-      viewMode: viewMode || (normalizedPlatoon ? "platoon" : "battalion"),
+      viewMode: normalizedViewMode,
     },
   };
 };

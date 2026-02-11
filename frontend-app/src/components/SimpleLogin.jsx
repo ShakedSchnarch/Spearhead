@@ -62,7 +62,7 @@ export function SimpleLogin({ onLogin }) {
             </Text>
           </div>
           <Badge variant="light" color="cyan" size="lg">
-            Spearhead v2
+            גרסה 2
           </Badge>
         </Group>
 

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -108,10 +109,15 @@ function formatTankLabel(value) {
 export function DashboardContent({ client, user, onLogout }) {
   const fixedCompany = user?.platoon || "";
   const isRestricted = Boolean(fixedCompany);
+  const normalizedViewMode = `${user?.viewMode || ""}`.trim().toLowerCase();
+  const prefersBattalion = normalizedViewMode === "battalion" || normalizedViewMode === "גדוד";
 
-  const [scope, setScope] = useState("company");
+  const [scope, setScope] = useState(() => {
+    if (isRestricted) return "company";
+    return prefersBattalion ? "battalion" : "company";
+  });
   const [week, setWeek] = useState("");
-  const [company, setCompany] = useState(fixedCompany || "Kfir");
+  const [company, setCompany] = useState(fixedCompany || "");
   const [section, setSection] = useState(DEFAULT_SECTIONS[0]);
   const [selectedTankId, setSelectedTankId] = useState(null);
   const [detailsView, setDetailsView] = useState("section");
@@ -120,16 +126,10 @@ export function DashboardContent({ client, user, onLogout }) {
   const selectedScope = isRestricted ? "company" : scope;
   const selectedCompany = isRestricted ? fixedCompany : company;
 
-  const health = useQuery({
-    queryKey: ["health", client.baseUrl],
-    queryFn: ({ signal }) => client.health(signal),
-    staleTime: 60_000,
-  });
-
   const weeks = useQuery({
-    queryKey: ["weeks", client.baseUrl, selectedCompany],
+    queryKey: ["weeks", client.baseUrl, isRestricted ? fixedCompany : "all"],
     queryFn: ({ signal }) =>
-      client.getWeeks({ platoon: isRestricted ? selectedCompany : undefined }, signal),
+      client.getWeeks({ platoon: isRestricted ? fixedCompany : undefined }, signal),
     staleTime: 30_000,
   });
 
@@ -154,29 +154,32 @@ export function DashboardContent({ client, user, onLogout }) {
   const weekParam = selectedWeek || undefined;
 
   const battalionView = useQuery({
-    queryKey: ["battalion-view", client.baseUrl, weekParam, isRestricted ? selectedCompany : "all"],
+    queryKey: ["battalion-view", client.baseUrl, weekParam, isRestricted ? fixedCompany : "all"],
     queryFn: ({ signal }) =>
       client.getBattalionView(
         {
           week: weekParam,
-          company: isRestricted ? selectedCompany : undefined,
+          company: isRestricted ? fixedCompany : undefined,
         },
         signal,
       ),
     staleTime: 10_000,
   });
 
+  const fallbackCompanyFromView = battalionView.data?.companies?.[0] || "";
+  const activeCompanyKey = isRestricted ? fixedCompany : (selectedCompany || fallbackCompanyFromView);
+
   const companyView = useQuery({
-    queryKey: ["company-view", client.baseUrl, selectedCompany, weekParam],
-    queryFn: ({ signal }) => client.getCompanyView(selectedCompany, { week: weekParam }, signal),
-    enabled: Boolean((selectedScope === "company" || isRestricted) && selectedCompany),
+    queryKey: ["company-view", client.baseUrl, activeCompanyKey, weekParam],
+    queryFn: ({ signal }) => client.getCompanyView(activeCompanyKey, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && activeCompanyKey),
     staleTime: 10_000,
   });
 
   const companyTanks = useQuery({
-    queryKey: ["company-tanks", client.baseUrl, selectedCompany, weekParam],
-    queryFn: ({ signal }) => client.getCompanyTanks(selectedCompany, { week: weekParam }, signal),
-    enabled: Boolean((selectedScope === "company" || isRestricted) && selectedCompany),
+    queryKey: ["company-tanks", client.baseUrl, activeCompanyKey, weekParam],
+    queryFn: ({ signal }) => client.getCompanyTanks(activeCompanyKey, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && activeCompanyKey),
     staleTime: 10_000,
   });
 
@@ -209,10 +212,7 @@ export function DashboardContent({ client, user, onLogout }) {
     ? section
     : sectionOptions[0]?.value || DEFAULT_SECTIONS[0];
 
-  const effectiveCompany =
-    isRestricted || selectedScope !== "company"
-      ? selectedCompany
-      : selectedCompany || companyOptions[0]?.value || "";
+  const effectiveCompany = selectedScope === "company" || isRestricted ? activeCompanyKey : "";
 
   const sectionTanks = useQuery({
     queryKey: ["company-section-tanks", client.baseUrl, effectiveCompany, effectiveSection, weekParam],
@@ -316,11 +316,11 @@ export function DashboardContent({ client, user, onLogout }) {
     return names;
   }, [companyOptions, fixedCompany]);
 
-  const selectedCompanyMeta = selectedCompany ? getUnitMeta(selectedCompany) : battalionMeta;
+  const selectedCompanyMeta = activeCompanyKey ? getUnitMeta(activeCompanyKey) : battalionMeta;
   const scopeMeta = selectedScope === "company" ? selectedCompanyMeta : battalionMeta;
   const companyVisual = readinessVisual(companyTankSummary.avg_readiness);
   const selectedWeekLabel =
-    weekOptions.find((option) => option.value === selectedWeek)?.label || selectedWeek || "latest";
+    weekOptions.find((option) => option.value === selectedWeek)?.label || selectedWeek || "ללא שבוע";
   const reportedRatio =
     Number(companyTankSummary.known_tanks || 0) > 0
       ? `${companyTankSummary.reported_tanks || 0}/${companyTankSummary.known_tanks}`
@@ -334,46 +334,32 @@ export function DashboardContent({ client, user, onLogout }) {
 
   const refreshAll = () =>
     Promise.all([
-      health.refetch(),
       weeks.refetch(),
       battalionView.refetch(),
       companyView.refetch(),
       companyTanks.refetch(),
       sectionTanks.refetch(),
     ]);
+  const scopeHasErrors =
+    selectedScope === "battalion"
+      ? Boolean(weeks.isError || battalionView.isError)
+      : Boolean(weeks.isError || battalionView.isError || companyView.isError || companyTanks.isError || sectionTanks.isError);
 
   return (
     <Stack gap="md">
       <Card withBorder className="dashboard-hero">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Group gap="md" align="center">
-            <Group gap="xs" wrap="nowrap" align="center">
-              <Image
-                src={battalionMeta.logo}
-                alt={battalionMeta.label}
-                radius="md"
-                w={72}
-                h={72}
-                fit="cover"
-              />
-              {selectedScope === "company" ? (
-                <>
-                  <Text c="dimmed" fw={700}>
-                    +
-                  </Text>
-                  <Image
-                    src={selectedCompanyMeta.logo}
-                    alt={selectedCompanyMeta.label}
-                    radius="md"
-                    w={62}
-                    h={62}
-                    fit="cover"
-                  />
-                </>
-              ) : null}
-            </Group>
+            <Image
+              src={scopeMeta.logo}
+              alt={scopeMeta.label}
+              radius="md"
+              w={74}
+              h={74}
+              fit="cover"
+            />
             <div>
-              <Title order={2}>Spearhead Command Dashboard</Title>
+              <Title order={2}>קצה הרומח</Title>
               <Text size="sm" c="dimmed">
                 {selectedScope === "company"
                   ? `גדוד 75 · מצב פלוגתי (${selectedCompanyMeta.shortLabel})`
@@ -382,13 +368,31 @@ export function DashboardContent({ client, user, onLogout }) {
               <Text size="sm" c="dimmed">
                 משתמש: {user?.email || "unknown"}
               </Text>
+              <Group gap="xs" mt={4}>
+                <Badge variant="light" color="gray">
+                  גדוד 75
+                </Badge>
+                {selectedScope === "company" ? (
+                  <Badge variant="light" color="cyan">
+                    {selectedCompanyMeta.shortLabel}
+                  </Badge>
+                ) : null}
+              </Group>
             </div>
+            {selectedScope === "company" ? (
+              <Image
+                src={battalionMeta.logo}
+                alt={battalionMeta.label}
+                radius="md"
+                w={46}
+                h={46}
+                fit="cover"
+                opacity={0.9}
+              />
+            ) : null}
           </Group>
 
           <Group gap="xs" align="center">
-            <Badge color={health.isError ? "red" : "teal"} variant="filled" size="lg">
-              API {health.isError ? "OFFLINE" : "ONLINE"}
-            </Badge>
             <Badge variant="light" size="lg" style={{ borderColor: scopeMeta.color }}>
               {selectedScope === "company" ? selectedCompanyMeta.label : "תצוגה גדודית"}
             </Badge>
@@ -431,14 +435,14 @@ export function DashboardContent({ client, user, onLogout }) {
             searchable
             clearable={false}
             w={{ base: "100%", sm: 340 }}
-            placeholder="latest"
+            placeholder="בחירת שבוע"
           />
 
           {selectedScope === "company" || isRestricted ? (
             <Select
               label="פלוגה"
               data={companyOptions}
-              value={selectedCompany}
+              value={activeCompanyKey || null}
               onChange={(value) => setCompany(value || "")}
               disabled={isRestricted}
               searchable
@@ -452,12 +456,18 @@ export function DashboardContent({ client, user, onLogout }) {
         </Text>
       </Card>
 
+      {scopeHasErrors ? (
+        <Alert color="red" variant="light" title="שגיאת טעינה">
+          לא הצלחנו לטעון את הנתונים כרגע. נסה ללחוץ על "רענון נתונים". אם זה ממשיך, בצע התחברות מחדש.
+        </Alert>
+      ) : null}
+
       {!isRestricted && availableCompanies.length ? (
         <Card withBorder>
           <Group gap="sm" wrap="wrap">
             {availableCompanies.map((companyName) => {
               const meta = getUnitMeta(companyName);
-              const active = selectedScope === "company" && selectedCompany === companyName;
+              const active = selectedScope === "company" && activeCompanyKey === companyName;
               return (
                 <Button
                   key={companyName}
@@ -483,7 +493,7 @@ export function DashboardContent({ client, user, onLogout }) {
             <div>
               <Text fw={700}>השוואה גדודית</Text>
               <Text size="sm" c="dimmed">
-                שבוע {battalionView.data?.week_id || selectedWeek || "latest"}
+                שבוע {battalionView.data?.week_id || selectedWeek || "ללא שבוע"}
               </Text>
             </div>
             <Text size="sm" c="dimmed">
@@ -834,9 +844,9 @@ export function DashboardContent({ client, user, onLogout }) {
           <Card withBorder>
             <Group justify="space-between" mb="sm" wrap="wrap">
               <div>
-                <Text fw={700}>תמונת מצב פלוגתית: {selectedCompany || "-"}</Text>
+                <Text fw={700}>תמונת מצב פלוגתית: {activeCompanyKey || "-"}</Text>
                 <Text size="sm" c="dimmed">
-                  שבוע {companyView.data?.week_id || selectedWeek || "latest"}
+                  שבוע {companyView.data?.week_id || selectedWeek || "ללא שבוע"}
                 </Text>
               </div>
               <Text size="sm" c="dimmed">
