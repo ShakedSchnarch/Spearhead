@@ -79,6 +79,19 @@ def test_v1_ingestion_and_queries(tmp_path, monkeypatch):
     assert tanks.status_code == 200
     assert len(tanks.json()["rows"]) == 1
 
+    weeks_meta = client.get("/v1/metadata/weeks")
+    assert weeks_meta.status_code == 200
+    weeks_body = weeks_meta.json()
+    assert weeks_body["weeks"]
+    assert weeks_body["week_options"]
+    first_option = weeks_body["week_options"][0]
+    assert first_option["value"] == weeks_body["weeks"][0]
+    assert "label" in first_option
+    assert "start_date" in first_option
+    assert "end_date" in first_option
+    assert weeks_body["week_starts_on"] == "sunday"
+    assert weeks_body["timezone"] == "Asia/Jerusalem"
+
     trends = client.get("/v1/queries/trends", params={"metric": "reports", "window_weeks": 4})
     assert trends.status_code == 200
     assert trends.json()["rows"]

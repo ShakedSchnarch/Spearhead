@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from spearhead.config import settings
 from spearhead.config_fields import field_config
@@ -80,6 +82,9 @@ class ResponseIngestionServiceV2:
 
 
 class ResponseQueryServiceV2:
+    _WEEK_ID_PATTERN = re.compile(r"^(?P<year>\d{4})-W(?P<week>\d{2})$")
+    _DEFAULT_WEEK_TIMEZONE = "Asia/Jerusalem"
+
     def __init__(self, store: ResponseStore):
         self.store = store
         self._mapper = FieldMapper()
@@ -165,6 +170,28 @@ class ResponseQueryServiceV2:
 
     def list_weeks(self, platoon_key: Optional[str] = None) -> list[str]:
         return self.store.list_weeks(platoon_key=platoon_key)
+
+    def week_metadata(self, platoon_key: Optional[str] = None) -> dict[str, Any]:
+        weeks = self.list_weeks(platoon_key=platoon_key)
+        timezone_name = self._DEFAULT_WEEK_TIMEZONE
+        today = datetime.now(ZoneInfo(timezone_name)).date()
+
+        options: list[dict[str, Any]] = []
+        current_week: Optional[str] = None
+
+        for week_id in weeks:
+            option = self._build_week_option(week_id=week_id, today=today)
+            if option["is_current"] and current_week is None:
+                current_week = week_id
+            options.append(option)
+
+        return {
+            "weeks": weeks,
+            "current_week": current_week,
+            "week_options": options,
+            "timezone": timezone_name,
+            "week_starts_on": "sunday",
+        }
 
     def overview(self, week_id: Optional[str], platoon_key: Optional[str] = None) -> dict[str, Any]:
         target_week = week_id or self.latest_week()
@@ -1061,6 +1088,57 @@ class ResponseQueryServiceV2:
             if week < target_week:
                 return week
         return None
+
+    def _build_week_option(self, week_id: str, *, today: date) -> dict[str, Any]:
+        parsed = self._parse_week_id(week_id)
+        if not parsed:
+            return {
+                "value": week_id,
+                "label": week_id,
+                "week_number": None,
+                "start_date": None,
+                "end_date": None,
+                "is_current": False,
+            }
+
+        year, week_num = parsed
+        try:
+            monday = datetime.fromisocalendar(year, week_num, 1).date()
+        except ValueError:
+            return {
+                "value": week_id,
+                "label": week_id,
+                "week_number": week_num,
+                "start_date": None,
+                "end_date": None,
+                "is_current": False,
+            }
+
+        # UI week starts on Sunday (Israel), while stored week_id remains ISO-based.
+        week_start = monday - timedelta(days=1)
+        week_end = week_start + timedelta(days=6)
+        is_current = week_start <= today <= week_end
+        label = f"שבוע {week_num} · {week_start.strftime('%d.%m.%Y')} - {week_end.strftime('%d.%m.%Y')}"
+
+        return {
+            "value": week_id,
+            "label": label,
+            "week_number": week_num,
+            "start_date": week_start.isoformat(),
+            "end_date": week_end.isoformat(),
+            "is_current": is_current,
+        }
+
+    @classmethod
+    def _parse_week_id(cls, week_id: str) -> Optional[tuple[int, int]]:
+        if not week_id:
+            return None
+        match = cls._WEEK_ID_PATTERN.match(str(week_id).strip())
+        if not match:
+            return None
+        year = int(match.group("year"))
+        week = int(match.group("week"))
+        return year, week
 
     def _empty_section_metrics(self, company: str, section: str) -> dict[str, Any]:
         return {

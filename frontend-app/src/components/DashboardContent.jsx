@@ -77,7 +77,6 @@ export function DashboardContent({ client, user, onLogout }) {
 
   const selectedScope = isRestricted ? "company" : scope;
   const selectedCompany = isRestricted ? fixedCompany : company;
-  const weekParam = week || undefined;
 
   const health = useQuery({
     queryKey: ["health", client.baseUrl],
@@ -119,10 +118,25 @@ export function DashboardContent({ client, user, onLogout }) {
     staleTime: 10_000,
   });
 
-  const weekOptions = useMemo(
-    () => (weeks.data?.weeks || []).map((value) => ({ value, label: value })),
-    [weeks.data],
-  );
+  const weekOptions = useMemo(() => {
+    const metadataOptions = weeks.data?.week_options || [];
+    if (metadataOptions.length) {
+      return metadataOptions.map((option) => ({
+        value: option.value,
+        label: option.label || option.value,
+      }));
+    }
+    return (weeks.data?.weeks || []).map((value) => ({ value, label: value }));
+  }, [weeks.data]);
+
+  const currentWeekFromApi = weeks.data?.current_week || "";
+  const selectedWeek = useMemo(() => {
+    const values = new Set(weekOptions.map((option) => option.value));
+    if (week && values.has(week)) return week;
+    if (currentWeekFromApi && values.has(currentWeekFromApi)) return currentWeekFromApi;
+    return weekOptions[0]?.value || "";
+  }, [week, weekOptions, currentWeekFromApi]);
+  const weekParam = selectedWeek || undefined;
 
   const companyOptions = useMemo(() => {
     const fromView = battalionView.data?.companies || [];
@@ -270,10 +284,10 @@ export function DashboardContent({ client, user, onLogout }) {
           <Select
             label="שבוע"
             data={weekOptions}
-            value={week}
+            value={selectedWeek}
             onChange={(value) => setWeek(value || "")}
             searchable
-            clearable
+            clearable={false}
             w={180}
             placeholder="latest"
           />
@@ -324,7 +338,7 @@ export function DashboardContent({ client, user, onLogout }) {
             <div>
               <Text fw={700}>השוואה גדודית</Text>
               <Text size="sm" c="dimmed">
-                שבוע {battalionView.data?.week_id || week || "latest"}
+                שבוע {battalionView.data?.week_id || selectedWeek || "latest"}
               </Text>
             </div>
             <Text size="sm" c="dimmed">
@@ -422,7 +436,7 @@ export function DashboardContent({ client, user, onLogout }) {
               <div>
                 <Text fw={700}>תמונת מצב פלוגתית: {selectedCompany || "-"}</Text>
                 <Text size="sm" c="dimmed">
-                  שבוע {companyView.data?.week_id || week || "latest"}
+                  שבוע {companyView.data?.week_id || selectedWeek || "latest"}
                 </Text>
               </div>
               <Text size="sm" c="dimmed">

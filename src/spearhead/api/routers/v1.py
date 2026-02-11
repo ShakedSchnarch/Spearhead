@@ -143,8 +143,7 @@ def metadata_weeks(
     user: User = Depends(get_current_user),
 ):
     scoped_platoon = _resolve_scope(user, platoon)
-    weeks = svc.list_weeks(platoon_key=scoped_platoon)
-    return {"weeks": weeks}
+    return svc.week_metadata(platoon_key=scoped_platoon)
 
 
 @router.get("/views/battalion")
