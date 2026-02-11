@@ -5,9 +5,11 @@ import {
   Button,
   Card,
   Divider,
+  Drawer,
   Group,
   Image,
   Loader,
+  RingProgress,
   SegmentedControl,
   Select,
   SimpleGrid,
@@ -62,6 +64,20 @@ function formatScore(value) {
   return `${Number(value).toFixed(1)}%`;
 }
 
+function readinessVisual(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) {
+    return { color: "gray", label: "ללא נתון", accent: "#64748b" };
+  }
+  if (value >= 80) {
+    return { color: "teal", label: "כשיר", accent: "#14b8a6" };
+  }
+  if (value >= 60) {
+    return { color: "yellow", label: "בינוני", accent: "#f59e0b" };
+  }
+  return { color: "red", label: "דורש טיפול", accent: "#ef4444" };
+}
+
 function displaySection(section, sectionNames = {}) {
   return sectionNames?.[section] || SECTION_DISPLAY[section] || section;
 }
@@ -74,6 +90,7 @@ export function DashboardContent({ client, user, onLogout }) {
   const [week, setWeek] = useState("");
   const [company, setCompany] = useState(fixedCompany || "Kfir");
   const [section, setSection] = useState(DEFAULT_SECTIONS[0]);
+  const [selectedTankId, setSelectedTankId] = useState(null);
 
   const selectedScope = isRestricted ? "company" : scope;
   const selectedCompany = isRestricted ? fixedCompany : company;
@@ -191,9 +208,24 @@ export function DashboardContent({ client, user, onLogout }) {
   const battalionCompanies = battalionView.data?.companies || [];
   const hasBattalionComparison = battalionCompanies.length > 1;
 
-  const tanksRows = sectionTanks.data?.rows || [];
-  const companyTankRows = companyTanks.data?.rows || [];
+  const tanksRows = useMemo(() => sectionTanks.data?.rows || [], [sectionTanks.data]);
+  const companyTankRows = useMemo(() => companyTanks.data?.rows || [], [companyTanks.data]);
   const companyTankSummary = companyTanks.data?.summary || {};
+  const selectedTank = useMemo(
+    () => companyTankRows.find((row) => row.tank_id === selectedTankId) || null,
+    [companyTankRows, selectedTankId],
+  );
+  const tankStatusCards = useMemo(
+    () =>
+      companyTankRows
+        .slice()
+        .sort((a, b) => String(a.tank_id).localeCompare(String(b.tank_id), "he"))
+        .map((row) => ({
+          ...row,
+          readiness: readinessVisual(row.readiness_score),
+        })),
+    [companyTankRows],
+  );
   const selectedSectionSummary = useMemo(
     () => sectionRows.find((row) => row.section === effectiveSection),
     [sectionRows, effectiveSection],
@@ -431,6 +463,185 @@ export function DashboardContent({ client, user, onLogout }) {
         </Card>
       ) : (
         <>
+          <Card withBorder>
+            <Stack gap="sm">
+              <Group justify="space-between" wrap="wrap">
+                <div>
+                  <Text fw={700}>תמונת כשירות פלוגתית חזותית</Text>
+                  <Text size="sm" c="dimmed">
+                    אינדיקציה מהירה לישיבה: צבע = מצב כשירות
+                  </Text>
+                </div>
+                <Badge variant="light" color="cyan">
+                  כשירות ממוצעת: {formatScore(companyTankSummary.avg_readiness)}
+                </Badge>
+              </Group>
+              {companyView.isFetching ? (
+                <Loader size="sm" />
+              ) : sectionRows.length === 0 ? (
+                <EmptyState label="אין נתוני תחומים להצגה חזותית." />
+              ) : (
+                <SimpleGrid cols={{ base: 1, md: 3 }}>
+                  {sectionRows.map((row) => {
+                    const visual = readinessVisual(row.readiness_score);
+                    return (
+                      <Card key={`visual-${row.section}`} withBorder className="visual-summary-card">
+                        <Stack align="center" gap={6}>
+                          <Text fw={700}>{displaySection(row.section, sectionDisplayNames)}</Text>
+                          <RingProgress
+                            size={126}
+                            thickness={13}
+                            roundCaps
+                            sections={[
+                              {
+                                value: Number.isFinite(Number(row.readiness_score))
+                                  ? Math.max(0, Math.min(100, Number(row.readiness_score)))
+                                  : 0,
+                                color: visual.color,
+                              },
+                            ]}
+                            label={<Text fw={700}>{formatScore(row.readiness_score)}</Text>}
+                          />
+                          <Badge variant="light" color={visual.color}>
+                            {visual.label}
+                          </Badge>
+                          <Text size="sm" c="dimmed">
+                            פערים: {row.total_gaps} | קריטיים: {row.critical_gaps || 0}
+                          </Text>
+                        </Stack>
+                      </Card>
+                    );
+                  })}
+                </SimpleGrid>
+              )}
+            </Stack>
+          </Card>
+
+          <Card withBorder>
+            <Stack gap="sm">
+              <Group justify="space-between" wrap="wrap">
+                <div>
+                  <Text fw={700}>מפת טנקים פלוגתית</Text>
+                  <Text size="sm" c="dimmed">
+                    לחיצה על טנק פותחת פירוט לפי לוגיסטיקה, חימוש ותקשוב
+                  </Text>
+                </div>
+                <Group gap="xs">
+                  <Badge variant="light" color="teal">
+                    כשיר
+                  </Badge>
+                  <Badge variant="light" color="yellow">
+                    בינוני
+                  </Badge>
+                  <Badge variant="light" color="red">
+                    דורש טיפול
+                  </Badge>
+                </Group>
+              </Group>
+              {companyTanks.isFetching ? (
+                <Loader size="sm" />
+              ) : tankStatusCards.length === 0 ? (
+                <EmptyState label="אין טנקים להצגה בשבוע זה." />
+              ) : (
+                <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 5 }}>
+                  {tankStatusCards.map((row) => (
+                    <Card
+                      key={`tank-card-${row.tank_id}`}
+                      withBorder
+                      className="tank-status-card"
+                      style={{
+                        borderColor: row.readiness.accent,
+                        boxShadow:
+                          selectedTank?.tank_id === row.tank_id
+                            ? `0 0 0 1px ${row.readiness.accent}`
+                            : undefined,
+                      }}
+                      onClick={() => setSelectedTankId(row.tank_id)}
+                    >
+                      <Stack gap={4}>
+                        <Group justify="space-between" align="center">
+                          <Text fw={700}>צ׳{row.tank_id}</Text>
+                          <Badge variant="filled" color={row.readiness.color}>
+                            {row.readiness.label}
+                          </Badge>
+                        </Group>
+                        <Text size="sm">כשירות: {formatScore(row.readiness_score)}</Text>
+                        <Text size="xs" c="dimmed">
+                          קריטיים: {row.critical_gaps || 0}
+                        </Text>
+                      </Stack>
+                    </Card>
+                  ))}
+                </SimpleGrid>
+              )}
+            </Stack>
+          </Card>
+
+          <Drawer
+            opened={Boolean(selectedTank)}
+            onClose={() => setSelectedTankId(null)}
+            title={selectedTank ? `פירוט טנק צ׳${selectedTank.tank_id}` : "פירוט טנק"}
+            position="left"
+            size="lg"
+          >
+            {selectedTank ? (
+              <Stack gap="sm">
+                <Group gap="xs">
+                  <Badge variant="light" color={readinessVisual(selectedTank.readiness_score).color}>
+                    כשירות כוללת: {formatScore(selectedTank.readiness_score)}
+                  </Badge>
+                  <Badge variant="light" color="red">
+                    חריגים קריטיים: {selectedTank.critical_gaps || 0}
+                  </Badge>
+                </Group>
+                <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                  <Card withBorder>
+                    <Text size="sm" c="dimmed">
+                      לוגיסטיקה
+                    </Text>
+                    <Text fw={700}>{formatScore(selectedTank.logistics_readiness)}</Text>
+                  </Card>
+                  <Card withBorder>
+                    <Text size="sm" c="dimmed">
+                      חימוש
+                    </Text>
+                    <Text fw={700}>{formatScore(selectedTank.armament_readiness)}</Text>
+                  </Card>
+                  <Card withBorder>
+                    <Text size="sm" c="dimmed">
+                      תקשוב
+                    </Text>
+                    <Text fw={700}>{formatScore(selectedTank.communications_readiness)}</Text>
+                  </Card>
+                </SimpleGrid>
+                <Card withBorder>
+                  <Text fw={700} mb={6}>
+                    אמצעים קריטיים בפער
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    {selectedTank.critical_items?.length
+                      ? selectedTank.critical_items
+                          .map((item) => `${item.item} (${item.gaps})`)
+                          .join(", ")
+                      : "אין חריגים קריטיים בטנק זה."}
+                  </Text>
+                </Card>
+                <Card withBorder>
+                  <Text fw={700} mb={6}>
+                    כלל הפערים בטנק
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    {selectedTank.gap_items?.length
+                      ? selectedTank.gap_items
+                          .map((item) => `${item.item} (${item.gaps})`)
+                          .join(", ")
+                      : "לא נמצאו פערים בדיווח."}
+                  </Text>
+                </Card>
+              </Stack>
+            ) : null}
+          </Drawer>
+
           <Card withBorder>
             <Group justify="space-between" mb="sm" wrap="wrap">
               <div>
