@@ -14,28 +14,28 @@ const UNIT_CATALOG = {
     key: "כפיר",
     label: "פלוגת כפיר",
     shortLabel: "כפיר",
-    color: "#22c55e",
+    color: "#2563eb",
     logo: logoPath("Kfir_logo.JPG"),
   },
   "מחץ": {
     key: "מחץ",
     label: "פלוגת מחץ",
     shortLabel: "מחץ",
-    color: "#f59e0b",
+    color: "#7c3aed",
     logo: logoPath("Machatz_logo.JPG"),
   },
   "סופה": {
     key: "סופה",
     label: "פלוגת סופה",
     shortLabel: "סופה",
-    color: "#3b82f6",
+    color: "#ec4899",
     logo: logoPath("Sufa_logo.JPG"),
   },
   "פלס״מ": {
     key: "פלס״מ",
     label: "פלס״מ",
     shortLabel: "פלס״מ",
-    color: "#e11d48",
+    color: "#64748b",
     logo: logoPath("Palsam_logo.JPG"),
   },
 };
@@ -80,7 +80,7 @@ export const getUnitMeta = (value) => {
   };
 };
 
-export const COMPANY_KEYS = ["כפיר", "מחץ", "סופה", "פלס״מ"];
+export const COMPANY_KEYS = ["כפיר", "מחץ", "סופה"];
 
 export const LOGIN_UNIT_OPTIONS = [
   { value: "battalion", label: UNIT_CATALOG.battalion.shortLabel },

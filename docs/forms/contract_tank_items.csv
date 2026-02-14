@@ -1,0 +1,130 @@
+section,family,item,standard_quantity,critical,requires_category_code
+Armament,kashpal,מגבר 1,1.0,no,no
+Armament,kashpal,מגבר 2,,no,no
+Armament,kashpal,מגבר 3,,no,no
+Communications,communications_core,גנטקס,5.0,no,no
+Communications,communications_core,מיק חירום,1.0,no,no
+Communications,communications_core,מעד,1.0,no,no
+Communications,communications_core,מקמש,1.0,no,no
+Communications,communications_core,פתיל,5.0,no,no
+Communications,communications_core,רמק,1.0,no,no
+Communications,device_issue_matrix,NFC,,no,no
+Communications,device_issue_matrix,אולר,,no,no
+Communications,device_issue_matrix,אלעד ירוק,,no,no
+Communications,device_issue_matrix,אמרל,,no,no
+Communications,device_issue_matrix,בורוסייט,,no,no
+Communications,device_issue_matrix,מאג 1,,no,no
+Communications,device_issue_matrix,מאג 2,,no,no
+Communications,device_issue_matrix,מבן,,no,no
+Communications,device_issue_matrix,מדיה\נר לילה,,no,no
+Communications,device_issue_matrix,מצפן,,no,no
+Communications,device_issue_matrix,מקלע 05,,no,no
+Communications,device_issue_matrix,מקמש\מגן מכלול,,no,no
+Communications,device_issue_matrix,משקפת,,no,no
+Communications,device_issue_matrix,סלולר,,no,no
+Communications,office,מדפסת,1.0,no,no
+Communications,office,מחשב 1,1.0,no,no
+Communications,office,מחשב 2,1.0,no,no
+Communications,office,מחשב 3,,no,no
+Communications,office,מסך 1,1.0,no,no
+Communications,office,מסך 2,1.0,no,no
+Communications,office,מסך 3,1.0,no,no
+Communications,office,מקלדת 1,1.0,no,no
+Communications,office,מקלדת 2,1.0,no,no
+Communications,office,מקלדת 3,1.0,no,no
+Communications,office,עכבר 1,1.0,no,no
+Communications,office,עכבר 2,1.0,no,no
+Communications,office,עכבר 3,1.0,no,no
+Communications,ranger,2 שייקספיר,2.0,no,no
+Communications,ranger,NFC,,no,no
+Communications,ranger,אנטנת מבן,,no,no
+Communications,ranger,מבן,,no,no
+Communications,ranger,מכלול,1.0,no,no
+Communications,ranger,מעד,1.0,no,no
+Communications,ranger,משיב מיקום,563365.0,no,no
+Communications,ranger,נר לילה,587009.0,no,no
+Communications,ranger,קפ שליטה,1.0,no,no
+Communications,ranger,רמק,1.0,no,no
+Logistics,ammo,0.5,2.0,no,no
+Logistics,ammo,חלול,10.0,no,no
+Logistics,ammo,חץ,3.0,no,no
+Logistics,ammo,חצב,17.0,no,no
+Logistics,ammo,כלנית,4.0,no,no
+Logistics,ammo,מאג,40.0,no,no
+Logistics,ammo,מטען ניתוק זחל,1.0,no,no
+Logistics,ammo,מעיל רוח,6.0,no,no
+Logistics,ammo,נונל,1.0,no,no
+Logistics,ammo,"סט שיני חזיר\נג""ח",1.0,no,no
+Logistics,ammo,רימון רסס,4.0,no,no
+Logistics,ammo,שאקל 25,2.0,no,no
+Logistics,ammo,שאקל 5,4 פלוגתי,no,no
+Logistics,ammo,שאקל קרנף,2.0,no,no
+Logistics,ammo,שרשרת גרירה,3.0,no,no
+Logistics,zivud,2מפתח פלטות,2.0,yes,no
+Logistics,zivud,איזמל,1.0,no,no
+Logistics,zivud,איציק,1.0,yes,no
+Logistics,zivud,אלונקה,1.0,yes,no
+Logistics,zivud,אלונקת מעוז,1.0,no,no
+Logistics,zivud,את חפירה,1.0,no,no
+Logistics,zivud,בוחן מעגלי ירי,1.0,no,no
+Logistics,zivud,בוקסה 1 1\2,1.0,no,no
+Logistics,zivud,בוקסה 1\5\16,1.0,yes,no
+Logistics,zivud,בוקסה 9\16,1.0,no,no
+Logistics,zivud,בורג עין,1.0,no,no
+Logistics,zivud,בייבי קוני,1.0,yes,no
+Logistics,zivud,גביע חליצה,1.0,no,no
+Logistics,zivud,גבקה,1.0,no,no
+Logistics,zivud,גק ערבי,1.0,no,no
+Logistics,zivud,גריקן 20 ליטר,1.0,no,no
+Logistics,zivud,זרקור עזר,1.0,no,no
+Logistics,zivud,חבל פריסה,1.0,yes,no
+Logistics,zivud,ידית T,1.0,no,no
+Logistics,zivud,ידית כוח 3\4,1.0,yes,no
+Logistics,zivud,ידית כוח חצי,1.0,yes,no
+Logistics,zivud,כבל הנעה,1.0,no,no
+Logistics,zivud,כיסוי 05,1.0,no,no
+Logistics,zivud,כיסוי מאג,1.0,no,no
+Logistics,zivud,כיסוי תובה,,no,no
+Logistics,zivud,כיסוי תותח,1.0,no,no
+Logistics,zivud,כפפות אסבסט,1.0,no,no
+Logistics,zivud,לום,1.0,yes,no
+Logistics,zivud,מאריך ארוך 1\2,1.0,no,no
+Logistics,zivud,מאריך ארוך 3\4,1.0,no,no
+Logistics,zivud,"מאריך חש""ן",1.0,yes,no
+Logistics,zivud,מאריך קצר 1\2,1.0,no,no
+Logistics,zivud,מאריך קצר 3\4,1.0,no,no
+Logistics,zivud,"מברג קנ""ר",1.0,no,no
+Logistics,zivud,מברשת 4,1.0,no,no
+Logistics,zivud,מברשת בית בליעה,1.0,no,no
+Logistics,zivud,מגזרי תיל,1.0,no,no
+Logistics,zivud,מגרזת,1.0,no,no
+Logistics,zivud,מד מומנט,1.0,no,no
+Logistics,zivud,מחט ירי,2.0,yes,no
+Logistics,zivud,מפרק חצי,1.0,no,no
+Logistics,zivud,מפתח Y,1.0,yes,no
+Logistics,zivud,מפתח כיס,1.0,no,no
+Logistics,zivud,מפתח כליר,1.0,no,no
+Logistics,zivud,מפתח שוודי,1.0,no,no
+Logistics,zivud,מקלות חוטר,9.0,yes,no
+Logistics,zivud,משאבת סולר,,no,no
+Logistics,zivud,משלק,1.0,yes,no
+Logistics,zivud,משמנת,1.0,no,no
+Logistics,zivud,נגח חולץ,1.0,no,no
+Logistics,zivud,עצר לטנק,1.0,no,no
+Logistics,zivud,פודל,1.0,no,no
+Logistics,zivud,פוט שוש,1.0,no,no
+Logistics,zivud,פטיש 5,1.0,yes,no
+Logistics,zivud,פטיש עיסית,1.0,no,no
+Logistics,zivud,פטיש קילו,1.0,yes,no
+Logistics,zivud,פיסת אבטחה,1.0,no,no
+Logistics,zivud,פליז,1.0,no,no
+Logistics,zivud,פלייר,1.0,no,no
+Logistics,zivud,"פנל זיהוי רק""מ",1.0,no,no
+Logistics,zivud,קרינור,1.0,no,no
+Logistics,zivud,ראצר 3\4,1.0,no,no
+Logistics,zivud,ראצר חצי,1.0,no,no
+Logistics,zivud,ראצר סדן,1.0,no,no
+Logistics,zivud,ראשוני,1.0,yes,no
+Logistics,zivud,שוש אייל,1.0,no,no
+Logistics,zivud,שפכטל,1.0,no,no
+Logistics,zivud,תיק כלי עבודה,1.0,no,no

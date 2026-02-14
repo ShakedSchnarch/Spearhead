@@ -31,3 +31,4 @@ Last updated: 2026-02-14
 | C-005 | 2026-02-14 | Release gate hardening: `scripts/release-check.sh` now validates lint, merge markers, and TODO/FIXME markers |
 | C-006 | 2026-02-14 | Added remote-AI API test coverage for `/v1/views/battalion/ai-analysis` with mocked client |
 | C-007 | 2026-02-14 | Final pre-release local smoke completed (UI + battalion endpoints + remote AI + multi-company ingestion duplicates check) |
+| C-008 | 2026-02-14 | Improved battalion AI prompt/context + structured UI rendering, fixed company color system, compacted ammo table UX, and generated commander-review standards contract docs |

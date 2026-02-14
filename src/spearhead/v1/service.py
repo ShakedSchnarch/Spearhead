@@ -1357,8 +1357,7 @@ class ResponseQueryServiceV2:
                 continue
             for field_name, value in row.get("fields", {}).items():
                 family = self._family_for_field(field_name)
-                section = self._section_for_field(field_name)
-                if family != "ammo" and section != "Logistics":
+                if family != "ammo":
                     continue
                 item = self._item_for_field(field_name)
                 key = (tank_id, item)
@@ -1383,19 +1382,22 @@ class ResponseQueryServiceV2:
         for item, values in per_item.items():
             total = int(values.get("tanks_total") or 0)
             available = int(values.get("available_tanks") or 0)
+            gap_tanks = int(values.get("gap_tanks") or 0)
             rate = round((available / total) * 100.0, 1) if total else 0.0
             result.append(
                 {
                     "item": item,
                     "available_tanks": available,
-                    "gap_tanks": int(values.get("gap_tanks") or 0),
+                    "gap_tanks": gap_tanks,
                     "total_tanks": total,
+                    "availability_pct": rate,
                     "coverage_rate": rate,
                     "availability_rate": rate,
+                    "status_balance": f"{available}/{total}" if total else "0/0",
                 }
             )
-        result.sort(key=lambda row: (row.get("availability_rate", 0.0), row.get("item", "")))
-        return result[:30]
+        result.sort(key=lambda row: (row.get("availability_pct", 0.0), row.get("item", "")))
+        return result[:24]
 
     def _build_company_trends(self, company: str, target_week: str, window_weeks: int = 6) -> dict[str, Any]:
         weeks = self.list_weeks(platoon_key=company)
@@ -1523,7 +1525,8 @@ class ResponseQueryServiceV2:
 
         deterministic = self._deterministic_battalion_analysis(payload=payload, rows=rows)
         context_payload = self._build_battalion_ai_context(payload=payload, rows=rows, platoon_scope=platoon_scope)
-        context = json.dumps(context_payload, ensure_ascii=False)[:12000]
+        sanitized_context_payload = self._sanitize_ai_context(context_payload)
+        context = json.dumps(sanitized_context_payload, ensure_ascii=False)[:12000]
         prompt = self._build_battalion_ai_prompt()
         structured = deterministic
         source = "deterministic"
@@ -2166,6 +2169,25 @@ class ResponseQueryServiceV2:
             priority = str(item.get("priority") or "").strip().upper()
             lines.append(f"{idx}. [{priority}] {action} | אחראי: {owner}")
         return "\n".join(line for line in lines if line is not None).strip()
+
+    def _sanitize_ai_context(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: self._sanitize_ai_context(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [self._sanitize_ai_context(item) for item in value]
+        if isinstance(value, tuple):
+            return [self._sanitize_ai_context(item) for item in value]
+        if isinstance(value, str):
+            return self._redact_category_codes_in_text(value)
+        return value
+
+    @staticmethod
+    def _redact_category_codes_in_text(text: str) -> str:
+        # Remove catalog/category identifiers such as "צ׳12345" before sending remote AI context.
+        return re.sub(r"צ[׳']?\s*\d{2,6}", "צ׳[REDACTED]", str(text or ""))
 
     @staticmethod
     def _company_display_name(company: str) -> str:

@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 
 from spearhead.api.main import create_app
 from spearhead.config import settings
+from spearhead.data.storage import Database
+from spearhead.v1 import ResponseQueryServiceV2, ResponseStore
 
 
 def _sample_event(platoon: str = "כפיר", tank: str = "צ'653", gap: str = "חוסר"):
@@ -364,6 +366,25 @@ def test_v1_battalion_ai_analysis_uses_remote_client_when_enabled(tmp_path, monk
         settings.ai.enabled = prev_enabled
         settings.ai.provider = prev_provider
         settings.ai.base_url = prev_base_url
+
+
+def test_v1_ai_context_redacts_category_codes(tmp_path):
+    db_path = tmp_path / "v1_ai_sanitize.db"
+    store = ResponseStore(Database(db_path))
+    svc = ResponseQueryServiceV2(store=store)
+
+    payload = {
+        "item": "מחסנית צ׳12345",
+        "notes": ["בדיקת צ'9876", "ללא קוד"],
+        "nested": {"code": "פריט צ׳ 654321"},
+    }
+    sanitized = svc._sanitize_ai_context(payload)
+    rendered = json.dumps(sanitized, ensure_ascii=False)
+
+    assert "12345" not in rendered
+    assert "9876" not in rendered
+    assert "654321" not in rendered
+    assert rendered.count("[REDACTED]") == 3
 
 
 def test_deprecated_endpoints_return_410(tmp_path):

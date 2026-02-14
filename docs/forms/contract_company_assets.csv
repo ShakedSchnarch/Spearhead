@@ -1,0 +1,12 @@
+section,group,item,standard_quantity,critical,requires_category_code,aliases
+Armament,חלפים,"ח""ח פלוגתי",,yes,no,"חלפים פלוגתי, חלפים, ח""ח"
+Armament,חלפים,חוליות אקסטרה פלוגתי,,yes,no,
+Armament,חלפים,פינים אקסטרה פלוגתי,,yes,no,
+Armament,שמנים,2510 אקסטרה פלוגתי,1,no,no,
+Armament,שמנים,2640 אקסטרה פלוגתי,1,no,no,
+Armament,שמנים,גריז 2040 פלוגתי,1,no,no,
+Armament,שמנים,גריז 4080 פלוגתי,1,no,no,
+Company Assets,דיווחים פלוגתיים,דוח צלם- נוספים,,no,no,"צלם, דוח צלם"
+Company Assets,דיווחים פלוגתיים,"דוח ת""ת פלוגתי",,no,no,"דוח ת""ת, תת פלוגתי, ת״ת"
+Company Assets,דיווחים פלוגתיים,ציוד קשפל,,no,no,קשפל
+Company Assets,דיווחים פלוגתיים,ציוד רנגלר,,no,no,רנגלר

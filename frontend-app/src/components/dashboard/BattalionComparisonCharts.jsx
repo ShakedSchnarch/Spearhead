@@ -1,6 +1,16 @@
 import { useMemo } from "react";
-import { BarChart, DonutChart, LineChart } from "@mantine/charts";
+import { DonutChart, LineChart } from "@mantine/charts";
 import { Card, SimpleGrid, Text } from "@mantine/core";
+import {
+  Bar as ReBar,
+  BarChart as ReBarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip as ReTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { getUnitMeta } from "../../config/unitMeta";
 
@@ -60,12 +70,29 @@ export function BattalionComparisonCharts({ rows, weeklyReadinessRows }) {
         <Text size="sm" c="dimmed" mb="xs">
           השוואת כשירות פלוגתית
         </Text>
-        <BarChart
-          h={170}
-          data={chartData}
-          dataKey="company"
-          series={[{ name: "readiness", label: "כשירות", color: "cyan.6" }]}
-        />
+        <div style={{ height: 170 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ReBarChart data={chartData} margin={{ top: 6, right: 8, left: -12, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.24)" />
+              <XAxis dataKey="company" axisLine={false} tickLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#94a3b8", fontSize: 12 }}
+                domain={[0, 100]}
+              />
+              <ReTooltip
+                cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
+                formatter={(value) => [`${Number(value || 0).toFixed(1)}%`, "כשירות"]}
+              />
+              <ReBar dataKey="readiness" radius={[8, 8, 0, 0]}>
+                {chartData.map((entry) => (
+                  <Cell key={`readiness-${entry.key}`} fill={entry.color} />
+                ))}
+              </ReBar>
+            </ReBarChart>
+          </ResponsiveContainer>
+        </div>
       </Card>
       <Card withBorder>
         <Text size="sm" c="dimmed" mb="xs">

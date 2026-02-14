@@ -106,6 +106,7 @@ export function DashboardContent({ client, user, onLogout }) {
   const [detailsView, setDetailsView] = useState("section");
   const [showBattalionTable, setShowBattalionTable] = useState(false);
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+  const [showAmmoTable, setShowAmmoTable] = useState(false);
   const detailsRef = useRef(null);
 
   const selectedScope = isRestricted ? "company" : scope;
@@ -384,6 +385,27 @@ export function DashboardContent({ client, user, onLogout }) {
   const companyTankSummary = companyTanks.data?.summary || {};
   const criticalGapRows = useMemo(() => companyTanks.data?.critical_gaps_table || [], [companyTanks.data]);
   const ammoAverageRows = useMemo(() => companyTanks.data?.ammo_averages || [], [companyTanks.data]);
+  const ammoSummary = useMemo(() => {
+    if (!ammoAverageRows.length) {
+      return {
+        items: 0,
+        avgAvailabilityPct: 0,
+        belowThreshold: 0,
+      };
+    }
+    const values = ammoAverageRows
+      .map((row) => Number(row.availability_pct ?? row.availability_rate ?? 0))
+      .filter((value) => Number.isFinite(value));
+    const avgAvailabilityPct = values.length
+      ? values.reduce((sum, value) => sum + value, 0) / values.length
+      : 0;
+    const belowThreshold = values.filter((value) => value < 80).length;
+    return {
+      items: ammoAverageRows.length,
+      avgAvailabilityPct,
+      belowThreshold,
+    };
+  }, [ammoAverageRows]);
   const trendRowsReadiness = useMemo(() => companyTanks.data?.trends?.readiness || [], [companyTanks.data]);
   const trendRowsCritical = useMemo(() => companyTanks.data?.trends?.critical_gaps || [], [companyTanks.data]);
   const trendRowsTankReadiness = useMemo(() => companyTanks.data?.trends?.tank_readiness || [], [companyTanks.data]);
@@ -557,7 +579,7 @@ export function DashboardContent({ client, user, onLogout }) {
                 <Button
                   key={companyName}
                   variant={active ? "filled" : "light"}
-                  color={active ? "cyan" : "gray"}
+                  color={active ? meta.color : "gray"}
                   leftSection={<Image src={meta.logo} alt={meta.shortLabel} w={22} h={22} radius="xl" fit="cover" />}
                   onClick={() => {
                     setCompany(companyName);
@@ -590,6 +612,7 @@ export function DashboardContent({ client, user, onLogout }) {
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} mb="md">
               {battalionDisplayCards.map((row) => {
                 const companyMeta = getUnitMeta(row.companyKey || row.company);
+                const companyColor = companyMeta.color || "#64748b";
                 const isTopCompany = battalionBestReadiness?.companyKey === row.companyKey;
                 const isHighRiskCompany = battalionHighestCritical?.companyKey === row.companyKey && Number(row.criticalGaps || 0) > 0;
                 return (
@@ -600,9 +623,7 @@ export function DashboardContent({ client, user, onLogout }) {
                     style={{
                       cursor: "pointer",
                       opacity: isHighRiskCompany ? 0.82 : (row.hasData ? 1 : 0.78),
-                      borderColor: isTopCompany
-                        ? "var(--mantine-color-yellow-4)"
-                        : (isHighRiskCompany ? "var(--mantine-color-red-6)" : undefined),
+                      borderColor: companyColor,
                       filter: isHighRiskCompany ? "saturate(0.72) grayscale(0.2)" : undefined,
                     }}
                     onClick={() => {
@@ -1087,36 +1108,6 @@ export function DashboardContent({ client, user, onLogout }) {
                 )}
               </Card>
 
-              <Card withBorder>
-                <Text fw={700} mb="xs">ממוצעי תחמושת לטנקים</Text>
-                <Text size="xs" c="dimmed" mb="xs">
-                  שיעור כיסוי = אחוז טנקים שבהם הפריט דווח כתקין/קיים.
-                </Text>
-                {ammoAverageRows.length === 0 ? (
-                  <Text size="sm" c="dimmed">אין נתוני תחמושת להצגה.</Text>
-                ) : (
-                  <DataTable
-                    withTableBorder
-                    withColumnBorders
-                    striped
-                    minHeight={170}
-                    records={ammoAverageRows}
-                    columns={[
-                      { accessor: "item", title: "פריט" },
-                      {
-                        accessor: "coverage_rate",
-                        title: "שיעור כיסוי",
-                        render: (row) => `${Number(row.coverage_rate || row.availability_rate || 0).toFixed(1)}%`,
-                      },
-                      {
-                        accessor: "coverage",
-                        title: "טנקים",
-                        render: (row) => `${row.available_tanks || 0}/${row.total_tanks || 0}`,
-                      },
-                    ]}
-                  />
-                )}
-              </Card>
             </Stack>
           </SimpleGrid>
 
@@ -1522,6 +1513,73 @@ export function DashboardContent({ client, user, onLogout }) {
             )}
             </Card>
           </Collapse>
+
+          <Card withBorder>
+            <Group justify="space-between" align="center" wrap="wrap">
+              <div>
+                <Text fw={700}>ממוצעי תחמושת לטנקים</Text>
+                <Text size="sm" c="dimmed">
+                  זמינות ממוצעת = אחוז טנקים שבהם הפריט דווח כתקין/קיים מתוך כלל הטנקים המדווחים.
+                </Text>
+              </div>
+              <Button
+                size="xs"
+                variant="light"
+                color="gray"
+                onClick={() => setShowAmmoTable((current) => !current)}
+              >
+                {showAmmoTable ? "הסתר טבלת תחמושת" : "הצג טבלת תחמושת"}
+              </Button>
+            </Group>
+            <Group gap="xs" mt="sm" wrap="wrap">
+              <Badge variant="light" color="gray">
+                פריטי תחמושת: {ammoSummary.items}
+              </Badge>
+              <Badge variant="light" color={ammoSummary.avgAvailabilityPct >= 80 ? "teal" : "yellow"}>
+                זמינות ממוצעת: {ammoSummary.avgAvailabilityPct.toFixed(1)}%
+              </Badge>
+              <Badge variant="light" color={ammoSummary.belowThreshold > 0 ? "red" : "teal"}>
+                פריטים מתחת ל-80%: {ammoSummary.belowThreshold}
+              </Badge>
+            </Group>
+            <Collapse in={showAmmoTable}>
+              <Divider my="sm" />
+              {ammoAverageRows.length === 0 ? (
+                <Text size="sm" c="dimmed">אין נתוני תחמושת להצגה.</Text>
+              ) : (
+                <DataTable
+                  withTableBorder
+                  withColumnBorders
+                  striped
+                  minHeight={170}
+                  records={ammoAverageRows}
+                  columns={[
+                    { accessor: "item", title: "פריט תחמושת" },
+                    {
+                      accessor: "availability_pct",
+                      title: "זמינות ממוצעת",
+                      render: (row) => `${Number(row.availability_pct ?? row.availability_rate ?? 0).toFixed(1)}%`,
+                    },
+                    {
+                      accessor: "available_tanks",
+                      title: "טנקים תקינים",
+                      render: (row) => `${row.available_tanks || 0}`,
+                    },
+                    {
+                      accessor: "gap_tanks",
+                      title: "חוסרים/תקלות",
+                      render: (row) => `${row.gap_tanks || 0}`,
+                    },
+                    {
+                      accessor: "total_tanks",
+                      title: "טנקים מדווחים",
+                      render: (row) => `${row.total_tanks || 0}`,
+                    },
+                  ]}
+                />
+              )}
+            </Collapse>
+          </Card>
         </>
       )}
     </Stack>

@@ -16,6 +16,12 @@ This folder contains the active artifacts and generators for the production form
   - Generated Google Apps Script that creates:
     - weekly tank-commander form
     - dedicated company-assets form
+- `docs/forms/COMPANY_EQUIPMENT_STANDARDS_CONTRACT.md`
+  - Commander-review contract for equipment standards by section, including company-assets groups.
+- `docs/forms/contract_tank_items.csv`
+  - Full machine-readable tank items contract (section/family/item/standard/critical).
+- `docs/forms/contract_company_assets.csv`
+  - Full machine-readable company-assets contract.
 
 ## Regeneration
 
@@ -23,6 +29,7 @@ This folder contains the active artifacts and generators for the production form
 python3 scripts/forms/generate-kfir-form-blueprint.py
 python3 scripts/forms/generate-google-form-apps-script.py \
   --standards config/operational_standards.yaml
+python3 scripts/forms/generate-standards-contract-docs.py
 ```
 
 ## Deploy the form script (manual)
