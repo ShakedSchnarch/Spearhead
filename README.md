@@ -16,28 +16,37 @@ The system ingests response events, normalizes them, builds read models, and exp
 - Operational runbook: `docs/RUNBOOK.md`
 - Cloud setup: `docs/cloud/SETUP_STAGE_A.md`
 - Env checklist: `docs/cloud/ENV_SETUP_CHECKLIST.md`
-- Redesign roadmap: `docs/cloud/FOCUSED_REDESIGN_ROADMAP.md`
-- Latest session handoff: `docs/cloud/SESSION_HANDOFF_2026-02-11.md`
-- Next-agent prompt: `docs/cloud/NEXT_AGENT_PROMPT_2026-02-12.md`
-- Tomorrow tasks: `docs/cloud/TOMORROW_TASKS_2026-02-12.md`
+- Active working plan: `docs/cloud/WORKING_PLAN.md`
+- Master tasks tracker: `docs/PROJECT_TASKS.md`
+- Company data sources: `docs/cloud/DATA_SOURCES.md`
 - Remaining tasks status: `docs/cloud/REMAINING_TASKS_STATUS.md`
-- Forms track (draft): `docs/forms/README.md`
+- Forms contract: `docs/forms/FORMS_CONTRACT.md`
+- Forms track tooling: `docs/forms/README.md`
 - Historical plans/samples: `docs/archive/`
 
-## Forms Artifacts (Kfir Draft)
+## Forms Artifacts
 
 ```bash
 python3 scripts/forms/generate-kfir-form-blueprint.py
-python3 scripts/forms/generate-google-form-apps-script.py
+python3 scripts/forms/generate-google-form-apps-script.py \
+  --standards config/operational_standards.yaml
 ```
 
 Generated outputs:
 - `docs/forms/kfir_company_form_blueprint.json`
 - `docs/forms/kfir_google_form_apps_script.gs`
 
+Operational standards source of truth:
+- `config/operational_standards.yaml`
+
+AI modes:
+- Offline deterministic mode (free/default): `AI__ENABLED=false`
+- Remote provider mode (optional): set `AI__ENABLED=true`, `AI__PROVIDER=http`, `AI__BASE_URL`, `AI__API_KEY`
+
 ## Active API (v1)
 
 - `POST /v1/ingestion/forms/events`
+- `POST /v1/ingestion/forms/company-assets`
 - `GET /v1/metrics/overview?week=YYYY-Www`
 - `GET /v1/metrics/platoons/{platoon}?week=YYYY-Www`
 - `GET /v1/metrics/tanks?platoon=...&week=...`
@@ -46,9 +55,12 @@ Generated outputs:
 - `GET /v1/queries/search?q=...&week=...&platoon=...`
 - `GET /v1/metadata/weeks?platoon=...`
 - `GET /v1/views/battalion?week=...`
+- `GET /v1/views/battalion/ai-analysis?week=...`
 - `GET /v1/views/companies/{company}?week=...`
 - `GET /v1/views/companies/{company}/tanks?week=...`
 - `GET /v1/views/companies/{company}/sections/{section}/tanks?week=...`
+- `GET /v1/views/companies/{company}/tanks/{tank_id}/inventory?week=...`
+- `GET /v1/views/companies/{company}/assets?week=...`
 
 Command views now include:
 - readiness scores (tank/section/company)
@@ -83,6 +95,7 @@ This runs everything from one terminal:
 - builds frontend only when needed
 - runs FastAPI on `http://127.0.0.1:8000`
 - serves the UI from `/spearhead/`
+- auth is disabled by default for local runs (`LOCAL_DEV_ENFORCE_AUTH=true` to enforce auth)
 
 ### Managed local server (background)
 
@@ -208,6 +221,15 @@ Bootstrap first real data from Kfir weekly matrix sheet:
 PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
   --sheet-id 13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw \
   --company Kfir \
+  --api-base-url https://<SERVICE_URL> \
+  --api-token <SPEARHEAD_API_TOKEN> \
+  --year 2026
+```
+
+Ingest multiple company matrix sources from registry:
+
+```bash
+PYTHONPATH=src ./scripts/cloud/ingest-company-sources.py \
   --api-base-url https://<SERVICE_URL> \
   --api-token <SPEARHEAD_API_TOKEN> \
   --year 2026

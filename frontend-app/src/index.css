@@ -137,7 +137,8 @@ body {
 
 .score-ltr {
   direction: ltr;
-  text-align: center;
+  unicode-bidi: isolate;
+  display: inline-block;
 }
 
 .tank-status-card {

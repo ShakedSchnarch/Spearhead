@@ -57,9 +57,6 @@ export function SimpleLogin({ onLogin }) {
         <Group justify="space-between" wrap="wrap">
           <div>
             <Title order={2}>קצה הרומח · גדוד 75</Title>
-            <Text c="dimmed" size="sm">
-              מרכז מצב מבצעי פלוגתי וגדודי על בסיס דיווחי Google Forms
-            </Text>
           </div>
           <Badge variant="light" color="cyan" size="lg">
             גרסה 2
@@ -69,7 +66,7 @@ export function SimpleLogin({ onLogin }) {
         <Card withBorder radius="md" p="sm" className="auth-mode-card">
           <Stack gap="sm">
             <Text fw={700}>כניסה במצב פלוגה</Text>
-            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
               {companyCards.map((meta) => (
                 <Card
                   key={meta.key}
@@ -138,9 +135,6 @@ export function SimpleLogin({ onLogin }) {
           </Stack>
         </Card>
 
-        <Text size="xs" c="dimmed">
-          הכניסה מתבצעת דרך OAuth מאובטח של Google.
-        </Text>
       </Stack>
     </Card>
   );

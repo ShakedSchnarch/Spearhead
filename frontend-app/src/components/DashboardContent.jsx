@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -20,13 +20,22 @@ import {
 } from "@mantine/core";
 import { DataTable } from "mantine-datatable";
 import { COMPANY_KEYS, battalionMeta, getUnitMeta } from "../config/unitMeta";
+import { BattalionComparisonCharts } from "./dashboard/BattalionComparisonCharts";
+import { CompanyTrendCharts } from "./dashboard/CompanyTrendCharts";
+import {
+  DEFAULT_SECTIONS,
+  deltaColor,
+  displaySection,
+  displayStatus,
+  formatDelta,
+  formatScore,
+  formatTankLabel,
+  readinessDeltaColor,
+  readinessVisual,
+  SECTION_DISPLAY,
+} from "./dashboard/utils";
 
-const DEFAULT_SECTIONS = ["Logistics", "Armament", "Communications"];
-const SECTION_DISPLAY = {
-  Logistics: "לוגיסטיקה",
-  Armament: "חימוש",
-  Communications: "תקשוב",
-};
+const DISABLED_COMPANY_KEYS = new Set(["פלס״מ"]);
 
 function EmptyState({ label }) {
   return (
@@ -34,71 +43,6 @@ function EmptyState({ label }) {
       <Text c="dimmed">{label}</Text>
     </Group>
   );
-}
-
-function deltaColor(value) {
-  if (value > 0) return "red";
-  if (value < 0) return "teal";
-  return "gray";
-}
-
-function formatDelta(value, digits = 0) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
-  const number = Number(value || 0);
-  if (!Number.isFinite(number)) return "0";
-  const rendered = digits > 0 ? number.toFixed(digits) : Math.round(number).toString();
-  return number > 0 ? `+${rendered}` : rendered;
-}
-
-function readinessDeltaColor(value) {
-  if (value > 0) return "teal";
-  if (value < 0) return "red";
-  return "gray";
-}
-
-function formatScore(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
-  return `${Number(value).toFixed(1)}%`;
-}
-
-function readinessVisual(score, { reportedThisWeek = true } = {}) {
-  if (!reportedThisWeek) {
-    return { color: "gray", label: "ללא דיווח", accent: "#64748b" };
-  }
-  const value = Number(score);
-  if (!Number.isFinite(value)) {
-    return { color: "gray", label: "ללא נתון", accent: "#64748b" };
-  }
-  if (value >= 80) {
-    return { color: "teal", label: "כשיר", accent: "#14b8a6" };
-  }
-  if (value >= 60) {
-    return { color: "yellow", label: "בינוני", accent: "#f59e0b" };
-  }
-  return { color: "red", label: "דורש טיפול", accent: "#ef4444" };
-}
-
-function displaySection(section, sectionNames = {}) {
-  return sectionNames?.[section] || SECTION_DISPLAY[section] || section;
-}
-
-function displayStatus(status) {
-  const map = {
-    OK: "תקין",
-    Gap: "פערים",
-    Critical: "קריטי",
-    NoReport: "ללא דיווח",
-  };
-  return map[status] || status || "-";
-}
-
-function formatTankLabel(value) {
-  const raw = `${value || ""}`.trim();
-  if (!raw) return "צ׳-";
-  const digits = raw.match(/\d{2,4}/)?.[0];
-  if (digits) return `צ׳${digits}`;
-  if (raw.startsWith("צ׳") || raw.startsWith("צ'")) return raw.replace(/^צ[׳']+/, "צ׳");
-  return raw;
 }
 
 export function DashboardContent({ client, user, onLogout }) {
@@ -116,6 +60,7 @@ export function DashboardContent({ client, user, onLogout }) {
   const [section, setSection] = useState(DEFAULT_SECTIONS[0]);
   const [selectedTankId, setSelectedTankId] = useState(null);
   const [detailsView, setDetailsView] = useState("section");
+  const detailsRef = useRef(null);
 
   const selectedScope = isRestricted ? "company" : scope;
   const selectedCompany = isRestricted ? fixedCompany : company;
@@ -159,6 +104,19 @@ export function DashboardContent({ client, user, onLogout }) {
       ),
     staleTime: 10_000,
   });
+  const battalionAiAnalysis = useQuery({
+    queryKey: ["battalion-ai-analysis", client.baseUrl, weekParam, isRestricted ? fixedCompany : "all"],
+    queryFn: ({ signal }) =>
+      client.getBattalionAiAnalysis(
+        {
+          week: weekParam,
+          company: isRestricted ? fixedCompany : undefined,
+        },
+        signal,
+      ),
+    enabled: Boolean(selectedScope === "battalion"),
+    staleTime: 30_000,
+  });
 
   const fallbackCompanyFromView = battalionView.data?.companies?.[0] || "";
   const activeCompanyKey = isRestricted ? fixedCompany : (selectedCompany || fallbackCompanyFromView);
@@ -186,11 +144,14 @@ export function DashboardContent({ client, user, onLogout }) {
     });
     fromView.forEach((companyName) => {
       const meta = getUnitMeta(companyName);
+      if (DISABLED_COMPANY_KEYS.has(meta.key)) return;
       values.set(meta.key, meta.shortLabel);
     });
     if (fixedCompany) {
       const meta = getUnitMeta(fixedCompany);
-      values.set(meta.key, meta.shortLabel);
+      if (!DISABLED_COMPANY_KEYS.has(meta.key)) {
+        values.set(meta.key, meta.shortLabel);
+      }
     }
 
     const order = new Map(COMPANY_KEYS.map((name, index) => [getUnitMeta(name).key, index]));
@@ -227,6 +188,21 @@ export function DashboardContent({ client, user, onLogout }) {
     queryFn: ({ signal }) =>
       client.getCompanySectionTanks(effectiveCompany, effectiveSection, { week: weekParam }, signal),
     enabled: Boolean((selectedScope === "company" || isRestricted) && effectiveCompany && effectiveSection),
+    staleTime: 10_000,
+  });
+
+  const companyAssets = useQuery({
+    queryKey: ["company-assets", client.baseUrl, activeCompanyKey, weekParam],
+    queryFn: ({ signal }) => client.getCompanyAssets(activeCompanyKey, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && activeCompanyKey),
+    staleTime: 10_000,
+  });
+
+  const tankInventory = useQuery({
+    queryKey: ["tank-inventory", client.baseUrl, activeCompanyKey, selectedTankId, weekParam],
+    queryFn: ({ signal }) =>
+      client.getCompanyTankInventory(activeCompanyKey, selectedTankId, { week: weekParam }, signal),
+    enabled: Boolean((selectedScope === "company" || isRestricted) && activeCompanyKey && selectedTankId),
     staleTime: 10_000,
   });
 
@@ -315,10 +291,34 @@ export function DashboardContent({ client, user, onLogout }) {
   }, [battalionCompanyCards]);
   const companiesWithDataCount = battalionDisplayCards.filter((card) => card.hasData).length;
   const hasBattalionComparison = companiesWithDataCount > 1;
+  const battalionRowsWithData = battalionDisplayCards.filter((card) => card.hasData);
+  const battalionWeeklyReadinessRows = useMemo(
+    () => battalionView.data?.trends?.readiness_by_company || [],
+    [battalionView.data],
+  );
+  const battalionBestReadiness = useMemo(() => {
+    const sorted = battalionRowsWithData
+      .filter((row) => row.avgReadiness !== null && row.avgReadiness !== undefined)
+      .slice()
+      .sort((a, b) => Number(b.avgReadiness || 0) - Number(a.avgReadiness || 0));
+    return sorted[0] || null;
+  }, [battalionRowsWithData]);
+  const battalionHighestCritical = useMemo(() => {
+    const sorted = battalionRowsWithData
+      .slice()
+      .sort((a, b) => Number(b.criticalGaps || 0) - Number(a.criticalGaps || 0));
+    return sorted[0] || null;
+  }, [battalionRowsWithData]);
 
   const tanksRows = useMemo(() => sectionTanks.data?.rows || [], [sectionTanks.data]);
   const companyTankRows = useMemo(() => companyTanks.data?.rows || [], [companyTanks.data]);
   const companyTankSummary = companyTanks.data?.summary || {};
+  const criticalGapRows = useMemo(() => companyTanks.data?.critical_gaps_table || [], [companyTanks.data]);
+  const ammoAverageRows = useMemo(() => companyTanks.data?.ammo_averages || [], [companyTanks.data]);
+  const trendRowsReadiness = useMemo(() => companyTanks.data?.trends?.readiness || [], [companyTanks.data]);
+  const trendRowsCritical = useMemo(() => companyTanks.data?.trends?.critical_gaps || [], [companyTanks.data]);
+  const trendRowsTankReadiness = useMemo(() => companyTanks.data?.trends?.tank_readiness || [], [companyTanks.data]);
+  const trendRowsTankSeries = useMemo(() => companyTanks.data?.trends?.tank_series || [], [companyTanks.data]);
   const selectedTank = useMemo(
     () => companyTankRows.find((row) => row.tank_id === selectedTankId) || null,
     [companyTankRows, selectedTankId],
@@ -332,13 +332,16 @@ export function DashboardContent({ client, user, onLogout }) {
         .map((row) => ({
           ...row,
           tank_label: formatTankLabel(row.tank_id),
-          reported_this_week: Number(row.reports || 0) > 0,
+          reported_this_week: row.reported_this_week ?? Number(row.reports || 0) > 0,
           readiness: readinessVisual(row.readiness_score, {
-            reportedThisWeek: Number(row.reports || 0) > 0,
+            reportedThisWeek: row.reported_this_week ?? Number(row.reports || 0) > 0,
           }),
         })),
     [companyTankRows],
   );
+  const tankInventoryRows = useMemo(() => tankInventory.data?.rows || [], [tankInventory.data]);
+  const companyAssetRows = useMemo(() => companyAssets.data?.rows || [], [companyAssets.data]);
+  const companyAssetSummary = companyAssets.data?.summary || {};
   const selectedSectionSummary = useMemo(
     () => sectionRows.find((row) => row.section === effectiveSection),
     [sectionRows, effectiveSection],
@@ -346,7 +349,7 @@ export function DashboardContent({ client, user, onLogout }) {
 
   const availableCompanies = useMemo(() => {
     const names = companyOptions.map((option) => option.value);
-    if (fixedCompany && !names.includes(fixedCompany)) {
+    if (fixedCompany && !DISABLED_COMPANY_KEYS.has(fixedCompany) && !names.includes(fixedCompany)) {
       names.unshift(fixedCompany);
     }
     return names;
@@ -365,20 +368,36 @@ export function DashboardContent({ client, user, onLogout }) {
   const focusSectionDetails = (sectionValue) => {
     if (sectionValue) setSection(sectionValue);
     setDetailsView("section");
+    if (detailsRef.current) {
+      window.requestAnimationFrame(() => {
+        detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   };
 
   const refreshAll = () =>
     Promise.all([
       weeks.refetch(),
       battalionView.refetch(),
+      battalionAiAnalysis.refetch(),
       companyView.refetch(),
       companyTanks.refetch(),
       sectionTanks.refetch(),
+      companyAssets.refetch(),
+      tankInventory.refetch(),
     ]);
   const scopeHasErrors =
     selectedScope === "battalion"
       ? Boolean(weeks.isError || battalionView.isError)
-      : Boolean(weeks.isError || battalionView.isError || companyView.isError || companyTanks.isError || sectionTanks.isError);
+      : Boolean(
+          weeks.isError
+          || battalionView.isError
+          || companyView.isError
+          || companyTanks.isError
+          || sectionTanks.isError
+          || companyAssets.isError
+          || tankInventory.isError,
+        );
 
   return (
     <Stack gap="md">
@@ -403,34 +422,10 @@ export function DashboardContent({ client, user, onLogout }) {
               <Text size="sm" c="dimmed">
                 משתמש: {user?.email || "unknown"}
               </Text>
-              <Group gap="xs" mt={4}>
-                <Badge variant="light" color="gray">
-                  גדוד 75
-                </Badge>
-                {selectedScope === "company" ? (
-                  <Badge variant="light" color="cyan">
-                    {selectedCompanyMeta.shortLabel}
-                  </Badge>
-                ) : null}
-              </Group>
             </div>
-            {selectedScope === "company" ? (
-              <Image
-                src={battalionMeta.logo}
-                alt={battalionMeta.label}
-                radius="md"
-                w={46}
-                h={46}
-                fit="cover"
-                opacity={0.9}
-              />
-            ) : null}
           </Group>
 
           <Group gap="xs" align="center">
-            <Badge variant="light" size="lg" style={{ borderColor: scopeMeta.color }}>
-              {selectedScope === "company" ? selectedCompanyMeta.label : "תצוגה גדודית"}
-            </Badge>
             <Button variant="subtle" color="gray" onClick={onLogout}>
               יציאה
             </Button>
@@ -469,22 +464,9 @@ export function DashboardContent({ client, user, onLogout }) {
             onChange={(value) => setWeek(value || "")}
             searchable
             clearable={false}
-            w={{ base: "100%", sm: 340 }}
+            w={{ base: 180, sm: 220 }}
             placeholder="בחירת שבוע"
           />
-
-          {selectedScope === "company" || isRestricted ? (
-            <Select
-              label="פלוגה"
-              data={companyOptions}
-              value={activeCompanyKey || null}
-              onChange={(value) => setCompany(value || "")}
-              disabled={isRestricted}
-              searchable
-              clearable={!isRestricted}
-              w={190}
-            />
-          ) : null}
         </Group>
         <Text size="xs" c="dimmed" mt="xs">
           שבוע פעיל: {selectedWeekLabel}
@@ -497,7 +479,7 @@ export function DashboardContent({ client, user, onLogout }) {
         </Alert>
       ) : null}
 
-      {!isRestricted && availableCompanies.length ? (
+      {!isRestricted && selectedScope === "battalion" && availableCompanies.length ? (
         <Card withBorder>
           <Group gap="sm" wrap="wrap">
             {availableCompanies.map((companyName) => {
@@ -540,12 +522,21 @@ export function DashboardContent({ client, user, onLogout }) {
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} mb="md">
               {battalionDisplayCards.map((row) => {
                 const companyMeta = getUnitMeta(row.companyKey || row.company);
+                const isTopCompany = battalionBestReadiness?.companyKey === row.companyKey;
+                const isHighRiskCompany = battalionHighestCritical?.companyKey === row.companyKey && Number(row.criticalGaps || 0) > 0;
                 return (
                   <Card
                     key={`battalion-company-${companyMeta.key}`}
                     withBorder
                     className="visual-summary-card"
-                    style={{ cursor: "pointer", opacity: row.hasData ? 1 : 0.78 }}
+                    style={{
+                      cursor: "pointer",
+                      opacity: isHighRiskCompany ? 0.82 : (row.hasData ? 1 : 0.78),
+                      borderColor: isTopCompany
+                        ? "var(--mantine-color-yellow-4)"
+                        : (isHighRiskCompany ? "var(--mantine-color-red-6)" : undefined),
+                      filter: isHighRiskCompany ? "saturate(0.72) grayscale(0.2)" : undefined,
+                    }}
                     onClick={() => {
                       setCompany(companyMeta.key);
                       setScope("company");
@@ -557,9 +548,21 @@ export function DashboardContent({ client, user, onLogout }) {
                           <Image src={companyMeta.logo} alt={companyMeta.shortLabel} w={28} h={28} radius="xl" fit="cover" />
                           <Text fw={700}>{companyMeta.shortLabel}</Text>
                         </Group>
-                        <Badge variant="light" color={row.visual.color}>
-                          {row.hasData ? row.visual.label : "אין דיווחים"}
-                        </Badge>
+                        <Group gap={6}>
+                          {isTopCompany ? (
+                            <Badge variant="filled" color="yellow">
+                              ★ מצטיינת
+                            </Badge>
+                          ) : null}
+                          {isHighRiskCompany ? (
+                            <Badge variant="filled" color="red">
+                              נדרש שיפור מיידי
+                            </Badge>
+                          ) : null}
+                          <Badge variant="light" color={row.visual.color}>
+                            {row.hasData ? row.visual.label : "אין דיווחים"}
+                          </Badge>
+                        </Group>
                       </Group>
                       <Text size="sm">כשירות ממוצעת: {row.hasData ? formatScore(row.avgReadiness) : "-"}</Text>
                       <Progress
@@ -571,7 +574,7 @@ export function DashboardContent({ client, user, onLogout }) {
                       <Text size="sm" c="dimmed">
                         חריגים קריטיים: {row.criticalGaps} | פערים: {row.totalGaps}
                       </Text>
-                      <Text size="sm" c={readinessDeltaColor(row.avgDeltaReadiness)}>
+                      <Text size="sm" c={readinessDeltaColor(row.avgDeltaReadiness)} className="score-ltr">
                         שינוי שבועי: {row.hasData ? formatDelta(row.avgDeltaReadiness, 1) : "-"}
                       </Text>
                     </Stack>
@@ -580,6 +583,47 @@ export function DashboardContent({ client, user, onLogout }) {
               })}
             </SimpleGrid>
           ) : null}
+
+          {battalionRowsWithData.length ? (
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm" mb="md">
+              <Card withBorder className="visual-summary-card">
+                <Text size="sm" c="dimmed">פלוגה מובילה בכשירות</Text>
+                <Text fw={700} mt={4}>
+                  {battalionBestReadiness ? getUnitMeta(battalionBestReadiness.companyKey).shortLabel : "-"}
+                </Text>
+                <Text size="sm">
+                  {battalionBestReadiness ? formatScore(battalionBestReadiness.avgReadiness) : "-"}
+                </Text>
+              </Card>
+              <Card withBorder className="visual-summary-card">
+                <Text size="sm" c="dimmed">פלוגה עם הכי הרבה קריטיים</Text>
+                <Text fw={700} mt={4}>
+                  {battalionHighestCritical ? getUnitMeta(battalionHighestCritical.companyKey).shortLabel : "-"}
+                </Text>
+                <Text size="sm">
+                  {battalionHighestCritical ? battalionHighestCritical.criticalGaps : "-"}
+                </Text>
+              </Card>
+            </SimpleGrid>
+          ) : null}
+
+          <BattalionComparisonCharts rows={battalionRowsWithData} weeklyReadinessRows={battalionWeeklyReadinessRows} />
+
+          <Card withBorder mb="md">
+            <Group justify="space-between" mb="xs" align="center">
+              <Text fw={700}>ניתוח AI גדודי</Text>
+              <Badge variant="light" color={battalionAiAnalysis.data?.source === "remote" ? "teal" : "gray"}>
+                מקור: {battalionAiAnalysis.data?.source || "offline"}
+              </Badge>
+            </Group>
+            {battalionAiAnalysis.isFetching ? (
+              <Loader size="sm" />
+            ) : (
+              <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
+                {battalionAiAnalysis.data?.content || "אין ניתוח זמין כרגע."}
+              </Text>
+            )}
+          </Card>
 
           {battalionView.isFetching ? (
             <Loader size="sm" />
@@ -632,7 +676,7 @@ export function DashboardContent({ client, user, onLogout }) {
                     accessor: "delta_gaps",
                     title: "פערים שבועי",
                     render: (row) => (
-                      <Text c={deltaColor(row.delta_gaps)} fw={600}>
+                      <Text c={deltaColor(row.delta_gaps)} fw={600} className="score-ltr">
                         {formatDelta(row.delta_gaps)}
                       </Text>
                     ),
@@ -641,7 +685,7 @@ export function DashboardContent({ client, user, onLogout }) {
                     accessor: "delta_readiness",
                     title: "כשירות שבועית",
                     render: (row) => (
-                      <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                      <Text c={readinessDeltaColor(row.delta_readiness)} fw={600} className="score-ltr">
                         {row.delta_readiness === null || row.delta_readiness === undefined
                           ? "-"
                           : formatDelta(row.delta_readiness, 1)}
@@ -774,6 +818,13 @@ export function DashboardContent({ client, user, onLogout }) {
             </Stack>
           </Card>
 
+          <CompanyTrendCharts
+            readinessRows={trendRowsReadiness}
+            criticalRows={trendRowsCritical}
+            tankRows={trendRowsTankReadiness}
+            tankSeries={trendRowsTankSeries}
+          />
+
           <Card withBorder>
             <Stack gap="sm">
               <Group justify="space-between" wrap="wrap">
@@ -814,7 +865,9 @@ export function DashboardContent({ client, user, onLogout }) {
                             {row.reported_this_week ? "דיווח השבוע" : "לא דיווח"}
                           </Badge>
                         </Group>
-                        <Text size="sm">כשירות: {row.reported_this_week ? formatScore(row.readiness_score) : "ללא דיווח"}</Text>
+                        <Badge variant="outline" color={row.readiness.color}>
+                          {row.readiness.label}
+                        </Badge>
                         <Text size="xs" c="dimmed">
                           קריטיים: {row.critical_gaps || 0}
                         </Text>
@@ -825,6 +878,63 @@ export function DashboardContent({ client, user, onLogout }) {
               )}
             </Stack>
           </Card>
+
+          <SimpleGrid cols={{ base: 1, lg: 2 }}>
+            <Card withBorder>
+              <Text fw={700} mb="xs">פערים קריטיים פלוגתיים</Text>
+              {criticalGapRows.length === 0 ? (
+                <Text size="sm" c="dimmed">אין חריגים קריטיים לשבוע זה.</Text>
+              ) : (
+                <DataTable
+                  withTableBorder
+                  withColumnBorders
+                  striped
+                  minHeight={220}
+                  records={criticalGapRows}
+                  columns={[
+                    { accessor: "item", title: "פריט" },
+                    { accessor: "gaps", title: "כמות פערים" },
+                    {
+                      accessor: "tanks",
+                      title: "טנקים",
+                      render: (row) => (row.tanks?.length ? row.tanks.map((tankId) => formatTankLabel(tankId)).join(", ") : "-"),
+                    },
+                  ]}
+                />
+              )}
+            </Card>
+
+            <Card withBorder>
+              <Text fw={700} mb="xs">ממוצעי תחמושת לטנקים</Text>
+              <Text size="xs" c="dimmed" mb="xs">
+                שיעור כיסוי = אחוז טנקים שבהם הפריט דווח כתקין/קיים.
+              </Text>
+              {ammoAverageRows.length === 0 ? (
+                <Text size="sm" c="dimmed">אין נתוני תחמושת להצגה.</Text>
+              ) : (
+                <DataTable
+                  withTableBorder
+                  withColumnBorders
+                  striped
+                  minHeight={220}
+                  records={ammoAverageRows}
+                  columns={[
+                    { accessor: "item", title: "פריט" },
+                    {
+                      accessor: "coverage_rate",
+                      title: "שיעור כיסוי",
+                      render: (row) => `${Number(row.coverage_rate || row.availability_rate || 0).toFixed(1)}%`,
+                    },
+                    {
+                      accessor: "coverage",
+                      title: "טנקים",
+                      render: (row) => `${row.available_tanks || 0}/${row.total_tanks || 0}`,
+                    },
+                  ]}
+                />
+              )}
+            </Card>
+          </SimpleGrid>
 
           <Drawer
             opened={Boolean(selectedTank)}
@@ -883,6 +993,56 @@ export function DashboardContent({ client, user, onLogout }) {
                 </Card>
                 <Card withBorder>
                   <Text fw={700} mb={6}>
+                    טבלת מלאי מלאה לטנק
+                  </Text>
+                  {tankInventory.isFetching ? (
+                    <Loader size="sm" />
+                  ) : tankInventoryRows.length === 0 ? (
+                    <Text size="sm" c="dimmed">
+                      אין פירוט מלאי זמין לטנק זה בשבוע שנבחר.
+                    </Text>
+                  ) : (
+                    <DataTable
+                      withTableBorder
+                      withColumnBorders
+                      striped
+                      minHeight={240}
+                      records={tankInventoryRows}
+                      columns={[
+                        {
+                          accessor: "section",
+                          title: "חתך",
+                          render: (row) => displaySection(row.section, sectionDisplayNames),
+                        },
+                        { accessor: "item", title: "פריט" },
+                        {
+                          accessor: "standard_quantity",
+                          title: "תקן",
+                          render: (row) => (row.standard_quantity === null || row.standard_quantity === undefined
+                            ? "-"
+                            : String(row.standard_quantity)),
+                        },
+                        { accessor: "status", title: "סטטוס" },
+                        {
+                          accessor: "is_critical",
+                          title: "קריטי",
+                          render: (row) => (
+                            <Badge variant="light" color={row.is_critical ? "red" : "gray"}>
+                              {row.is_critical ? "כן" : "לא"}
+                            </Badge>
+                          ),
+                        },
+                        {
+                          accessor: "raw_value",
+                          title: "דיווח",
+                          render: (row) => (row.raw_value === null || row.raw_value === undefined ? "-" : String(row.raw_value)),
+                        },
+                      ]}
+                    />
+                  )}
+                </Card>
+                <Card withBorder>
+                  <Text fw={700} mb={6}>
                     כלל הפערים בטנק
                   </Text>
                   <Text size="sm" c="dimmed">
@@ -897,7 +1057,7 @@ export function DashboardContent({ client, user, onLogout }) {
             ) : null}
           </Drawer>
 
-          <Card withBorder>
+          <Card withBorder ref={detailsRef}>
             <Group justify="space-between" mb="sm" align="end" wrap="wrap">
               <div>
                 <Text fw={700}>פירוט מתקדם</Text>
@@ -910,6 +1070,7 @@ export function DashboardContent({ client, user, onLogout }) {
                   data={[
                     { value: "section", label: "לפי תחום" },
                     { value: "tanks", label: "טבלת טנקים" },
+                    { value: "assets", label: "ציוד פלוגתי" },
                   ]}
                   value={detailsView}
                   onChange={setDetailsView}
@@ -973,7 +1134,7 @@ export function DashboardContent({ client, user, onLogout }) {
                       accessor: "delta_readiness",
                       title: "כשירות שבועית",
                       render: (row) => (
-                        <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                        <Text c={readinessDeltaColor(row.delta_readiness)} fw={600} className="score-ltr">
                           {formatDelta(row.delta_readiness, 1)}
                         </Text>
                       ),
@@ -1005,6 +1166,72 @@ export function DashboardContent({ client, user, onLogout }) {
                     { accessor: "critical_gaps", title: "חריגים קריטיים" },
                   ]}
                 />
+              )
+            ) : detailsView === "assets" ? (
+              companyAssets.isFetching ? (
+                <Loader size="sm" />
+              ) : companyAssetRows.length === 0 ? (
+                <EmptyState label="אין נתוני ציוד פלוגתי לשבוע זה." />
+              ) : (
+                <Stack gap="sm">
+                  <Group gap="xs">
+                    <Badge variant="light" color="gray">
+                      פריטים: {companyAssetSummary.items || 0}
+                    </Badge>
+                    <Badge variant="light" color="red">
+                      פערים: {companyAssetSummary.gaps || 0}
+                    </Badge>
+                    <Badge variant="light" color="orange">
+                      קריטיים: {companyAssetSummary.critical || 0}
+                    </Badge>
+                  </Group>
+                  <DataTable
+                    withTableBorder
+                    withColumnBorders
+                    striped
+                    minHeight={280}
+                    records={companyAssetRows}
+                    columns={[
+                      { accessor: "section", title: "חתך" },
+                      { accessor: "group", title: "קבוצה" },
+                      { accessor: "item", title: "פריט" },
+                      {
+                        accessor: "standard_quantity",
+                        title: "תקן",
+                        render: (row) => (row.standard_quantity === null || row.standard_quantity === undefined
+                          ? "-"
+                          : String(row.standard_quantity)),
+                      },
+                      { accessor: "status", title: "סטטוס" },
+                      {
+                        accessor: "is_gap",
+                        title: "פער",
+                        render: (row) => (
+                          <Badge variant="light" color={row.is_gap ? "red" : "teal"}>
+                            {row.is_gap ? "כן" : "לא"}
+                          </Badge>
+                        ),
+                      },
+                      {
+                        accessor: "category_code",
+                        title: "צ׳",
+                        render: (row) => (
+                          <Badge
+                            variant="light"
+                            color={(row.requires_category_code && !row.has_category_code) ? "red" : (row.has_category_code ? "blue" : "gray")}
+                          >
+                            {row.has_category_code ? "דווח" : (row.requires_category_code ? "נדרש" : "ללא")}
+                          </Badge>
+                        ),
+                      },
+                      {
+                        accessor: "raw_value",
+                        title: "פירוט",
+                        render: (row) => (row.raw_value === null || row.raw_value === undefined ? "-" : String(row.raw_value)),
+                      },
+                    ]}
+                  />
+                </Stack>
               )
             ) : (
               <>
@@ -1049,7 +1276,7 @@ export function DashboardContent({ client, user, onLogout }) {
                         accessor: "delta_gaps",
                         title: "פערים שבועי",
                         render: (row) => (
-                          <Text c={deltaColor(row.delta_gaps)} fw={600}>
+                          <Text c={deltaColor(row.delta_gaps)} fw={600} className="score-ltr">
                             {formatDelta(row.delta_gaps)}
                           </Text>
                         ),
@@ -1058,7 +1285,7 @@ export function DashboardContent({ client, user, onLogout }) {
                         accessor: "delta_readiness",
                         title: "כשירות שבועית",
                         render: (row) => (
-                          <Text c={readinessDeltaColor(row.delta_readiness)} fw={600}>
+                          <Text c={readinessDeltaColor(row.delta_readiness)} fw={600} className="score-ltr">
                             {formatDelta(row.delta_readiness, 1)}
                           </Text>
                         ),

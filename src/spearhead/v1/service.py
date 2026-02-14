@@ -11,8 +11,17 @@ from zoneinfo import ZoneInfo
 from spearhead.config import settings
 from spearhead.config_fields import field_config
 from spearhead.data.field_mapper import FieldMapper
-from spearhead.v1.models import FormEventV2, IngestionReportV2, MetricSnapshotV2, NormalizedResponseV2
-from spearhead.v1.parser import EventValidationError, FormResponseParserV2
+from spearhead.ai import build_ai_client
+from spearhead.operational_standards import load_operational_standards
+from spearhead.v1.models import (
+    CompanyAssetEventV2,
+    CompanyAssetIngestionReportV2,
+    FormEventV2,
+    IngestionReportV2,
+    MetricSnapshotV2,
+    NormalizedResponseV2,
+)
+from spearhead.v1.parser import CompanyAssetParserV2, EventValidationError, FormResponseParserV2
 from spearhead.v1.store import ResponseStore
 
 
@@ -81,12 +90,76 @@ class ResponseIngestionServiceV2:
             raise
 
 
+class CompanyAssetIngestionServiceV2:
+    def __init__(self, store: ResponseStore, parser: CompanyAssetParserV2):
+        self.store = store
+        self.parser = parser
+
+    def ingest_event(self, event: CompanyAssetEventV2) -> CompanyAssetIngestionReportV2:
+        payload_hash = hashlib.sha256(
+            json.dumps(event.payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        event_id = event.event_id or hashlib.sha256(
+            f"company-assets|{event.schema_version}|{event.source_id}|{payload_hash}".encode("utf-8")
+        ).hexdigest()
+        event.event_id = event_id
+
+        created = self.store.upsert_raw_event(
+            event_id=event_id,
+            schema_version=event.schema_version,
+            source_id=event.source_id,
+            received_at=event.received_at,
+            payload_hash=payload_hash,
+            payload=event.payload,
+        )
+        if not created:
+            existing = self.store.list_company_assets()
+            week_id = None
+            company_key = None
+            for item in existing:
+                if item["event_id"] == event_id:
+                    week_id = item["week_id"]
+                    company_key = item["company_key"]
+                    break
+            return CompanyAssetIngestionReportV2(
+                event_id=event_id,
+                created=False,
+                schema_version=event.schema_version,
+                source_id=event.source_id,
+                week_id=week_id,
+                company_key=company_key,
+            )
+
+        try:
+            normalized = self.parser.parse(event)
+            self.store.upsert_company_asset(normalized)
+            self.store.mark_event_status(event_id, status="processed")
+            return CompanyAssetIngestionReportV2(
+                event_id=event_id,
+                created=True,
+                schema_version=event.schema_version,
+                source_id=event.source_id,
+                week_id=normalized.week_id,
+                company_key=normalized.company_key,
+                unmapped_fields=normalized.unmapped_fields,
+            )
+        except EventValidationError as exc:
+            self.store.mark_event_status(event_id, status="invalid", error_detail=str(exc))
+            self.store.insert_dlq(event_id=event_id, source_id=event.source_id, payload=event.payload, error_detail=str(exc))
+            raise
+        except Exception as exc:
+            self.store.mark_event_status(event_id, status="failed", error_detail=str(exc))
+            self.store.insert_dlq(event_id=event_id, source_id=event.source_id, payload=event.payload, error_detail=str(exc))
+            raise
+
+
 class ResponseQueryServiceV2:
     _WEEK_ID_PATTERN = re.compile(r"^(?P<year>\d{4})-W(?P<week>\d{2})$")
     _DEFAULT_WEEK_TIMEZONE = "Asia/Jerusalem"
 
     def __init__(self, store: ResponseStore):
         self.store = store
+        self.standards = load_operational_standards(settings.operational.standards_path)
         self._mapper = FieldMapper()
         gap_source = settings.status_tokens.gap_tokens + field_config.gap_tokens + ["אין", "חסר", "בלאי", "0"]
         self.gap_tokens = tuple(dict.fromkeys(gap_source))
@@ -114,8 +187,26 @@ class ResponseQueryServiceV2:
             section: configured_notes.get(section, "")
             for section in self.sections
         }
+        configured_companies = (
+            self.standards.active_companies
+            or settings.operational.enabled_companies
+            or settings.operational.company_order
+            or ["Kfir", "Mahatz", "Sufa"]
+        )
+        company_order: list[str] = []
+        for company in configured_companies:
+            canonical = self._canonical_company(company)
+            if not canonical or canonical == "Battalion":
+                continue
+            if canonical not in company_order:
+                company_order.append(canonical)
+        self.company_order = company_order
+        self._company_rank = {
+            company.lower(): index
+            for index, company in enumerate(self.company_order)
+        }
 
-        critical_items = settings.operational.critical_item_names or []
+        critical_items = self.standards.critical_items or settings.operational.critical_item_names or []
         self.critical_items = [str(item).strip() for item in critical_items if str(item).strip()]
         self.critical_item_lookup = {
             self._normalize_item_name(item): item
@@ -362,15 +453,18 @@ class ResponseQueryServiceV2:
         current_metrics = self._compute_section_metrics(current_rows)
         previous_metrics = self._compute_section_metrics(previous_rows)
 
-        companies = sorted(
-            {
-                company
-                for company, _ in current_metrics.keys() | previous_metrics.keys()
-            }
-        )
-        if platoon_scope and platoon_scope not in companies:
-            companies.append(platoon_scope)
-            companies = sorted(companies)
+        metric_companies = {
+            self._canonical_company(company)
+            for company, _ in current_metrics.keys() | previous_metrics.keys()
+        }
+        metric_companies = {company for company in metric_companies if company and company != "Battalion"}
+        if platoon_scope:
+            companies = [self._canonical_company(platoon_scope)]
+        else:
+            companies = list(self.company_order)
+            for company in sorted(metric_companies, key=self._company_sort_key):
+                if company not in companies:
+                    companies.append(company)
 
         rows: list[dict[str, Any]] = []
         for company in companies:
@@ -392,6 +486,13 @@ class ResponseQueryServiceV2:
                     }
                 )
 
+        trends = self._build_battalion_company_trends(
+            target_week=target_week,
+            platoon_scope=platoon_scope,
+            companies=companies,
+            window_weeks=8,
+        )
+
         return {
             "week_id": target_week,
             "previous_week_id": previous_week,
@@ -400,6 +501,7 @@ class ResponseQueryServiceV2:
             "section_display_names": self.section_display_names,
             "section_scope_notes": self.section_scope_notes,
             "companies": companies,
+            "trends": trends,
             "rows": rows,
         }
 
@@ -634,6 +736,10 @@ class ResponseQueryServiceV2:
             reverse=True,
         )
 
+        critical_gaps_table = self._build_critical_gaps_table(rows)
+        ammo_averages = self._compute_ammo_averages(current_rows=current_rows)
+        trends = self._build_company_trends(company=company, target_week=target_week, window_weeks=6)
+
         return {
             "week_id": target_week,
             "previous_week_id": previous_week,
@@ -641,7 +747,134 @@ class ResponseQueryServiceV2:
             "section_display_names": self.section_display_names,
             "section_scope_notes": self.section_scope_notes,
             "summary": summary,
+            "critical_gaps_table": critical_gaps_table,
+            "ammo_averages": ammo_averages,
+            "trends": trends,
             "rows": rows,
+        }
+
+    def company_tank_inventory_view(self, company_key: str, tank_id: str, week_id: Optional[str]) -> dict[str, Any]:
+        target_week = week_id or self.latest_week()
+        company = self._canonical_company(company_key)
+        normalized_tank = self._normalize_tank_id(tank_id)
+        if not target_week:
+            return {
+                "week_id": None,
+                "company": company,
+                "tank_id": normalized_tank or tank_id,
+                "rows": [],
+            }
+
+        rows = self.store.list_normalized(week_id=target_week, platoon_key=company)
+        tank_rows = [
+            row for row in rows
+            if self._normalize_tank_id(row.get("tank_id")) == normalized_tank
+        ]
+        if not tank_rows:
+            return {
+                "week_id": target_week,
+                "company": company,
+                "tank_id": normalized_tank or tank_id,
+                "rows": [],
+            }
+
+        # Merge item status across submissions during the same week.
+        # Latest report wins for each field.
+        merged_fields: dict[str, Any] = {}
+        for row in sorted(tank_rows, key=lambda item: str(item.get("received_at") or "")):
+            for field_name, value in row.get("fields", {}).items():
+                merged_fields[field_name] = value
+
+        result_rows: list[dict[str, Any]] = []
+        for field_name, value in merged_fields.items():
+            section = self._section_for_field(field_name) or "Unclassified"
+            family = self._family_for_field(field_name)
+            item = self._item_for_field(field_name)
+            result_rows.append(
+                {
+                    "field_name": field_name,
+                    "item": item,
+                    "section": section,
+                    "family": family,
+                    "status": self._normalize_inventory_status(value),
+                    "is_gap": self._is_gap(value),
+                    "is_critical": self._is_critical_item(item),
+                    "raw_value": value,
+                    "has_category_code": self._has_category_code(item),
+                    "standard_quantity": self.standards.tank_standard_for_item(item),
+                }
+            )
+
+        result_rows.sort(
+            key=lambda row: (
+                self._section_sort_key(row.get("section")),
+                row.get("item", ""),
+            )
+        )
+        return {
+            "week_id": target_week,
+            "company": company,
+            "tank_id": normalized_tank or tank_id,
+            "rows": result_rows,
+        }
+
+    def company_assets_view(self, company_key: str, week_id: Optional[str]) -> dict[str, Any]:
+        target_week = week_id or self.latest_week()
+        company = self._canonical_company(company_key)
+        if not target_week:
+            return {
+                "week_id": None,
+                "company": company,
+                "rows": [],
+                "summary": {"items": 0, "gaps": 0, "critical": 0},
+            }
+
+        events = self.store.list_company_assets(week_id=target_week, company_key=company)
+        if not events:
+            return {
+                "week_id": target_week,
+                "company": company,
+                "rows": [],
+                "summary": {"items": 0, "gaps": 0, "critical": 0},
+            }
+
+        latest_fields: dict[str, Any] = {}
+        for event in sorted(events, key=lambda item: str(item.get("received_at") or "")):
+            latest_fields.update(event.get("fields", {}))
+
+        table: list[dict[str, Any]] = []
+        for field_name, value in latest_fields.items():
+            item = self._item_for_field(field_name)
+            bucket = self._classify_company_asset(item=item, field_name=field_name)
+            is_gap = self._is_gap(value)
+            detected_category_code = self._has_category_code(item) or self._has_category_code(str(value))
+            table.append(
+                {
+                    "field_name": field_name,
+                    "item": item,
+                    "section": bucket["section"],
+                    "group": bucket["group"],
+                    "status": self._normalize_inventory_status(value),
+                    "is_gap": is_gap,
+                    "is_critical": bucket["is_critical"],
+                    "raw_value": value,
+                    "has_category_code": detected_category_code,
+                    "requires_category_code": bool(bucket.get("requires_category_code", False)),
+                    "standard_quantity": bucket.get("standard_quantity"),
+                }
+            )
+
+        table.sort(key=lambda row: (row.get("section", ""), row.get("group", ""), row.get("item", "")))
+        summary = {
+            "items": len(table),
+            "gaps": sum(1 for row in table if row.get("is_gap")),
+            "critical": sum(1 for row in table if row.get("is_critical") and row.get("is_gap")),
+        }
+        return {
+            "week_id": target_week,
+            "company": company,
+            "rows": table,
+            "summary": summary,
         }
 
     def _compute_overview(self, week_id: str, platoon_key: Optional[str]) -> dict[str, Any]:
@@ -655,7 +888,7 @@ class ResponseQueryServiceV2:
         total_gaps = 0
 
         for row in rows:
-            platoon = row.get("platoon_key") or "Unknown"
+            platoon = self._canonical_company(row.get("platoon_key") or "Unknown")
             platoons[platoon]["reports"] += 1
             if row.get("tank_id"):
                 tank_sets[platoon].add(row["tank_id"])
@@ -711,7 +944,10 @@ class ResponseQueryServiceV2:
         return count
 
     def _compute_section_metrics(self, rows: list[dict[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
-        companies = sorted({row.get("platoon_key") or "Unknown" for row in rows})
+        companies = sorted(
+            {self._canonical_company(row.get("platoon_key") or "Unknown") for row in rows},
+            key=self._company_sort_key,
+        )
         metrics: dict[tuple[str, str], dict[str, Any]] = {}
         for company in companies:
             for section in self.sections:
@@ -726,7 +962,7 @@ class ResponseQueryServiceV2:
                 }
 
         for row in rows:
-            company = row.get("platoon_key") or "Unknown"
+            company = self._canonical_company(row.get("platoon_key") or "Unknown")
             tank_id = str(row.get("tank_id") or "").strip()
             per_section = defaultdict(lambda: {"checked_items": 0, "gaps": 0, "critical_gaps": 0})
 
@@ -1005,6 +1241,47 @@ class ResponseQueryServiceV2:
             ],
         }
 
+    @staticmethod
+    def _build_critical_gaps_table(tank_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        per_item: dict[str, dict[str, Any]] = {}
+        for row in tank_rows:
+            tank_id = str(row.get("tank_id") or "").strip()
+            critical_items = row.get("critical_items", [])
+            if not isinstance(critical_items, list):
+                continue
+            for critical in critical_items:
+                if not isinstance(critical, dict):
+                    continue
+                item_name = str(critical.get("item") or "").strip()
+                if not item_name:
+                    continue
+                gaps = int(critical.get("gaps") or 0)
+                entry = per_item.setdefault(
+                    item_name,
+                    {
+                        "item": item_name,
+                        "gaps": 0,
+                        "tanks_set": set(),
+                    },
+                )
+                entry["gaps"] += gaps
+                if tank_id:
+                    entry["tanks_set"].add(tank_id)
+
+        result = []
+        for values in per_item.values():
+            tanks = sorted(values["tanks_set"])
+            result.append(
+                {
+                    "item": values["item"],
+                    "gaps": values["gaps"],
+                    "tanks": tanks,
+                    "tanks_count": len(tanks),
+                }
+            )
+        result.sort(key=lambda row: (row.get("gaps", 0), row.get("item", "")), reverse=True)
+        return result
+
     def _compute_readiness_score(self, checked_items: int, gaps: int, critical_gaps: int = 0) -> Optional[float]:
         if checked_items <= 0:
             return None
@@ -1050,6 +1327,374 @@ class ResponseQueryServiceV2:
         if not text:
             return False
         return any(tok.lower() in text for tok in self.gap_tokens)
+
+    def _normalize_inventory_status(self, value: Any) -> str:
+        if value is None:
+            return "-"
+        text = str(value).strip()
+        if not text:
+            return "-"
+        lower = text.lower()
+        if "חוסר" in lower or "חסר" in lower or "אין" in lower:
+            return "חוסר"
+        if "בלאי" in lower or "תקול" in lower:
+            return "תקול/בלאי"
+        if "קיים" in lower or "יש" in lower or "תקין" in lower:
+            return "תקין"
+        return text
+
+    def _compute_ammo_averages(self, current_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        per_item: dict[str, dict[str, Any]] = {}
+        tank_items_seen: set[tuple[str, str]] = set()
+        tank_ids = {
+            self._normalize_tank_id(row.get("tank_id"))
+            for row in current_rows
+            if self._normalize_tank_id(row.get("tank_id"))
+        }
+        for row in current_rows:
+            tank_id = self._normalize_tank_id(row.get("tank_id"))
+            if not tank_id:
+                continue
+            for field_name, value in row.get("fields", {}).items():
+                family = self._family_for_field(field_name)
+                section = self._section_for_field(field_name)
+                if family != "ammo" and section != "Logistics":
+                    continue
+                item = self._item_for_field(field_name)
+                key = (tank_id, item)
+                if key in tank_items_seen:
+                    continue
+                tank_items_seen.add(key)
+                bucket = per_item.setdefault(
+                    item,
+                    {
+                        "item": item,
+                        "tanks_total": len(tank_ids),
+                        "available_tanks": 0,
+                        "gap_tanks": 0,
+                    },
+                )
+                if self._is_gap(value):
+                    bucket["gap_tanks"] += 1
+                else:
+                    bucket["available_tanks"] += 1
+
+        result: list[dict[str, Any]] = []
+        for item, values in per_item.items():
+            total = int(values.get("tanks_total") or 0)
+            available = int(values.get("available_tanks") or 0)
+            rate = round((available / total) * 100.0, 1) if total else 0.0
+            result.append(
+                {
+                    "item": item,
+                    "available_tanks": available,
+                    "gap_tanks": int(values.get("gap_tanks") or 0),
+                    "total_tanks": total,
+                    "coverage_rate": rate,
+                    "availability_rate": rate,
+                }
+            )
+        result.sort(key=lambda row: (row.get("availability_rate", 0.0), row.get("item", "")))
+        return result[:30]
+
+    def _build_company_trends(self, company: str, target_week: str, window_weeks: int = 6) -> dict[str, Any]:
+        weeks = self.list_weeks(platoon_key=company)
+        if not weeks:
+            return {"readiness": [], "critical_gaps": [], "tank_readiness": [], "tank_series": []}
+        if target_week in weeks:
+            start_idx = weeks.index(target_week)
+            scope_weeks = list(reversed(weeks[start_idx : start_idx + max(window_weeks, 1)]))
+        else:
+            scope_weeks = list(reversed(weeks[: max(window_weeks, 1)]))
+
+        readiness_rows: list[dict[str, Any]] = []
+        critical_rows: list[dict[str, Any]] = []
+        tank_rows: list[dict[str, Any]] = []
+        tank_keys_seen: set[str] = set()
+        for week_id in scope_weeks:
+            week_rows = self.store.list_normalized(week_id=week_id, platoon_key=company)
+            tank_metrics = self._compute_tank_overall_metrics(week_rows)
+            summary = self._aggregate_company_readiness(tank_metrics.values())
+            readiness_rows.append(
+                {
+                    "week_id": week_id,
+                    "value": summary.get("avg_readiness"),
+                }
+            )
+            critical_rows.append(
+                {
+                    "week_id": week_id,
+                    "value": sum(int(row.get("critical_gaps") or 0) for row in tank_metrics.values()),
+                }
+            )
+            tank_row: dict[str, Any] = {"week_id": week_id}
+            for tank_id, tank_values in tank_metrics.items():
+                normalized = self._normalize_tank_id(tank_id)
+                if not normalized:
+                    continue
+                key = f"tank_{normalized}"
+                tank_keys_seen.add(key)
+                tank_row[key] = tank_values.get("readiness_score")
+            tank_rows.append(tank_row)
+
+        tank_keys = sorted(
+            tank_keys_seen,
+            key=lambda key: key.replace("tank_", ""),
+        )
+        for row in tank_rows:
+            for key in tank_keys:
+                row.setdefault(key, None)
+
+        tank_series = [
+            {
+                "key": key,
+                "tank_id": key.replace("tank_", ""),
+            }
+            for key in tank_keys
+        ]
+
+        return {
+            "readiness": readiness_rows,
+            "critical_gaps": critical_rows,
+            "tank_readiness": tank_rows,
+            "tank_series": tank_series,
+        }
+
+    def _build_battalion_company_trends(
+        self,
+        *,
+        target_week: str,
+        platoon_scope: Optional[str],
+        companies: list[str],
+        window_weeks: int = 8,
+    ) -> dict[str, Any]:
+        if platoon_scope:
+            weeks = self.list_weeks(platoon_key=platoon_scope)
+        else:
+            weeks = self.list_weeks()
+        if not weeks:
+            return {"readiness_by_company": [], "companies": companies}
+
+        if target_week in weeks:
+            start_idx = weeks.index(target_week)
+            scope_weeks = list(reversed(weeks[start_idx : start_idx + max(window_weeks, 1)]))
+        else:
+            scope_weeks = list(reversed(weeks[: max(window_weeks, 1)]))
+
+        readiness_rows: list[dict[str, Any]] = []
+        for week_id in scope_weeks:
+            row = {"week_id": week_id}
+            for company in companies:
+                week_rows = self.store.list_normalized(week_id=week_id, platoon_key=company)
+                tank_metrics = self._compute_tank_overall_metrics(week_rows)
+                summary = self._aggregate_company_readiness(tank_metrics.values())
+                row[company] = summary.get("avg_readiness")
+            readiness_rows.append(row)
+
+        return {
+            "readiness_by_company": readiness_rows,
+            "companies": companies,
+        }
+
+    def battalion_ai_analysis_view(self, week_id: Optional[str], platoon_scope: Optional[str] = None) -> dict[str, Any]:
+        payload = self.battalion_sections_view(week_id=week_id, platoon_scope=platoon_scope)
+        rows = payload.get("rows", [])
+        if not rows:
+            return {
+                "week_id": payload.get("week_id"),
+                "scope": platoon_scope,
+                "content": "אין מספיק נתונים לניתוח.",
+                "source": "deterministic",
+            }
+
+        sorted_critical = sorted(
+            rows,
+            key=lambda row: int(row.get("critical_gaps") or 0),
+            reverse=True,
+        )[:5]
+        sorted_readiness = sorted(
+            rows,
+            key=lambda row: float(row.get("readiness_score") or 0.0),
+            reverse=True,
+        )[:5]
+        context = json.dumps(
+            {
+                "week_id": payload.get("week_id"),
+                "previous_week_id": payload.get("previous_week_id"),
+                "scope": platoon_scope,
+                "top_critical": sorted_critical,
+                "top_readiness": sorted_readiness,
+                "trends": payload.get("trends", {}),
+            },
+            ensure_ascii=False,
+        )[:7000]
+        prompt = (
+            "נתח בקצרה את מצב הגדוד בעברית עבור מפקד: "
+            "תן תמונת מצב, 3 סיכונים מיידיים, ו-3 פעולות מומלצות לשבוע הקרוב."
+        )
+        if not settings.ai.enabled or settings.ai.provider == "offline":
+            content = self._deterministic_battalion_summary(rows)
+            source = "deterministic"
+        else:
+            try:
+                ai_client = build_ai_client(settings)
+                result = ai_client.generate(prompt=prompt, context=context)
+                content = result.content
+                source = result.source
+            except Exception:
+                content = self._deterministic_battalion_summary(rows)
+                source = "deterministic"
+
+        return {
+            "week_id": payload.get("week_id"),
+            "scope": platoon_scope,
+            "content": content,
+            "source": source,
+        }
+
+    @staticmethod
+    def _deterministic_battalion_summary(rows: list[dict[str, Any]]) -> str:
+        ranked_critical = sorted(rows, key=lambda row: int(row.get("critical_gaps") or 0), reverse=True)
+        ranked_readiness = sorted(rows, key=lambda row: float(row.get("readiness_score") or 0.0), reverse=True)
+        top_critical = ranked_critical[0] if ranked_critical else None
+        top_readiness = ranked_readiness[0] if ranked_readiness else None
+        critical_text = (
+            f"{top_critical.get('company')} / {top_critical.get('section')} ({top_critical.get('critical_gaps', 0)})"
+            if top_critical
+            else "אין"
+        )
+        readiness_text = (
+            f"{top_readiness.get('company')} / {top_readiness.get('section')} ({top_readiness.get('readiness_score')})"
+            if top_readiness
+            else "אין"
+        )
+        return (
+            "סיכום אוטומטי דטרמיניסטי: "
+            f"כיס הקריטי המרכזי: {critical_text}. "
+            f"החתך החזק ביותר: {readiness_text}. "
+            "המלצות: לתעדף טיפול בפריטים הקריטיים, לסגור פערי דיווח, ולעקוב אחרי מגמת כשירות שבועית."
+        )
+
+    @staticmethod
+    def _normalize_tank_id(tank_id: Any) -> str:
+        raw = str(tank_id or "").strip()
+        if not raw:
+            return ""
+        match = re.search(r"\d{2,4}", raw)
+        if not match:
+            return raw
+        return match.group(0)
+
+    @staticmethod
+    def _has_category_code(value: Any) -> bool:
+        text = str(value or "").strip()
+        if not text:
+            return False
+        if re.search(r"צ[׳']?\s*\d{2,6}", text):
+            return True
+        return bool(re.search(r"\b\d{5,7}\b", text))
+
+    def _section_sort_key(self, section: Any) -> tuple[int, str]:
+        raw = str(section or "").strip()
+        for index, known in enumerate(self.sections):
+            if raw.lower() == known.lower():
+                return index, raw
+        return len(self.sections), raw
+
+    def _classify_company_asset(self, *, item: str, field_name: str) -> dict[str, Any]:
+        standard_item = self.standards.find_company_asset(item_name=item, field_name=field_name)
+        if standard_item:
+            return {
+                "section": standard_item.section,
+                "group": standard_item.group,
+                "is_critical": standard_item.is_critical,
+                "requires_category_code": standard_item.has_category_code,
+                "standard_quantity": standard_item.standard_quantity,
+            }
+
+        token = f"{item} {field_name}".lower()
+        if 'ח"ח' in token or "חלפ" in token:
+            return {
+                "section": "Armament",
+                "group": "חלפים",
+                "is_critical": True,
+                "requires_category_code": False,
+                "standard_quantity": None,
+            }
+        if any(mark in token for mark in ("2510", "2640", "גריז", "שמן")):
+            return {
+                "section": "Armament",
+                "group": "שמנים",
+                "is_critical": False,
+                "requires_category_code": False,
+                "standard_quantity": None,
+            }
+        if "צלם" in token:
+            return {
+                "section": "Company Assets",
+                "group": "דוח צלם",
+                "is_critical": False,
+                "requires_category_code": False,
+                "standard_quantity": None,
+            }
+        if "ת\"ת" in token or "ת״ת" in token:
+            return {
+                "section": "Company Assets",
+                "group": "דוח ת\"ת",
+                "is_critical": False,
+                "requires_category_code": False,
+                "standard_quantity": None,
+            }
+        if "רנגלר" in token or "קשפל" in token:
+            return {
+                "section": "Company Assets",
+                "group": "ציוד פלוגתי",
+                "is_critical": False,
+                "requires_category_code": False,
+                "standard_quantity": None,
+            }
+        return {
+            "section": "Company Assets",
+            "group": "כללי",
+            "is_critical": False,
+            "requires_category_code": False,
+            "standard_quantity": None,
+        }
+
+    @staticmethod
+    def _canonical_company(company: Any) -> str:
+        raw = str(company or "").strip()
+        if not raw:
+            return "Unknown"
+        token = (
+            raw.replace("׳", "")
+            .replace("״", "")
+            .replace("'", "")
+            .replace('"', "")
+            .replace(" ", "")
+            .lower()
+        )
+        aliases = {
+            "כפיר": "Kfir",
+            "kfir": "Kfir",
+            "kphir": "Kfir",
+            "מחץ": "Mahatz",
+            "mahatz": "Mahatz",
+            "machatz": "Mahatz",
+            "סופה": "Sufa",
+            "sufa": "Sufa",
+            "פלסמ": "Palsam",
+            "פלסם": "Palsam",
+            "palsam": "Palsam",
+            "גדוד": "Battalion",
+            "battalion": "Battalion",
+        }
+        return aliases.get(token, raw)
+
+    def _company_sort_key(self, company: str) -> tuple[int, str]:
+        canonical = self._canonical_company(company)
+        rank = self._company_rank.get(canonical.lower(), len(self._company_rank))
+        return rank, canonical.lower()
 
     def _canonical_section(self, section: Any) -> Optional[str]:
         if section is None:

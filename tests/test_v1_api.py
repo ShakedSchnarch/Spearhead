@@ -43,6 +43,24 @@ def _command_event(
     }
 
 
+def _company_assets_event(
+    company: str = "כפיר",
+    *,
+    ts: str = "2026-02-08T10:00:00Z",
+):
+    return {
+        "schema_version": "v2",
+        "source_id": "manual-company-assets",
+        "payload": {
+            "פלוגה": company,
+            "חותמת זמן": ts,
+            'ח"ח פלוגתי [מד מומנט]': "חוסר",
+            "2640 אקסטרה פלוגתי": "יש",
+            'דוח צלם- נוספים [מאג 1]': "תקול",
+        },
+    }
+
+
 def test_v1_ingestion_and_queries(tmp_path, monkeypatch):
     db_path = tmp_path / "v1_api.db"
     settings.storage.backend = "sqlite"
@@ -107,6 +125,7 @@ def test_v1_command_views(tmp_path):
     settings.security.api_token = None
     settings.security.basic_user = None
     settings.security.basic_pass = None
+    settings.ai.enabled = False
 
     app = create_app(db_path=db_path)
     client = TestClient(app)
@@ -131,13 +150,24 @@ def test_v1_command_views(tmp_path):
         resp = client.post("/v1/ingestion/forms/events", json=payload)
         assert resp.status_code == 200
 
+    assets_resp = client.post("/v1/ingestion/forms/company-assets", json=_company_assets_event())
+    assert assets_resp.status_code == 200
+    assert assets_resp.json()["created"] is True
+
     battalion = client.get("/v1/views/battalion")
     assert battalion.status_code == 200
     battalion_body = battalion.json()
     assert battalion_body["rows"]
     assert {"Armament", "Logistics", "Communications"}.issubset(set(battalion_body["sections"]))
-    assert "Kfir" in battalion_body["companies"]
-    assert "Mahatz" in battalion_body["companies"]
+    assert {"Kfir", "Mahatz", "Sufa"}.issubset(set(battalion_body["companies"]))
+    assert "trends" in battalion_body
+    assert "readiness_by_company" in battalion_body["trends"]
+
+    battalion_ai = client.get("/v1/views/battalion/ai-analysis")
+    assert battalion_ai.status_code == 200
+    battalion_ai_body = battalion_ai.json()
+    assert battalion_ai_body["source"] == "deterministic"
+    assert "סיכום" in battalion_ai_body["content"]
 
     company = client.get("/v1/views/companies/Kfir")
     assert company.status_code == 200
@@ -165,6 +195,48 @@ def test_v1_command_views(tmp_path):
     assert company_tanks_body["rows"][0]["tank_id"] == "653"
     assert "logistics_readiness" in company_tanks_body["rows"][0]
     assert "summary" in company_tanks_body
+    assert "critical_gaps_table" in company_tanks_body
+    assert "ammo_averages" in company_tanks_body
+    assert "trends" in company_tanks_body
+    assert "tank_readiness" in company_tanks_body["trends"]
+    assert "tank_series" in company_tanks_body["trends"]
+    assert company_tanks_body["critical_gaps_table"]
+    assert "tanks" in company_tanks_body["critical_gaps_table"][0]
+
+    inventory = client.get("/v1/views/companies/Kfir/tanks/653/inventory")
+    assert inventory.status_code == 200
+    inventory_rows = inventory.json()["rows"]
+    assert inventory_rows
+    assert any(row["item"] == "חבל פריסה" for row in inventory_rows)
+    assert any(row["standard_quantity"] is not None for row in inventory_rows)
+
+    assets = client.get("/v1/views/companies/Kfir/assets")
+    assert assets.status_code == 200
+    assets_body = assets.json()
+    assert assets_body["rows"]
+    assert assets_body["summary"]["items"] >= 1
+    assert any("standard_quantity" in row for row in assets_body["rows"])
+
+
+def test_v1_alias_normalization_for_palsam_scope(tmp_path):
+    db_path = tmp_path / "v1_palsam_aliases.db"
+    settings.storage.backend = "sqlite"
+    settings.security.api_token = None
+    settings.security.basic_user = None
+    settings.security.basic_pass = None
+
+    app = create_app(db_path=db_path)
+    client = TestClient(app)
+
+    payload = _command_event("פלס״מ", "810", logistics="חוסר")
+    ingest = client.post("/v1/ingestion/forms/events", json=payload)
+    assert ingest.status_code == 200
+
+    company = client.get("/v1/views/companies/palsam")
+    assert company.status_code == 200
+    body = company.json()
+    assert body["company"] == "Palsam"
+    assert len(body["sections"]) >= 3
 
 
 def test_deprecated_endpoints_return_410(tmp_path):
