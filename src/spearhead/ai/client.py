@@ -68,8 +68,14 @@ class HTTPAIClient(BaseAIClient):
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
         }
+        # Prefer strict JSON output for downstream structured rendering.
+        # If a provider rejects response_format, retry once without it.
+        payload["response_format"] = {"type": "json_object"}
 
         resp = requests.post(self.base_url, json=payload, headers=headers, timeout=self.timeout)
+        if resp.status_code != 200 and "response_format" in payload:
+            payload.pop("response_format", None)
+            resp = requests.post(self.base_url, json=payload, headers=headers, timeout=self.timeout)
         if resp.status_code != 200:
             raise DataSourceError(f"AI provider error: {resp.status_code}")
 

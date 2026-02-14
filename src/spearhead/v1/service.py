@@ -1500,80 +1500,683 @@ class ResponseQueryServiceV2:
         payload = self.battalion_sections_view(week_id=week_id, platoon_scope=platoon_scope)
         rows = payload.get("rows", [])
         if not rows:
+            structured = {
+                "headline": "אין מספיק נתונים לניתוח.",
+                "status": "yellow",
+                "executive_summary": "לא התקבלו דיווחים מספקים כדי להפיק ניתוח גדודי איכותי.",
+                "key_findings": [],
+                "immediate_risks": [],
+                "actions_next_7_days": [],
+                "watch_next_week": [],
+                "data_quality": {
+                    "coverage_note": "אין נתוני חתכים לשבוע הנבחר.",
+                    "limitations": "הדוח יתעדכן לאחר הגעת דיווחים מהפלוגות.",
+                },
+            }
             return {
                 "week_id": payload.get("week_id"),
                 "scope": platoon_scope,
-                "content": "אין מספיק נתונים לניתוח.",
+                "content": structured["executive_summary"],
+                "structured": structured,
                 "source": "deterministic",
             }
 
-        sorted_critical = sorted(
-            rows,
-            key=lambda row: int(row.get("critical_gaps") or 0),
-            reverse=True,
-        )[:5]
-        sorted_readiness = sorted(
-            rows,
-            key=lambda row: float(row.get("readiness_score") or 0.0),
-            reverse=True,
-        )[:5]
-        context = json.dumps(
-            {
-                "week_id": payload.get("week_id"),
-                "previous_week_id": payload.get("previous_week_id"),
-                "scope": platoon_scope,
-                "top_critical": sorted_critical,
-                "top_readiness": sorted_readiness,
-                "trends": payload.get("trends", {}),
-            },
-            ensure_ascii=False,
-        )[:7000]
-        prompt = (
-            "נתח בקצרה את מצב הגדוד בעברית עבור מפקד: "
-            "תן תמונת מצב, 3 סיכונים מיידיים, ו-3 פעולות מומלצות לשבוע הקרוב."
-        )
+        deterministic = self._deterministic_battalion_analysis(payload=payload, rows=rows)
+        context_payload = self._build_battalion_ai_context(payload=payload, rows=rows, platoon_scope=platoon_scope)
+        context = json.dumps(context_payload, ensure_ascii=False)[:12000]
+        prompt = self._build_battalion_ai_prompt()
+        structured = deterministic
+        source = "deterministic"
         if not settings.ai.enabled or settings.ai.provider == "offline":
-            content = self._deterministic_battalion_summary(rows)
-            source = "deterministic"
+            structured = deterministic
         else:
             try:
                 ai_client = build_ai_client(settings)
                 result = ai_client.generate(prompt=prompt, context=context)
-                content = result.content
-                source = result.source
+                parsed = self._parse_remote_battalion_analysis(
+                    raw_content=result.content,
+                    fallback=deterministic,
+                )
+                if parsed is not None:
+                    structured = parsed
+                    source = result.source
+                else:
+                    structured = deterministic
+                    source = "deterministic"
             except Exception:
-                content = self._deterministic_battalion_summary(rows)
+                structured = deterministic
                 source = "deterministic"
 
         return {
             "week_id": payload.get("week_id"),
             "scope": platoon_scope,
-            "content": content,
+            "content": self._render_battalion_ai_content(structured),
+            "structured": structured,
             "source": source,
         }
 
-    @staticmethod
-    def _deterministic_battalion_summary(rows: list[dict[str, Any]]) -> str:
-        ranked_critical = sorted(rows, key=lambda row: int(row.get("critical_gaps") or 0), reverse=True)
-        ranked_readiness = sorted(rows, key=lambda row: float(row.get("readiness_score") or 0.0), reverse=True)
-        top_critical = ranked_critical[0] if ranked_critical else None
-        top_readiness = ranked_readiness[0] if ranked_readiness else None
-        critical_text = (
-            f"{top_critical.get('company')} / {top_critical.get('section')} ({top_critical.get('critical_gaps', 0)})"
-            if top_critical
-            else "אין"
-        )
-        readiness_text = (
-            f"{top_readiness.get('company')} / {top_readiness.get('section')} ({top_readiness.get('readiness_score')})"
-            if top_readiness
-            else "אין"
-        )
+    def _build_battalion_ai_prompt(self) -> str:
         return (
-            "סיכום אוטומטי דטרמיניסטי: "
-            f"כיס הקריטי המרכזי: {critical_text}. "
-            f"החתך החזק ביותר: {readiness_text}. "
-            "המלצות: לתעדף טיפול בפריטים הקריטיים, לסגור פערי דיווח, ולעקוב אחרי מגמת כשירות שבועית."
+            "אתה אנליסט מבצעי בכיר המסכם מצב גדודי למפקד. "
+            "השתמש אך ורק בנתונים שמתקבלים ב-JSON מהמשתמש. "
+            "אסור להמציא שמות פלוגות, מספרים או מגמות שלא קיימים בנתונים. "
+            "שמות פלוגות חייבים להיות זהים לערכים בשדה company_label. "
+            "אם מידע חסר, כתוב 'לא זמין'. "
+            "החזר תשובה בפורמט JSON בלבד, ללא Markdown וללא טקסט נוסף.\n"
+            "{\n"
+            '  "headline": "כותרת קצרה עד 90 תווים",\n'
+            '  "status": "green|yellow|red",\n'
+            '  "executive_summary": "סיכום מנהלים תמציתי",\n'
+            '  "key_findings": [\n'
+            '    {"title": "...", "detail": "...", "severity": "high|medium|low", "company": "..."}\n'
+            "  ],\n"
+            '  "immediate_risks": [\n'
+            '    {"risk": "...", "reason": "...", "impact": "high|medium|low", "companies": ["..."]}\n'
+            "  ],\n"
+            '  "actions_next_7_days": [\n'
+            '    {"action": "...", "priority": "p1|p2|p3", "owner": "...", "expected_effect": "..."}\n'
+            "  ],\n"
+            '  "watch_next_week": ["..."],\n'
+            '  "data_quality": {"coverage_note": "...", "limitations": "..."}\n'
+            "}\n"
+            "כללים: בדיוק 3 key_findings, בדיוק 3 immediate_risks, "
+            "בין 3 ל-4 actions_next_7_days, ובין 2 ל-3 watch_next_week. "
+            "היה תמציתי: executive_summary עד 180 תווים, כל detail/reason/expected_effect עד 120 תווים."
         )
+
+    def _build_battalion_ai_context(
+        self,
+        *,
+        payload: dict[str, Any],
+        rows: list[dict[str, Any]],
+        platoon_scope: Optional[str],
+    ) -> dict[str, Any]:
+        company_rollups = self._company_rollups_for_ai(rows=rows, companies=payload.get("companies") or [])
+        critical_hotspots = sorted(
+            [
+                {
+                    "company_key": self._canonical_company(row.get("company")),
+                    "company_label": self._company_display_name(self._canonical_company(row.get("company"))),
+                    "section": row.get("section"),
+                    "section_label": self.section_display_names.get(row.get("section"), row.get("section")),
+                    "critical_gaps": int(row.get("critical_gaps") or 0),
+                    "total_gaps": int(row.get("total_gaps") or 0),
+                    "readiness_score": row.get("readiness_score"),
+                    "delta_readiness": row.get("delta_readiness"),
+                }
+                for row in rows
+                if int(row.get("reports") or 0) > 0
+            ],
+            key=lambda item: (item["critical_gaps"], item["total_gaps"]),
+            reverse=True,
+        )[:8]
+        coverage_rows = [row for row in rows if int(row.get("reports") or 0) > 0]
+        trend_rows = payload.get("trends", {}).get("readiness_by_company", [])
+        trend_snapshot: list[dict[str, Any]] = []
+        for company in company_rollups:
+            key = company["company_key"]
+            values = []
+            for trend_row in trend_rows:
+                value = trend_row.get(key)
+                if value is None:
+                    continue
+                try:
+                    values.append({"week_id": trend_row.get("week_id"), "readiness": round(float(value), 1)})
+                except Exception:
+                    continue
+            latest = values[-1] if values else None
+            previous = values[-2] if len(values) > 1 else None
+            trend_snapshot.append(
+                {
+                    "company_key": key,
+                    "company_label": company["company_label"],
+                    "latest": latest,
+                    "previous": previous,
+                    "delta": round(float(latest["readiness"]) - float(previous["readiness"]), 1)
+                    if latest and previous
+                    else None,
+                }
+            )
+
+        return {
+            "week_id": payload.get("week_id"),
+            "previous_week_id": payload.get("previous_week_id"),
+            "scope": platoon_scope or "Battalion",
+            "section_labels": self.section_display_names,
+            "company_rollups": company_rollups,
+            "critical_hotspots": critical_hotspots,
+            "trend_snapshot": trend_snapshot,
+            "coverage": {
+                "section_rows_total": len(rows),
+                "section_rows_with_reports": len(coverage_rows),
+                "section_rows_coverage_pct": round((len(coverage_rows) / len(rows)) * 100.0, 1) if rows else 0.0,
+            },
+        }
+
+    def _company_rollups_for_ai(self, *, rows: list[dict[str, Any]], companies: list[Any]) -> list[dict[str, Any]]:
+        canonical_companies: list[str] = []
+        seen: set[str] = set()
+        for company in companies:
+            canonical = self._canonical_company(company)
+            if not canonical or canonical == "Battalion" or canonical in seen:
+                continue
+            seen.add(canonical)
+            canonical_companies.append(canonical)
+
+        for row in rows:
+            canonical = self._canonical_company(row.get("company"))
+            if not canonical or canonical == "Battalion" or canonical in seen:
+                continue
+            seen.add(canonical)
+            canonical_companies.append(canonical)
+
+        rollups: list[dict[str, Any]] = []
+        for company in canonical_companies:
+            company_rows = [
+                row for row in rows
+                if self._canonical_company(row.get("company")) == company
+            ]
+            readiness_values = [
+                float(row["readiness_score"])
+                for row in company_rows
+                if row.get("readiness_score") is not None
+            ]
+            delta_values = [
+                float(row["delta_readiness"])
+                for row in company_rows
+                if row.get("delta_readiness") is not None
+            ]
+            total_critical = sum(int(row.get("critical_gaps") or 0) for row in company_rows)
+            total_gaps = sum(int(row.get("total_gaps") or 0) for row in company_rows)
+            reports = max((int(row.get("reports") or 0) for row in company_rows), default=0)
+            known_tanks = max((int(row.get("tanks") or 0) for row in company_rows), default=0)
+            reporting_rate = round((reports / known_tanks) * 100.0, 1) if known_tanks > 0 else None
+
+            section_rows = [
+                {
+                    "section": row.get("section"),
+                    "section_label": self.section_display_names.get(row.get("section"), row.get("section")),
+                    "readiness_score": row.get("readiness_score"),
+                    "critical_gaps": int(row.get("critical_gaps") or 0),
+                    "total_gaps": int(row.get("total_gaps") or 0),
+                }
+                for row in company_rows
+                if int(row.get("reports") or 0) > 0
+            ]
+            section_with_score = [
+                row for row in section_rows
+                if row.get("readiness_score") is not None
+            ]
+            weakest_section = (
+                min(section_with_score, key=lambda row: float(row["readiness_score"]))
+                if section_with_score else None
+            )
+            strongest_section = (
+                max(section_with_score, key=lambda row: float(row["readiness_score"]))
+                if section_with_score else None
+            )
+
+            rollups.append(
+                {
+                    "company_key": company,
+                    "company_label": self._company_display_name(company),
+                    "avg_readiness": round(sum(readiness_values) / len(readiness_values), 1) if readiness_values else None,
+                    "avg_delta_readiness": round(sum(delta_values) / len(delta_values), 1) if delta_values else None,
+                    "critical_gaps": total_critical,
+                    "total_gaps": total_gaps,
+                    "reports": reports,
+                    "known_tanks": known_tanks,
+                    "reporting_rate": reporting_rate,
+                    "weakest_section": weakest_section,
+                    "strongest_section": strongest_section,
+                }
+            )
+
+        rollups.sort(key=lambda row: self._company_sort_key(row["company_key"]))
+        return rollups
+
+    def _deterministic_battalion_analysis(self, *, payload: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+        company_rollups = self._company_rollups_for_ai(rows=rows, companies=payload.get("companies") or [])
+        companies_with_readiness = [row for row in company_rollups if row.get("avg_readiness") is not None]
+        top_critical = max(company_rollups, key=lambda row: int(row.get("critical_gaps") or 0), default=None)
+        weakest_company = min(
+            companies_with_readiness,
+            key=lambda row: float(row.get("avg_readiness")),
+            default=None,
+        )
+        strongest_company = max(
+            companies_with_readiness,
+            key=lambda row: float(row.get("avg_readiness")),
+            default=None,
+        )
+        worst_delta_company = min(
+            [row for row in companies_with_readiness if row.get("avg_delta_readiness") is not None],
+            key=lambda row: float(row.get("avg_delta_readiness")),
+            default=None,
+        )
+        total_critical = sum(int(row.get("critical_gaps") or 0) for row in company_rollups)
+        total_gaps = sum(int(row.get("total_gaps") or 0) for row in company_rollups)
+        coverage_rows = [row for row in rows if int(row.get("reports") or 0) > 0]
+        coverage_pct = round((len(coverage_rows) / len(rows)) * 100.0, 1) if rows else 0.0
+
+        if total_critical >= 12 or (
+            weakest_company is not None
+            and weakest_company.get("avg_readiness") is not None
+            and float(weakest_company["avg_readiness"]) < 55.0
+        ):
+            status = "red"
+        elif total_critical >= 4 or (
+            weakest_company is not None
+            and weakest_company.get("avg_readiness") is not None
+            and float(weakest_company["avg_readiness"]) < 75.0
+        ):
+            status = "yellow"
+        else:
+            status = "green"
+
+        def _fmt_score(value: Any) -> str:
+            if value is None:
+                return "לא זמין"
+            try:
+                return f"{float(value):.1f}"
+            except Exception:
+                return "לא זמין"
+
+        headline = "תמונת מצב יציבה, יש להמשיך סגירת פערים" if status == "green" else (
+            "נדרשת התערבות ממוקדת בסיכונים קריטיים" if status == "yellow" else "נדרשת התערבות מיידית ברמת הגדוד"
+        )
+
+        summary_parts = []
+        if top_critical is not None:
+            summary_parts.append(
+                f"מוקד הסיכון המרכזי: {top_critical['company_label']} "
+                f"עם {int(top_critical.get('critical_gaps') or 0)} פערים קריטיים."
+            )
+        if weakest_company is not None:
+            summary_parts.append(
+                f"הכשירות הנמוכה ביותר: {weakest_company['company_label']} "
+                f"({ _fmt_score(weakest_company.get('avg_readiness')) })."
+            )
+        if strongest_company is not None:
+            summary_parts.append(
+                f"פלוגה מובילה: {strongest_company['company_label']} "
+                f"({ _fmt_score(strongest_company.get('avg_readiness')) })."
+            )
+        summary_parts.append(f"סך הפערים: {total_gaps}, מתוכם קריטיים: {total_critical}.")
+        executive_summary = " ".join(summary_parts)
+
+        key_findings: list[dict[str, Any]] = []
+        if top_critical is not None:
+            key_findings.append(
+                {
+                    "title": f"{top_critical['company_label']}: עומס פערים קריטיים",
+                    "detail": (
+                        f"{int(top_critical.get('critical_gaps') or 0)} פערים קריטיים "
+                        f"ו-{int(top_critical.get('total_gaps') or 0)} פערים כלליים."
+                    ),
+                    "severity": "high" if int(top_critical.get("critical_gaps") or 0) > 0 else "medium",
+                    "company": top_critical["company_label"],
+                }
+            )
+        if weakest_company is not None:
+            weakest_section = weakest_company.get("weakest_section") or {}
+            weakest_section_label = weakest_section.get("section_label") or "לא זמין"
+            key_findings.append(
+                {
+                    "title": f"{weakest_company['company_label']}: כשירות נמוכה",
+                    "detail": (
+                        f"כשירות ממוצעת { _fmt_score(weakest_company.get('avg_readiness')) }, "
+                        f"חתך חלש: {weakest_section_label}."
+                    ),
+                    "severity": "high" if status == "red" else "medium",
+                    "company": weakest_company["company_label"],
+                }
+            )
+        if strongest_company is not None:
+            key_findings.append(
+                {
+                    "title": f"{strongest_company['company_label']}: ביצוע יציב",
+                    "detail": (
+                        f"כשירות ממוצעת { _fmt_score(strongest_company.get('avg_readiness')) } "
+                        "המהווה עוגן להשוואה והטמעת שגרות."
+                    ),
+                    "severity": "low",
+                    "company": strongest_company["company_label"],
+                }
+            )
+        while len(key_findings) < 3:
+            key_findings.append(
+                {
+                    "title": "נדרש מידע נוסף",
+                    "detail": "אין די נתונים כדי להשלים תובנה נוספת ברמת ביטחון גבוהה.",
+                    "severity": "low",
+                    "company": "גדוד",
+                }
+            )
+        key_findings = key_findings[:3]
+
+        immediate_risks: list[dict[str, Any]] = []
+        if top_critical is not None and int(top_critical.get("critical_gaps") or 0) > 0:
+            immediate_risks.append(
+                {
+                    "risk": "פערים קריטיים פתוחים",
+                    "reason": (
+                        f"{top_critical['company_label']} מרכזת {int(top_critical.get('critical_gaps') or 0)} "
+                        "פערים קריטיים פעילים."
+                    ),
+                    "impact": "high",
+                    "companies": [top_critical["company_label"]],
+                }
+            )
+        if weakest_company is not None:
+            immediate_risks.append(
+                {
+                    "risk": "כשירות לוגיסטית/מבצעית לא מספקת",
+                    "reason": (
+                        f"{weakest_company['company_label']} בכשירות ממוצעת "
+                        f"{ _fmt_score(weakest_company.get('avg_readiness')) }."
+                    ),
+                    "impact": "high" if status == "red" else "medium",
+                    "companies": [weakest_company["company_label"]],
+                }
+            )
+        if worst_delta_company is not None and float(worst_delta_company.get("avg_delta_readiness") or 0.0) < 0:
+            immediate_risks.append(
+                {
+                    "risk": "מגמת ירידה שבועית",
+                    "reason": (
+                        f"{worst_delta_company['company_label']} בירידה שבועית של "
+                        f"{_fmt_score(worst_delta_company.get('avg_delta_readiness'))} נק'."
+                    ),
+                    "impact": "medium",
+                    "companies": [worst_delta_company["company_label"]],
+                }
+            )
+        if coverage_pct < 85.0:
+            immediate_risks.append(
+                {
+                    "risk": "כיסוי דיווח חלקי",
+                    "reason": f"כיסוי שורות חתך: {coverage_pct:.1f}%.",
+                    "impact": "medium",
+                    "companies": [row["company_label"] for row in company_rollups],
+                }
+            )
+        while len(immediate_risks) < 3:
+            immediate_risks.append(
+                {
+                    "risk": "נדרש ניטור שוטף",
+                    "reason": "לא זוהה סיכון נוסף ברמת ביטחון גבוהה.",
+                    "impact": "low",
+                    "companies": ["גדוד"],
+                }
+            )
+        immediate_risks = immediate_risks[:3]
+
+        action_owner = top_critical["company_label"] if top_critical is not None else "מפקדי פלוגות"
+        actions = [
+            {
+                "action": "סגירת כל פער קריטי פתוח לפי טנק ואחראי עד סוף השבוע.",
+                "priority": "p1",
+                "owner": action_owner,
+                "expected_effect": "צמצום מיידי בסיכון המבצעי.",
+            },
+            {
+                "action": "בדיקת חתכים חלשים בתדריך יומי והקצאת תגבור משאבים ממוקד.",
+                "priority": "p1",
+                "owner": "מג\"ד וקציני מקצוע",
+                "expected_effect": "בלימת ירידת כשירות ושיפור יציבות.",
+            },
+            {
+                "action": "הטמעת שגרת למידה מהפלוגה המובילה והפצת נוהל עבודה אחיד.",
+                "priority": "p2",
+                "owner": "קצין אג\"ם גדודי",
+                "expected_effect": "שיפור רוחבי ברמת הביצוע הפלוגתית.",
+            },
+            {
+                "action": "בקרת דיווחים שבועית: השלמת חוסרי דיווח לפני סגירת שבוע.",
+                "priority": "p2",
+                "owner": "רס\"פים ומפקדי מחלקות",
+                "expected_effect": "העלאת מהימנות תמונת המצב.",
+            },
+        ]
+        actions = actions[:4]
+
+        watch_next_week = [
+            "שינוי בכמות הפערים הקריטיים לכל פלוגה מול השבוע הנוכחי.",
+            "שיפור/הרעה בכשירות הממוצעת בחתך החלש של כל פלוגה.",
+            "אחוז דיווחים מלאים מול מספר הטנקים הידוע בכל פלוגה.",
+        ]
+
+        return {
+            "headline": headline[:90],
+            "status": status,
+            "executive_summary": executive_summary[:300],
+            "key_findings": key_findings,
+            "immediate_risks": immediate_risks,
+            "actions_next_7_days": actions,
+            "watch_next_week": watch_next_week,
+            "data_quality": {
+                "coverage_note": (
+                    f"כיסוי שורות חתך: {coverage_pct:.1f}% "
+                    f"({len(coverage_rows)}/{len(rows)})."
+                ),
+                "limitations": "הניתוח מבוסס על דיווחים שהתקבלו בלבד ועלול להחמיץ פערים שלא דווחו.",
+            },
+        }
+
+    def _parse_remote_battalion_analysis(
+        self,
+        *,
+        raw_content: Any,
+        fallback: dict[str, Any],
+    ) -> Optional[dict[str, Any]]:
+        text = str(raw_content or "").strip()
+        if not text:
+            return None
+
+        candidates: list[str] = [text]
+        fenced = re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.IGNORECASE | re.DOTALL)
+        for fragment in fenced:
+            cleaned = str(fragment or "").strip()
+            if cleaned:
+                candidates.append(cleaned)
+        if "{" in text and "}" in text:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start >= 0 and end > start:
+                candidates.append(text[start : end + 1].strip())
+
+        for candidate in candidates:
+            try:
+                parsed = json.loads(candidate)
+            except Exception:
+                continue
+            normalized = self._validate_battalion_analysis(parsed=parsed, fallback=fallback)
+            if normalized is not None:
+                return normalized
+        return None
+
+    def _validate_battalion_analysis(
+        self,
+        *,
+        parsed: Any,
+        fallback: dict[str, Any],
+    ) -> Optional[dict[str, Any]]:
+        if not isinstance(parsed, dict):
+            return None
+
+        def _to_text(value: Any, *, default: str = "", max_len: int = 240) -> str:
+            text = str(value or "").strip()
+            if not text:
+                return default
+            return text[:max_len]
+
+        status = _to_text(parsed.get("status"), default=fallback.get("status", "yellow"), max_len=12).lower()
+        if status not in {"green", "yellow", "red"}:
+            status = fallback.get("status", "yellow")
+
+        headline = _to_text(parsed.get("headline"), default=fallback.get("headline", ""), max_len=90)
+        executive_summary = _to_text(
+            parsed.get("executive_summary"),
+            default=fallback.get("executive_summary", ""),
+            max_len=320,
+        )
+        if not headline or not executive_summary:
+            return None
+
+        findings: list[dict[str, Any]] = []
+        for item in parsed.get("key_findings", []) if isinstance(parsed.get("key_findings"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            title = _to_text(item.get("title"), max_len=90)
+            detail = _to_text(item.get("detail"), max_len=220)
+            severity = _to_text(item.get("severity"), default="medium", max_len=12).lower()
+            company = _to_text(item.get("company"), default="גדוד", max_len=32)
+            if severity not in {"high", "medium", "low"}:
+                severity = "medium"
+            if not title or not detail:
+                continue
+            findings.append(
+                {
+                    "title": title,
+                    "detail": detail,
+                    "severity": severity,
+                    "company": company,
+                }
+            )
+        if len(findings) < 2:
+            findings = fallback.get("key_findings", [])
+        findings = findings[:3]
+
+        risks: list[dict[str, Any]] = []
+        for item in parsed.get("immediate_risks", []) if isinstance(parsed.get("immediate_risks"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            risk = _to_text(item.get("risk"), max_len=90)
+            reason = _to_text(item.get("reason"), max_len=220)
+            impact = _to_text(item.get("impact"), default="medium", max_len=12).lower()
+            companies = item.get("companies")
+            if impact not in {"high", "medium", "low"}:
+                impact = "medium"
+            if not isinstance(companies, list):
+                companies = []
+            companies_text = [
+                _to_text(company, max_len=32)
+                for company in companies
+                if _to_text(company, max_len=32)
+            ]
+            if not risk or not reason:
+                continue
+            risks.append(
+                {
+                    "risk": risk,
+                    "reason": reason,
+                    "impact": impact,
+                    "companies": companies_text or ["גדוד"],
+                }
+            )
+        if len(risks) < 2:
+            risks = fallback.get("immediate_risks", [])
+        risks = risks[:3]
+
+        actions: list[dict[str, Any]] = []
+        for item in parsed.get("actions_next_7_days", []) if isinstance(parsed.get("actions_next_7_days"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            action = _to_text(item.get("action"), max_len=180)
+            priority = _to_text(item.get("priority"), default="p2", max_len=12).lower()
+            owner = _to_text(item.get("owner"), default="גדוד", max_len=60)
+            expected_effect = _to_text(item.get("expected_effect"), max_len=180)
+            if priority not in {"p1", "p2", "p3"}:
+                priority = "p2"
+            if not action or not expected_effect:
+                continue
+            actions.append(
+                {
+                    "action": action,
+                    "priority": priority,
+                    "owner": owner,
+                    "expected_effect": expected_effect,
+                }
+            )
+        if len(actions) < 2:
+            actions = fallback.get("actions_next_7_days", [])
+        actions = actions[:4]
+
+        watch_items = []
+        raw_watch = parsed.get("watch_next_week")
+        if isinstance(raw_watch, list):
+            for item in raw_watch:
+                text = _to_text(item, max_len=140)
+                if text:
+                    watch_items.append(text)
+        if len(watch_items) < 2:
+            watch_items = fallback.get("watch_next_week", [])
+        watch_items = watch_items[:3]
+
+        data_quality = parsed.get("data_quality")
+        if isinstance(data_quality, dict):
+            coverage_note = _to_text(
+                data_quality.get("coverage_note"),
+                default=fallback.get("data_quality", {}).get("coverage_note", "לא זמין"),
+                max_len=180,
+            )
+            limitations = _to_text(
+                data_quality.get("limitations"),
+                default=fallback.get("data_quality", {}).get("limitations", "לא זמין"),
+                max_len=220,
+            )
+        else:
+            coverage_note = fallback.get("data_quality", {}).get("coverage_note", "לא זמין")
+            limitations = fallback.get("data_quality", {}).get("limitations", "לא זמין")
+
+        return {
+            "headline": headline,
+            "status": status,
+            "executive_summary": executive_summary,
+            "key_findings": findings,
+            "immediate_risks": risks,
+            "actions_next_7_days": actions,
+            "watch_next_week": watch_items,
+            "data_quality": {
+                "coverage_note": coverage_note,
+                "limitations": limitations,
+            },
+        }
+
+    @staticmethod
+    def _render_battalion_ai_content(structured: dict[str, Any]) -> str:
+        lines = [
+            structured.get("headline", ""),
+            structured.get("executive_summary", ""),
+            "",
+            "סיכונים מיידיים:",
+        ]
+        for idx, item in enumerate(structured.get("immediate_risks", [])[:3], start=1):
+            risk = str(item.get("risk") or "").strip()
+            reason = str(item.get("reason") or "").strip()
+            impact = str(item.get("impact") or "").strip().upper()
+            lines.append(f"{idx}. {risk} ({impact}) - {reason}")
+
+        lines.append("")
+        lines.append("פעולות ל-7 ימים:")
+        for idx, item in enumerate(structured.get("actions_next_7_days", [])[:4], start=1):
+            action = str(item.get("action") or "").strip()
+            owner = str(item.get("owner") or "").strip()
+            priority = str(item.get("priority") or "").strip().upper()
+            lines.append(f"{idx}. [{priority}] {action} | אחראי: {owner}")
+        return "\n".join(line for line in lines if line is not None).strip()
+
+    @staticmethod
+    def _company_display_name(company: str) -> str:
+        labels = {
+            "Kfir": "כפיר",
+            "Mahatz": "מחץ",
+            "Sufa": "סופה",
+            "Palsam": "פלס\"מ",
+            "Battalion": "גדוד",
+        }
+        return labels.get(company, company)
 
     @staticmethod
     def _normalize_tank_id(tank_id: Any) -> str:

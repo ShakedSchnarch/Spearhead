@@ -11,6 +11,7 @@ import {
   Group,
   Image,
   Loader,
+  Paper,
   Progress,
   SegmentedControl,
   Select,
@@ -44,6 +45,48 @@ function EmptyState({ label }) {
       <Text c="dimmed">{label}</Text>
     </Group>
   );
+}
+
+const AI_STATUS_META = {
+  green: { label: "סטטוס: יציב", color: "green" },
+  yellow: { label: "סטטוס: דורש מעקב", color: "yellow" },
+  red: { label: "סטטוס: סיכון גבוה", color: "red" },
+};
+
+const AI_SEVERITY_META = {
+  high: { label: "גבוה", color: "red" },
+  medium: { label: "בינוני", color: "yellow" },
+  low: { label: "נמוך", color: "blue" },
+};
+
+const AI_PRIORITY_META = {
+  p1: { label: "P1", color: "red" },
+  p2: { label: "P2", color: "yellow" },
+  p3: { label: "P3", color: "blue" },
+};
+
+function extractStructuredAi(raw) {
+  if (!raw) return null;
+  if (raw.structured && typeof raw.structured === "object") return raw.structured;
+  const content = `${raw.content || ""}`.trim();
+  if (!content) return null;
+
+  const candidates = [content];
+  const fencedMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch?.[1]) candidates.push(fencedMatch[1].trim());
+  const start = content.indexOf("{");
+  const end = content.lastIndexOf("}");
+  if (start >= 0 && end > start) candidates.push(content.slice(start, end + 1));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object") return parsed;
+    } catch {
+      // Try next candidate.
+    }
+  }
+  return null;
 }
 
 export function DashboardContent({ client, user, onLogout }) {
@@ -330,6 +373,11 @@ export function DashboardContent({ client, user, onLogout }) {
       .sort((a, b) => Number(b.criticalGaps || 0) - Number(a.criticalGaps || 0));
     return sorted[0] || null;
   }, [battalionRowsWithData]);
+  const battalionAiStructured = useMemo(
+    () => extractStructuredAi(battalionAiAnalysis.data),
+    [battalionAiAnalysis.data],
+  );
+  const battalionAiStatusMeta = AI_STATUS_META[battalionAiStructured?.status] || AI_STATUS_META.yellow;
 
   const tanksRows = useMemo(() => sectionTanks.data?.rows || [], [sectionTanks.data]);
   const companyTankRows = useMemo(() => companyTanks.data?.rows || [], [companyTanks.data]);
@@ -640,12 +688,105 @@ export function DashboardContent({ client, user, onLogout }) {
           <Card withBorder mb="md">
             <Group justify="space-between" mb="xs" align="center">
               <Text fw={700}>ניתוח AI גדודי</Text>
-              <Badge variant="light" color={battalionAiAnalysis.data?.source === "remote" ? "teal" : "gray"}>
-                מקור: {battalionAiAnalysis.data?.source || "offline"}
-              </Badge>
+              <Group gap={6}>
+                <Badge variant="light" color={battalionAiStatusMeta.color}>
+                  {battalionAiStatusMeta.label}
+                </Badge>
+                <Badge variant="light" color={battalionAiAnalysis.data?.source === "remote" ? "teal" : "gray"}>
+                  מקור: {battalionAiAnalysis.data?.source || "offline"}
+                </Badge>
+              </Group>
             </Group>
             {battalionAiAnalysis.isFetching ? (
               <Loader size="sm" />
+            ) : battalionAiStructured ? (
+              <Stack gap="sm">
+                <Paper withBorder p="sm" className="ai-summary-panel">
+                  <Text fw={700}>{battalionAiStructured.headline || "תמונת מצב"}</Text>
+                  <Text size="sm" c="dimmed" mt={6}>
+                    {battalionAiStructured.executive_summary || "אין סיכום זמין."}
+                  </Text>
+                </Paper>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                  <Paper withBorder p="sm" className="ai-analysis-panel">
+                    <Text fw={700} mb={8}>תובנות מרכזיות</Text>
+                    <Stack gap={8}>
+                      {(battalionAiStructured.key_findings || []).map((item, index) => {
+                        const severityMeta = AI_SEVERITY_META[item?.severity] || AI_SEVERITY_META.medium;
+                        return (
+                          <Paper key={`finding-${index}`} withBorder p="xs" className="ai-analysis-item">
+                            <Group justify="space-between" align="start" mb={4}>
+                              <Text fw={600} size="sm">{item?.title || "ללא כותרת"}</Text>
+                              <Badge variant="light" color={severityMeta.color}>{severityMeta.label}</Badge>
+                            </Group>
+                            <Text size="sm" c="dimmed">{item?.detail || "לא זמין."}</Text>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  </Paper>
+
+                  <Paper withBorder p="sm" className="ai-analysis-panel">
+                    <Text fw={700} mb={8}>סיכונים מיידיים</Text>
+                    <Stack gap={8}>
+                      {(battalionAiStructured.immediate_risks || []).map((item, index) => {
+                        const severityMeta = AI_SEVERITY_META[item?.impact] || AI_SEVERITY_META.medium;
+                        return (
+                          <Paper key={`risk-${index}`} withBorder p="xs" className="ai-analysis-item">
+                            <Group justify="space-between" align="start" mb={4}>
+                              <Text fw={600} size="sm">{item?.risk || "סיכון"}</Text>
+                              <Badge variant="light" color={severityMeta.color}>{severityMeta.label}</Badge>
+                            </Group>
+                            <Text size="sm" c="dimmed">{item?.reason || "לא זמין."}</Text>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  </Paper>
+                </SimpleGrid>
+
+                <Paper withBorder p="sm" className="ai-analysis-panel">
+                  <Text fw={700} mb={8}>פעולות מומלצות ל-7 ימים</Text>
+                  <Stack gap={8}>
+                    {(battalionAiStructured.actions_next_7_days || []).map((item, index) => {
+                      const priorityMeta = AI_PRIORITY_META[item?.priority] || AI_PRIORITY_META.p2;
+                      return (
+                        <Paper key={`action-${index}`} withBorder p="xs" className="ai-analysis-item">
+                          <Group justify="space-between" align="start" mb={4}>
+                            <Text fw={600} size="sm">{item?.action || "ללא פעולה"}</Text>
+                            <Badge variant="filled" color={priorityMeta.color}>{priorityMeta.label}</Badge>
+                          </Group>
+                          <Text size="sm" c="dimmed">אחראי: {item?.owner || "לא הוגדר"}</Text>
+                          <Text size="sm" c="dimmed">השפעה צפויה: {item?.expected_effect || "לא זמין"}</Text>
+                        </Paper>
+                      );
+                    })}
+                  </Stack>
+                </Paper>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                  <Paper withBorder p="sm" className="ai-analysis-panel">
+                    <Text fw={700} mb={8}>מה לעקוב בשבוע הבא</Text>
+                    <Stack gap={6}>
+                      {(battalionAiStructured.watch_next_week || []).map((item, index) => (
+                        <Text size="sm" c="dimmed" key={`watch-${index}`}>
+                          {index + 1}. {item}
+                        </Text>
+                      ))}
+                    </Stack>
+                  </Paper>
+                  <Paper withBorder p="sm" className="ai-analysis-panel">
+                    <Text fw={700} mb={8}>איכות נתונים</Text>
+                    <Text size="sm" c="dimmed">
+                      {battalionAiStructured.data_quality?.coverage_note || "לא זמין"}
+                    </Text>
+                    <Text size="sm" c="dimmed" mt={6}>
+                      {battalionAiStructured.data_quality?.limitations || "לא זמין"}
+                    </Text>
+                  </Paper>
+                </SimpleGrid>
+              </Stack>
             ) : (
               <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
                 {battalionAiAnalysis.data?.content || "אין ניתוח זמין כרגע."}

@@ -86,6 +86,9 @@ class OperationalViewSettings(BaseSettings):
         "Logistics": "לוגיסטיקה",
         "Communications": "תקשוב",
     }
+    company_order: list[str] = ["Kfir", "Mahatz", "Sufa"]
+    enabled_companies: list[str] = ["Kfir", "Mahatz", "Sufa"]
+    standards_path: Path = Path("./config/operational_standards.yaml")
     section_scope_notes: dict[str, str] = {
         "Armament": "אמצעים, חלפים, שמנים",
         "Logistics": "מקלעים, תחמושת, זיווד",
@@ -131,7 +134,7 @@ class AISettings(BaseSettings):
     base_url: Optional[str] = None  # used when provider=http
     api_key: Optional[str] = None
     model: str = "gpt-4o-mini"
-    max_tokens: int = 256
+    max_tokens: int = 1200
     cache_ttl_minutes: int = 60
     temperature: float = 0.2
 

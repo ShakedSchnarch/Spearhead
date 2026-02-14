@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 from fastapi.testclient import TestClient
 
@@ -167,7 +168,11 @@ def test_v1_command_views(tmp_path):
     assert battalion_ai.status_code == 200
     battalion_ai_body = battalion_ai.json()
     assert battalion_ai_body["source"] == "deterministic"
-    assert "סיכום" in battalion_ai_body["content"]
+    assert battalion_ai_body["structured"]["headline"]
+    assert battalion_ai_body["structured"]["status"] in {"green", "yellow", "red"}
+    assert len(battalion_ai_body["structured"]["key_findings"]) == 3
+    assert len(battalion_ai_body["structured"]["immediate_risks"]) == 3
+    assert len(battalion_ai_body["structured"]["actions_next_7_days"]) >= 3
 
     company = client.get("/v1/views/companies/Kfir")
     assert company.status_code == 200
@@ -249,7 +254,82 @@ def test_v1_battalion_ai_analysis_uses_remote_client_when_enabled(tmp_path, monk
     class _FakeAIClient:
         def generate(self, prompt: str, context: str):
             class _Result:
-                content = "remote analysis stub"
+                content = json.dumps(
+                    {
+                        "headline": "מצב גדודי דורש מיקוד",
+                        "status": "yellow",
+                        "executive_summary": "התמונה מצביעה על פערים קריטיים בלוגיסטיקה לצד שונות בין הפלוגות.",
+                        "key_findings": [
+                            {
+                                "title": "כפיר עם העומס הגבוה",
+                                "detail": "מספר פערים קריטיים גבוה ביחס לשאר הפלוגות.",
+                                "severity": "high",
+                                "company": "כפיר",
+                            },
+                            {
+                                "title": "מחץ במגמת שיפור",
+                                "detail": "שיפור יציב בכשירות השבועית.",
+                                "severity": "medium",
+                                "company": "מחץ",
+                            },
+                            {
+                                "title": "סופה יציבה",
+                                "detail": "רמת כשירות בינונית ללא שינוי חד.",
+                                "severity": "low",
+                                "company": "סופה",
+                            },
+                        ],
+                        "immediate_risks": [
+                            {
+                                "risk": "פערים קריטיים פתוחים",
+                                "reason": "מלאי חסר במספר פריטים קריטיים.",
+                                "impact": "high",
+                                "companies": ["כפיר"],
+                            },
+                            {
+                                "risk": "ירידה נקודתית בכשירות",
+                                "reason": "עלייה בפערי לוגיסטיקה.",
+                                "impact": "medium",
+                                "companies": ["כפיר", "סופה"],
+                            },
+                            {
+                                "risk": "אי אחידות תהליכית",
+                                "reason": "פער בין שיטות העבודה של הפלוגות.",
+                                "impact": "medium",
+                                "companies": ["גדוד"],
+                            },
+                        ],
+                        "actions_next_7_days": [
+                            {
+                                "action": "סגירת פערים קריטיים לפי טנק.",
+                                "priority": "p1",
+                                "owner": "מפקדי פלוגות",
+                                "expected_effect": "צמצום סיכון מיידי.",
+                            },
+                            {
+                                "action": "בקרת כשירות יומית בחתך לוגיסטיקה.",
+                                "priority": "p1",
+                                "owner": "קצין לוגיסטיקה גדודי",
+                                "expected_effect": "בלימת הידרדרות שבועית.",
+                            },
+                            {
+                                "action": "יישור קו תהליכי בין הפלוגות.",
+                                "priority": "p2",
+                                "owner": "אג\"ם גדודי",
+                                "expected_effect": "שיפור אחידות ביצוע.",
+                            },
+                        ],
+                        "watch_next_week": [
+                            "פערים קריטיים לפי פלוגה.",
+                            "כשירות ממוצעת לפי פלוגה.",
+                        ],
+                        "data_quality": {
+                            "coverage_note": "כיסוי דיווחים מספק לשבוע הנוכחי.",
+                            "limitations": "ייתכנו פערים שלא דווחו.",
+                        },
+                    },
+                    ensure_ascii=False,
+                )
                 source = "remote"
 
             return _Result()
@@ -277,7 +357,9 @@ def test_v1_battalion_ai_analysis_uses_remote_client_when_enabled(tmp_path, monk
         assert analysis.status_code == 200
         body = analysis.json()
         assert body["source"] == "remote"
-        assert "remote analysis stub" in body["content"]
+        assert body["structured"]["headline"] == "מצב גדודי דורש מיקוד"
+        assert body["structured"]["status"] == "yellow"
+        assert len(body["structured"]["key_findings"]) == 3
     finally:
         settings.ai.enabled = prev_enabled
         settings.ai.provider = prev_provider
