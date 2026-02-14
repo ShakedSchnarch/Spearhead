@@ -37,6 +37,10 @@ Create these secrets in Secret Manager:
 Deployment script maps existing secrets automatically to Cloud Run env vars.
 If `SECURITY__REQUIRE_AUTH_ON_QUERIES=true` and `SPEARHEAD_AUTHORIZED_USERS` is missing/empty, OAuth login is blocked by design.
 
+When updating an existing service:
+- Use `--update-secrets` (not `--set-secrets`) to avoid replacing existing secret env bindings.
+- Use `--update-env-vars` (not `--set-env-vars`) for incremental env changes.
+
 ## 5. Deploy API (build + deploy)
 
 Optional (recommended) before deploy:

@@ -40,6 +40,10 @@
 12. Multi-company ingestion helper and source registry were added:
    - `data/external/company_sources/registry.json`
    - `scripts/cloud/ingest-company-sources.py`
+13. Access-control operations were hardened:
+   - Added onboarding runbook: `docs/cloud/ACCESS_CONTROL_RUNBOOK.md`
+   - Added safe user-role updater: `scripts/cloud/manage-authorized-user.sh`
+   - Clarified two-layer access model (Google OAuth test users + app authorized-users secret).
 
 ## In Progress
 1. Real Kfir E2E closure (Google Form -> Sync -> Dashboard) in cloud runtime.

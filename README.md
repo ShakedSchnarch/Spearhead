@@ -15,6 +15,7 @@ The system ingests response events, normalizes them, builds read models, and exp
 - Active architecture reference: `docs/ARCHITECTURE.md`
 - Operational runbook: `docs/RUNBOOK.md`
 - Cloud setup: `docs/cloud/SETUP_STAGE_A.md`
+- Access control runbook: `docs/cloud/ACCESS_CONTROL_RUNBOOK.md`
 - Env checklist: `docs/cloud/ENV_SETUP_CHECKLIST.md`
 - Active working plan: `docs/cloud/WORKING_PLAN.md`
 - Master tasks tracker: `docs/PROJECT_TASKS.md`
