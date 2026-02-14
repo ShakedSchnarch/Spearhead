@@ -239,6 +239,51 @@ def test_v1_alias_normalization_for_palsam_scope(tmp_path):
     assert len(body["sections"]) >= 3
 
 
+def test_v1_battalion_ai_analysis_uses_remote_client_when_enabled(tmp_path, monkeypatch):
+    db_path = tmp_path / "v1_ai_remote.db"
+    settings.storage.backend = "sqlite"
+    settings.security.api_token = None
+    settings.security.basic_user = None
+    settings.security.basic_pass = None
+
+    class _FakeAIClient:
+        def generate(self, prompt: str, context: str):
+            class _Result:
+                content = "remote analysis stub"
+                source = "remote"
+
+            return _Result()
+
+    monkeypatch.setattr("spearhead.v1.service.build_ai_client", lambda _settings: _FakeAIClient())
+
+    prev_enabled = settings.ai.enabled
+    prev_provider = settings.ai.provider
+    prev_base_url = settings.ai.base_url
+    settings.ai.enabled = True
+    settings.ai.provider = "http"
+    settings.ai.base_url = "https://example.invalid/v1/chat/completions"
+
+    try:
+        app = create_app(db_path=db_path)
+        client = TestClient(app)
+
+        ingest = client.post(
+            "/v1/ingestion/forms/events",
+            json=_command_event("כפיר", "653", logistics="חוסר", communications="תקין"),
+        )
+        assert ingest.status_code == 200
+
+        analysis = client.get("/v1/views/battalion/ai-analysis")
+        assert analysis.status_code == 200
+        body = analysis.json()
+        assert body["source"] == "remote"
+        assert "remote analysis stub" in body["content"]
+    finally:
+        settings.ai.enabled = prev_enabled
+        settings.ai.provider = prev_provider
+        settings.ai.base_url = prev_base_url
+
+
 def test_deprecated_endpoints_return_410(tmp_path):
     db_path = tmp_path / "deprecated.db"
     settings.storage.backend = "sqlite"
