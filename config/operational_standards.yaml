@@ -1,0 +1,77 @@
+version: 2026.1
+
+active_companies:
+  - Kfir
+  - Mahatz
+  - Sufa
+
+company_labels:
+  Kfir: כפיר
+  Mahatz: מחץ
+  Sufa: סופה
+  Palsam: פלס״מ
+
+# The tank form blueprint already contains per-item standard quantities.
+tank_blueprint_path: docs/forms/kfir_company_form_blueprint.json
+
+critical_items:
+  - חבל פריסה
+  - פטיש 5
+  - ראשוני
+  - איציק
+  - לום
+  - מאריך חש"ן
+  - בייבי קוני
+  - משלק
+  - פטיש קילו
+  - מפתח Y
+  - 2מפתח פלטות
+  - בוקסה 1\5\16
+  - ידית כוח חצי
+  - ידית כוח 3\4
+  - מחט ירי
+  - אלונקה
+  - מקלות חוטר
+
+company_assets:
+  groups:
+    - id: company_spares
+      title: חלפים (ח"ח פלוגתי)
+      section: Armament
+      group: חלפים
+      items:
+        - name: ח"ח פלוגתי
+          aliases: ["חלפים פלוגתי", "חלפים", 'ח"ח']
+          critical: true
+        - name: חוליות אקסטרה פלוגתי
+          critical: true
+        - name: פינים אקסטרה פלוגתי
+          critical: true
+
+    - id: company_oils
+      title: שמנים וחומרי סיכה
+      section: Armament
+      group: שמנים
+      items:
+        - name: 2510 אקסטרה פלוגתי
+          standard_quantity: 1
+        - name: 2640 אקסטרה פלוגתי
+          standard_quantity: 1
+        - name: גריז 2040 פלוגתי
+          standard_quantity: 1
+        - name: גריז 4080 פלוגתי
+          standard_quantity: 1
+
+    - id: company_reports
+      title: דוחות ותוספות פלוגתיות
+      section: Company Assets
+      group: דיווחים פלוגתיים
+      items:
+        - name: דוח צלם- נוספים
+          aliases: ["צלם", "דוח צלם"]
+        - name: דוח ת"ת פלוגתי
+          aliases: ['דוח ת"ת', "תת פלוגתי", "ת״ת"]
+        - name: ציוד רנגלר
+          aliases: ["רנגלר"]
+        - name: ציוד קשפל
+          aliases: ["קשפל"]
