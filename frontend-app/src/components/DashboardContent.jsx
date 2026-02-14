@@ -230,6 +230,8 @@ export function DashboardContent({ client, user, onLogout }) {
           totalGaps: 0,
           criticalGaps: 0,
           deltaReadiness: [],
+          reportingReported: 0,
+          reportingKnown: 0,
         });
       }
       const item = grouped.get(companyKey);
@@ -241,6 +243,8 @@ export function DashboardContent({ client, user, onLogout }) {
       }
       item.totalGaps += Number(row.total_gaps || 0);
       item.criticalGaps += Number(row.critical_gaps || 0);
+      item.reportingReported = Math.max(item.reportingReported, Number(row.reports || 0));
+      item.reportingKnown = Math.max(item.reportingKnown, Number(row.tanks || 0));
     });
 
     return Array.from(grouped.values())
@@ -251,6 +255,14 @@ export function DashboardContent({ client, user, onLogout }) {
         const avgDeltaReadiness = item.deltaReadiness.length
           ? Number((item.deltaReadiness.reduce((sum, value) => sum + value, 0) / item.deltaReadiness.length).toFixed(1))
           : null;
+        const hasData = item.readinessValues.length > 0 || item.reportingReported > 0 || item.totalGaps > 0;
+        const reportingState = item.reportingKnown <= 0
+          ? { label: "ללא דיווח", color: "gray" }
+          : (item.reportingReported >= item.reportingKnown
+            ? { label: "דיווח מלא", color: "teal" }
+            : (item.reportingReported > 0
+              ? { label: "דיווח חלקי", color: "yellow" }
+              : { label: "ללא דיווח", color: "gray" }));
         return {
           company: item.company,
           companyKey: item.companyKey,
@@ -258,8 +270,11 @@ export function DashboardContent({ client, user, onLogout }) {
           avgDeltaReadiness,
           totalGaps: item.totalGaps,
           criticalGaps: item.criticalGaps,
-          visual: readinessVisual(avgReadiness),
-          hasData: true,
+          reportingReported: item.reportingReported,
+          reportingKnown: item.reportingKnown,
+          reportingState,
+          visual: hasData ? readinessVisual(avgReadiness) : { color: "gray", label: "אין דיווחים", accent: "#64748b" },
+          hasData,
         };
       })
       .sort((a, b) => {
@@ -280,6 +295,9 @@ export function DashboardContent({ client, user, onLogout }) {
         avgDeltaReadiness: null,
         totalGaps: 0,
         criticalGaps: 0,
+        reportingReported: 0,
+        reportingKnown: 0,
+        reportingState: { label: "ללא דיווח", color: "gray" },
         visual: { color: "gray", label: "אין דיווחים", accent: "#64748b" },
         hasData: false,
       };
@@ -576,6 +594,14 @@ export function DashboardContent({ client, user, onLogout }) {
                       <Text size="sm" c="dimmed">
                         חריגים קריטיים: {row.criticalGaps} | פערים: {row.totalGaps}
                       </Text>
+                      <Group gap={6} wrap="nowrap">
+                        <Badge variant="light" color={row.reportingState?.color || "gray"}>
+                          {row.reportingState?.label || "ללא דיווח"}
+                        </Badge>
+                        <Text size="sm" c="dimmed" className="score-ltr">
+                          {row.reportingKnown > 0 ? `${row.reportingReported}/${row.reportingKnown}` : "0/0"}
+                        </Text>
+                      </Group>
                       <Text size="sm" c={readinessDeltaColor(row.avgDeltaReadiness)} className="score-ltr">
                         שינוי שבועי: {row.hasData ? formatDelta(row.avgDeltaReadiness, 1) : "-"}
                       </Text>
