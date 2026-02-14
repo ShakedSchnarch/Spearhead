@@ -58,10 +58,18 @@ class BaseRepository:
             "kphir": "Kfir", # Mentioned in user screenshot?
             "מחץ": "Mahatz",
             "mahatz": "Mahatz",
+            "machatz": "Mahatz",
             "סופה": "Sufa",
             "sufa": "Sufa",
+            "פלס״מ": "Palsam",
+            'פלס"ם': "Palsam",
+            "פלסמ": "Palsam",
+            "פלסם": "Palsam",
+            "palsam": "Palsam",
             "romach": "battalion",
             "רומח": "battalion",
+            "גדוד": "battalion",
+            "battalion": "battalion",
         }
 
     @staticmethod
@@ -83,10 +91,18 @@ class BaseRepository:
             "kphir": "Kfir",
             "מחץ": "Mahatz",
             "mahatz": "Mahatz",
+            "machatz": "Mahatz",
             "סופה": "Sufa",
             "sufa": "Sufa",
+            "פלס״מ": "Palsam",
+            'פלס"ם': "Palsam",
+            "פלסמ": "Palsam",
+            "פלסם": "Palsam",
+            "palsam": "Palsam",
             "romach": "battalion",
             "רומח": "battalion",
+            "גדוד": "battalion",
+            "battalion": "battalion",
         }
         return alias_map.get(lower, raw)
 

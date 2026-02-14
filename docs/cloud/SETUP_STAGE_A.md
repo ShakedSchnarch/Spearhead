@@ -31,7 +31,7 @@ Create these secrets in Secret Manager:
 - `SPEARHEAD_API_TOKEN`
 - `SPEARHEAD_OAUTH_CLIENT_ID`
 - `SPEARHEAD_OAUTH_CLIENT_SECRET`
-- `SPEARHEAD_AUTHORIZED_USERS` (JSON map: `{"email":"battalion|Kfir|Mahatz|Sufa|Palsam"}`)
+- `SPEARHEAD_AUTHORIZED_USERS` (JSON map: `{"email":"battalion|Kfir|Mahatz|Sufa"}`)
 
 `SPEARHEAD_API_TOKEN` is strongly recommended so ingestion/admin operations require explicit auth.
 Deployment script maps existing secrets automatically to Cloud Run env vars.
@@ -102,6 +102,15 @@ API_TOKEN="$(gcloud secrets versions access latest --secret=SPEARHEAD_API_TOKEN 
 PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
   --sheet-id 13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw \
   --company Kfir \
+  --api-base-url "$SERVICE_URL" \
+  --api-token "$API_TOKEN" \
+  --year 2026
+```
+
+For battalion expansion (Kfir+Mahatz+Sufa) using registry:
+
+```bash
+PYTHONPATH=src ./scripts/cloud/ingest-company-sources.py \
   --api-base-url "$SERVICE_URL" \
   --api-token "$API_TOKEN" \
   --year 2026

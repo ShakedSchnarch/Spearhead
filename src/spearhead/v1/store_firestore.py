@@ -5,7 +5,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any, Optional
 
-from spearhead.v1.models import MetricSnapshotV2, NormalizedResponseV2
+from spearhead.v1.models import MetricSnapshotV2, NormalizedCompanyAssetV2, NormalizedResponseV2
 
 
 class FirestoreResponseStore:
@@ -152,6 +152,50 @@ class FirestoreResponseStore:
             if week:
                 weeks.add(str(week))
         return sorted(weeks, reverse=True)
+
+    def upsert_company_asset(self, response: NormalizedCompanyAssetV2) -> None:
+        self._collection("normalized_company_assets_v2").document(response.event_id).set(
+            {
+                "event_id": response.event_id,
+                "source_id": response.source_id,
+                "company_key": response.company_key,
+                "company_key_lower": (response.company_key or "").lower(),
+                "week_id": response.week_id,
+                "received_at": response.received_at.isoformat(),
+                "fields": response.fields,
+                "unmapped_fields": response.unmapped_fields,
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        )
+
+    def list_company_assets(self, week_id: Optional[str] = None, company_key: Optional[str] = None) -> list[dict[str, Any]]:
+        query = self._collection("normalized_company_assets_v2")
+        if week_id:
+            query = query.where(field_path="week_id", op_string="==", value=week_id)
+        if company_key:
+            query = query.where(
+                field_path="company_key_lower",
+                op_string="==",
+                value=str(company_key).lower(),
+            )
+
+        rows: list[dict[str, Any]] = []
+        for doc in query.stream():
+            data = doc.to_dict() or {}
+            rows.append(
+                {
+                    "event_id": data.get("event_id") or doc.id,
+                    "source_id": data.get("source_id"),
+                    "company_key": data.get("company_key"),
+                    "week_id": data.get("week_id"),
+                    "received_at": self._as_iso(data.get("received_at")),
+                    "fields": data.get("fields") or {},
+                    "unmapped_fields": data.get("unmapped_fields") or [],
+                }
+            )
+
+        rows.sort(key=lambda r: str(r.get("received_at") or ""), reverse=True)
+        return rows
 
     def upsert_metric_snapshot(self, snapshot: MetricSnapshotV2) -> None:
         snapshot_key = self._snapshot_key(snapshot.scope, snapshot.dimensions)

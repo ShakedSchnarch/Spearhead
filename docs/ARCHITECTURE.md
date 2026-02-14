@@ -20,8 +20,10 @@ Legacy endpoints/modules are optional and disabled by default.
 2. **Application Layer (v1)**
    - `src/spearhead/v1/parser.py`
    - `src/spearhead/v1/service.py`
+   - `src/spearhead/operational_standards.py`
    - `src/spearhead/v1/worker.py`
    - `src/spearhead/v1/reconcile.py`
+   - Includes both tank-response flow and company-assets flow.
 
 3. **Persistence Layer**
    - `src/spearhead/v1/store.py`
@@ -69,3 +71,7 @@ Legacy endpoints/modules are optional and disabled by default.
 - Do not add heavy business logic to frontend; calculations stay in backend `v1`.
 - Keep API contract versioned under `/v1`.
 - Cloud deployment should use `STORAGE__BACKEND=firestore` (SQLite remains local/dev only).
+- Keep operational standards centralized in `config/operational_standards.yaml` (companies, critical items, standards).
+- Keep tank and company-assets ingestion separated:
+  - `/v1/ingestion/forms/events`
+  - `/v1/ingestion/forms/company-assets`

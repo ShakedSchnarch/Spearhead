@@ -16,17 +16,40 @@ from spearhead.logic.scoring import ScoringEngine
 from spearhead.services import FormAnalytics, QueryService
 from spearhead.services.exporter import ExcelExporter
 from spearhead.services.intelligence import IntelligenceService
-from spearhead.v1 import FormResponseParserV2, ResponseIngestionServiceV2, ResponseQueryServiceV2, ResponseStore
+from spearhead.v1 import (
+    CompanyAssetIngestionServiceV2,
+    CompanyAssetParserV2,
+    FormResponseParserV2,
+    ResponseIngestionServiceV2,
+    ResponseQueryServiceV2,
+    ResponseStore,
+)
 
 # Global/Cached instances
 _db_instance: Optional[Database] = None
 _v1_store_instance: Optional[Any] = None
 _v1_query_instance: Optional[ResponseQueryServiceV2] = None
 _v1_ingest_instance: Optional[ResponseIngestionServiceV2] = None
+_v1_company_asset_ingest_instance: Optional[CompanyAssetIngestionServiceV2] = None
 _v1_store_backend: Optional[str] = None
 
 # Shared session store (in-memory)
 oauth_store = OAuthSessionStore(ttl_seconds=86400)
+
+_DISABLED_PLATOON_TOKENS = {"palsam", "פלסם", "פלסמ", "פלס״מ", 'פלס"ם'}
+
+
+def _normalize_platoon_token(value: str) -> str:
+    return (
+        str(value or "")
+        .replace("׳", "")
+        .replace("״", "")
+        .replace("'", "")
+        .replace('"', "")
+        .replace(" ", "")
+        .strip()
+        .lower()
+    )
 
 
 def get_db() -> Database:
@@ -134,6 +157,16 @@ def get_v1_ingestion_service() -> ResponseIngestionServiceV2:
     return _v1_ingest_instance
 
 
+def get_v1_company_asset_ingestion_service() -> CompanyAssetIngestionServiceV2:
+    global _v1_company_asset_ingest_instance
+    if _v1_company_asset_ingest_instance is None:
+        _v1_company_asset_ingest_instance = CompanyAssetIngestionServiceV2(
+            store=get_v1_store(),
+            parser=CompanyAssetParserV2(),
+        )
+    return _v1_company_asset_ingest_instance
+
+
 def require_auth(
     authorization: Optional[str] = Header(None),
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
@@ -192,6 +225,9 @@ def get_current_user(
     session = oauth_store.get_active_session(x_oauth_session)
     if not session:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+    if session.platoon and _normalize_platoon_token(session.platoon) in _DISABLED_PLATOON_TOKENS:
+        raise HTTPException(status_code=403, detail="פלס״ם עדיין לא פתוח להתחברות במערכת")
 
     role = "platoon" if session.platoon and session.platoon.lower() != "battalion" else "battalion"
     return User(

@@ -19,6 +19,25 @@ logger = logging.getLogger("spearhead.api.system")
 router = APIRouter()
 # oauth_store is now imported from deps to share state
 
+_DISABLED_PLATOON_TOKENS = {"palsam", "פלסם", "פלסמ", "פלס״מ", 'פלס"ם'}
+
+
+def _normalize_platoon_token(value: str) -> str:
+    return (
+        str(value or "")
+        .replace("׳", "")
+        .replace("״", "")
+        .replace("'", "")
+        .replace('"', "")
+        .replace(" ", "")
+        .strip()
+        .lower()
+    )
+
+
+def _is_disabled_platoon(value: str) -> bool:
+    return _normalize_platoon_token(value) in _DISABLED_PLATOON_TOKENS
+
 @router.get("/health")
 def health():
     return {"status": "ok", "version": settings.app.version}
@@ -159,6 +178,9 @@ def google_oauth_callback(
         forced_platoon = assigned_role
 
     final_platoon = forced_platoon if forced_platoon else (platoon or "")
+    if final_platoon and _is_disabled_platoon(final_platoon):
+        return RedirectResponse(url="/spearhead/?authError=palsam_disabled", status_code=307)
+
     # If forced, view_mode MUST be platoon
     final_view_mode = "platoon" if forced_platoon else (view_mode or (final_platoon and "platoon") or "battalion")
 

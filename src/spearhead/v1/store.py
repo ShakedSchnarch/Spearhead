@@ -7,7 +7,7 @@ from typing import Any, Optional
 import pandas as pd
 
 from spearhead.data.storage import Database
-from spearhead.v1.models import MetricSnapshotV2, NormalizedResponseV2
+from spearhead.v1.models import MetricSnapshotV2, NormalizedCompanyAssetV2, NormalizedResponseV2
 
 
 class ResponseStore:
@@ -69,6 +69,22 @@ class ResponseStore:
             )
             cur.execute(
                 """
+                CREATE TABLE IF NOT EXISTS normalized_company_assets_v2 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    source_id TEXT,
+                    company_key TEXT NOT NULL,
+                    week_id TEXT NOT NULL,
+                    received_at TEXT NOT NULL,
+                    fields_json TEXT NOT NULL,
+                    unmapped_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(event_id)
+                );
+                """
+            )
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS ingestion_dlq_v2 (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     event_id TEXT,
@@ -84,6 +100,9 @@ class ResponseStore:
             )
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_norm_tank_week ON normalized_responses_v2 (tank_id, week_id);"
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_company_assets_week_company ON normalized_company_assets_v2 (week_id, company_key);"
             )
             conn.commit()
 
@@ -213,6 +232,55 @@ class ResponseStore:
         with self.db._connect() as conn:
             rows = conn.execute(query, params).fetchall()
         return [str(r[0]) for r in rows if r and r[0]]
+
+    def upsert_company_asset(self, response: NormalizedCompanyAssetV2) -> None:
+        with self.db._connect() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT OR REPLACE INTO normalized_company_assets_v2
+                    (event_id, source_id, company_key, week_id, received_at, fields_json, unmapped_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    response.event_id,
+                    response.source_id,
+                    response.company_key,
+                    response.week_id,
+                    response.received_at.isoformat(),
+                    json.dumps(response.fields, ensure_ascii=False, default=str),
+                    json.dumps(response.unmapped_fields, ensure_ascii=False),
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def list_company_assets(self, week_id: Optional[str] = None, company_key: Optional[str] = None) -> list[dict[str, Any]]:
+        query = (
+            "SELECT event_id, source_id, company_key, week_id, received_at, fields_json, unmapped_json "
+            "FROM normalized_company_assets_v2 WHERE 1=1"
+        )
+        params: list[Any] = []
+        if week_id:
+            query += " AND week_id = ?"
+            params.append(week_id)
+        if company_key:
+            query += " AND lower(company_key) = lower(?)"
+            params.append(company_key)
+        query += " ORDER BY received_at DESC"
+
+        with self.db._connect() as conn:
+            df = pd.read_sql_query(query, conn, params=params)
+
+        if df.empty:
+            return []
+
+        rows: list[dict[str, Any]] = []
+        for row in df.to_dict("records"):
+            row["fields"] = self._safe_json(row.pop("fields_json"), {})
+            row["unmapped_fields"] = self._safe_json(row.pop("unmapped_json"), [])
+            rows.append(row)
+        return rows
 
     def upsert_metric_snapshot(self, snapshot: MetricSnapshotV2) -> None:
         snapshot_key = self._snapshot_key(snapshot.scope, snapshot.dimensions)

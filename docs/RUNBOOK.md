@@ -20,6 +20,9 @@ Equivalent:
 ./scripts/run-local.sh
 ```
 
+Note: local scripts disable API/OAuth auth by default for manual dashboard testing.
+To enforce auth locally, run with `LOCAL_DEV_ENFORCE_AUTH=true`.
+
 Background mode (start/stop/status):
 
 ```bash
@@ -71,6 +74,8 @@ curl "http://127.0.0.1:8000/v1/queries/gaps?group_by=item"
 curl "http://127.0.0.1:8000/v1/views/battalion"
 curl "http://127.0.0.1:8000/v1/views/companies/Kfir"
 curl "http://127.0.0.1:8000/v1/views/companies/Kfir/tanks"
+curl "http://127.0.0.1:8000/v1/views/companies/Kfir/tanks/653/inventory"
+curl "http://127.0.0.1:8000/v1/views/companies/Kfir/assets"
 curl "http://127.0.0.1:8000/v1/views/companies/Kfir/sections/Logistics/tanks"
 ```
 
@@ -120,6 +125,17 @@ PYTHONPATH=src ./scripts/cloud/ingest-matrix-sheet.py \
 ```bash
 curl -H "X-API-Key: $API_TOKEN" "$SERVICE_URL/v1/metadata/weeks"
 curl -H "X-API-Key: $API_TOKEN" "$SERVICE_URL/v1/views/battalion"
+```
+
+## 4b. Bootstrap Multi-Company Matrix Sources
+
+Use the source registry (`data/external/company_sources/registry.json`) to ingest Kfir/Mahatz/Sufa in one command:
+
+```bash
+PYTHONPATH=src ./scripts/cloud/ingest-company-sources.py \
+  --api-base-url "$SERVICE_URL" \
+  --api-token "$API_TOKEN" \
+  --year 2026
 ```
 
 ## 5. Deprecated Endpoints Behavior

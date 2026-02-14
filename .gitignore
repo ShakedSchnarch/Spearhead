@@ -75,6 +75,7 @@ data/input/
 data/generated/
 data/*.csv
 data/*.xlsx
+data/external/**/*.xlsx
 !data/input/.keep
 
 # IDEs

@@ -8,7 +8,21 @@ Last updated: 2026-02-14
 3. Two forms are defined in the script:
    - Tank commander weekly form
    - Company assets weekly form
-4. Pending: create/publish forms in Google and bind response sheet IDs to runtime config.
+4. Forms were created/published in Google Apps Script (URLs captured below).
+5. Pending: link response sheets and bind new response sheet IDs to runtime config.
+
+## Captured rollout artifacts (2026-02-14)
+1. Tank commander form
+   - Edit URL: `https://docs.google.com/forms/d/1h3-Lu1LG1YhwvU9kTNEF1O7w5CJRW7B2qdRVTVqwjaf/edit`
+   - Published URL: `https://docs.google.com/forms/d/e/1FAIpQLScZBrZkK6QIXNCdgLJesdk89KTIJHLoP-NMf08W17xZfJ__Wg/viewform`
+2. Company assets form
+   - Edit URL: `https://docs.google.com/forms/d/1EJ4znjV5kybHovKXNd5MBI9ximn9iWJQo01stYL5enk/edit`
+   - Published URL: `https://docs.google.com/forms/d/e/1FAIpQLScjzwhYtrHdUTUKd-vdEjBJPtTw8J89FTTkAjwNumn3ZRF4Q/viewform`
+3. Response sheets (pending capture)
+   - Tank responses sheet ID (`כפיר`): `TODO`
+   - Tank responses sheet ID (`מחץ`): `TODO`
+   - Tank responses sheet ID (`סופה`): `TODO`
+   - Company-assets responses sheet ID: `TODO`
 
 ## Rollout steps
 1. Regenerate script after any standards change:
@@ -39,4 +53,3 @@ python3 scripts/forms/generate-google-form-apps-script.py --standards config/ope
    - inventory drawer
    - company assets tab
    - battalion comparison
-

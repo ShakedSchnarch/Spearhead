@@ -6,12 +6,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from spearhead.api.deps import (
     get_current_user,
+    get_v1_company_asset_ingestion_service,
     get_v1_ingestion_service,
     get_v1_query_service,
     require_auth,
 )
 from spearhead.domain.models import User
-from spearhead.v1 import EventValidationError, FormEventV2, ResponseIngestionServiceV2, ResponseQueryServiceV2
+from spearhead.v1 import (
+    CompanyAssetEventV2,
+    CompanyAssetIngestionServiceV2,
+    EventValidationError,
+    FormEventV2,
+    ResponseIngestionServiceV2,
+    ResponseQueryServiceV2,
+)
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
@@ -29,8 +37,14 @@ def _normalize_platoon_key(name: Optional[str]) -> Optional[str]:
         "kphir": "Kfir",
         "מחץ": "Mahatz",
         "mahatz": "Mahatz",
+        "machatz": "Mahatz",
         "סופה": "Sufa",
         "sufa": "Sufa",
+        "פלס״מ": "Palsam",
+        'פלס"ם': "Palsam",
+        "פלסמ": "Palsam",
+        "פלסם": "Palsam",
+        "palsam": "Palsam",
         "גדוד": "Battalion",
         "battalion": "Battalion",
     }
@@ -53,6 +67,19 @@ def _resolve_scope(user: User, requested_platoon: Optional[str]) -> Optional[str
 def ingest_form_event(
     event: FormEventV2,
     svc: ResponseIngestionServiceV2 = Depends(get_v1_ingestion_service),
+    _auth=Depends(require_auth),
+):
+    try:
+        report = svc.ingest_event(event)
+        return report.model_dump()
+    except EventValidationError as exc:
+        raise HTTPException(status_code=422, detail={"message": str(exc), "unmapped_fields": exc.unmapped_fields})
+
+
+@router.post("/ingestion/forms/company-assets")
+def ingest_company_asset_event(
+    event: CompanyAssetEventV2,
+    svc: CompanyAssetIngestionServiceV2 = Depends(get_v1_company_asset_ingestion_service),
     _auth=Depends(require_auth),
 ):
     try:
@@ -157,6 +184,17 @@ def view_battalion(
     return svc.battalion_sections_view(week_id=week, platoon_scope=scoped_company)
 
 
+@router.get("/views/battalion/ai-analysis")
+def view_battalion_ai_analysis(
+    week: Optional[str] = Query(None, alias="week"),
+    company: Optional[str] = Query(None, alias="company"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    return svc.battalion_ai_analysis_view(week_id=week, platoon_scope=scoped_company)
+
+
 @router.get("/views/companies/{company}")
 def view_company(
     company: str,
@@ -198,3 +236,30 @@ def view_company_tanks(
     if not scoped_company:
         raise HTTPException(status_code=400, detail="company is required")
     return svc.company_tanks_view(company_key=scoped_company, week_id=week)
+
+
+@router.get("/views/companies/{company}/tanks/{tank_id}/inventory")
+def view_company_tank_inventory(
+    company: str,
+    tank_id: str,
+    week: Optional[str] = Query(None, alias="week"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    if not scoped_company:
+        raise HTTPException(status_code=400, detail="company is required")
+    return svc.company_tank_inventory_view(company_key=scoped_company, tank_id=tank_id, week_id=week)
+
+
+@router.get("/views/companies/{company}/assets")
+def view_company_assets(
+    company: str,
+    week: Optional[str] = Query(None, alias="week"),
+    svc: ResponseQueryServiceV2 = Depends(get_v1_query_service),
+    user: User = Depends(get_current_user),
+):
+    scoped_company = _resolve_scope(user, company)
+    if not scoped_company:
+        raise HTTPException(status_code=400, detail="company is required")
+    return svc.company_assets_view(company_key=scoped_company, week_id=week)

@@ -50,6 +50,15 @@ export PYTHONPATH="$ROOT/src"
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 export OPENBLAS_NUM_THREADS=1
 
+# Local-first default: keep dashboard usable without OAuth/API token.
+# Set LOCAL_DEV_ENFORCE_AUTH=true to test full auth locally.
+if [[ "${LOCAL_DEV_ENFORCE_AUTH:-false}" != "true" ]]; then
+  export SECURITY__API_TOKEN=
+  export SECURITY__BASIC_USER=
+  export SECURITY__BASIC_PASS=
+  export SECURITY__REQUIRE_AUTH_ON_QUERIES=false
+fi
+
 needs_ui_build() {
   if [[ ! -f "$ROOT/frontend-app/dist/index.html" ]]; then
     return 0

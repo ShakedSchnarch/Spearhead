@@ -33,6 +33,9 @@ def test_scope_normalization_handles_hebrew_input():
     
     normalized_caps = BaseRepository._normalize_platoon("Kfir")
     assert normalized_caps == "Kfir"
+    
+    normalized_palsam = BaseRepository._normalize_platoon("פלס״מ")
+    assert normalized_palsam == "Palsam"
 
 def test_mapper_config_integrity():
     """
@@ -44,4 +47,3 @@ def test_mapper_config_integrity():
     assert len(rules) > 0, "Missing configuration rule for 'Kfir'"
     matches = [r.get("match") for r in rules]
     assert "כפיר" in matches or "kfir" in matches
-

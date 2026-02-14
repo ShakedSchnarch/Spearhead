@@ -8,6 +8,10 @@ import { SimpleLogin } from "./components/SimpleLogin";
 const SESSION_STORAGE_KEY = "spearhead.session.v1";
 
 const BATTALION_ALIASES = new Set(["battalion", "גדוד", "גדוד75", "romach", "romach75"]);
+const AUTH_ERROR_MESSAGES = {
+  palsam_disabled: "מצב פלס״ם עדיין חסום להתחברות (ייפתח בהמשך).",
+  missing_oauth_code: "לא התקבל קוד OAuth בתהליך ההתחברות. נסה שוב.",
+};
 
 const readStoredSession = () => {
   if (typeof window === "undefined") return null;
@@ -78,20 +82,37 @@ const extractSessionFromUrl = () => {
   return buildSession({ token, session, email, platoon, viewMode });
 };
 
+const readBootstrapFromUrl = () => {
+  if (typeof window === "undefined") {
+    return { session: null, authError: "", shouldCleanUrl: false };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const authErrorCode = params.get("authError") || "";
+  const authError = authErrorCode ? (AUTH_ERROR_MESSAGES[authErrorCode] || "שגיאת התחברות") : "";
+  const session = authError ? null : extractSessionFromUrl();
+  return {
+    session,
+    authError,
+    shouldCleanUrl: Boolean(authErrorCode || session),
+  };
+};
+
 function App() {
-  const [session, setSession] = useState(() => {
-    const fromUrl = extractSessionFromUrl();
-    return fromUrl || readStoredSession();
-  });
-  const [authError, setAuthError] = useState("");
+  const bootstrap = useMemo(() => readBootstrapFromUrl(), []);
+  const [session, setSession] = useState(() => bootstrap.session || readStoredSession());
+  const [authError, setAuthError] = useState(() => bootstrap.authError);
 
   useEffect(() => {
-    const fromUrl = extractSessionFromUrl();
-    if (!fromUrl) return;
-    persistSession(fromUrl);
-    const cleanUrl = `${window.location.origin}${window.location.pathname}`;
-    window.history.replaceState({}, document.title, cleanUrl);
-  }, []);
+    if (bootstrap.authError) {
+      persistSession(null);
+    } else if (bootstrap.session) {
+      persistSession(bootstrap.session);
+    }
+    if (bootstrap.shouldCleanUrl && typeof window !== "undefined") {
+      const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [bootstrap]);
 
   const handleLogout = useCallback(() => {
     setSession(null);

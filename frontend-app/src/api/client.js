@@ -105,6 +105,8 @@ export const createApiClient = ({
     // v1 responses-only API
     ingestFormEvent: (event, signal) =>
       postJson("/v1/ingestion/forms/events", event, { signal }),
+    ingestCompanyAssetsEvent: (event, signal) =>
+      postJson("/v1/ingestion/forms/company-assets", event, { signal }),
     getWeeks: (params, signal) =>
       getJson("/v1/metadata/weeks", params, { signal }),
     getOverview: (params, signal) =>
@@ -125,6 +127,8 @@ export const createApiClient = ({
     // command views (battalion/company hierarchy)
     getBattalionView: (params, signal) =>
       getJson("/v1/views/battalion", params, { signal }),
+    getBattalionAiAnalysis: (params, signal) =>
+      getJson("/v1/views/battalion/ai-analysis", params, { signal }),
     getCompanyView: (company, params, signal) =>
       getJson(`/v1/views/companies/${encodeURIComponent(company)}`, params, {
         signal,
@@ -139,5 +143,15 @@ export const createApiClient = ({
         params,
         { signal },
       ),
+    getCompanyTankInventory: (company, tankId, params, signal) =>
+      getJson(
+        `/v1/views/companies/${encodeURIComponent(company)}/tanks/${encodeURIComponent(tankId)}/inventory`,
+        params,
+        { signal },
+      ),
+    getCompanyAssets: (company, params, signal) =>
+      getJson(`/v1/views/companies/${encodeURIComponent(company)}/assets`, params, {
+        signal,
+      }),
   };
 };
