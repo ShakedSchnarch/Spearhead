@@ -22,9 +22,9 @@ def _download_sheet_xlsx(sheet_id: str, destination: Path, timeout: int) -> None
 
 
 def _resolve_token(explicit_token: str | None) -> str:
-    token = explicit_token or os.getenv("SPEARHEAD_API_TOKEN")
+    token = explicit_token or os.getenv("SPEARHEAD_API_TOKEN") or os.getenv("SECURITY__API_TOKEN")
     if not token:
-        raise SystemExit("Missing API token. Set --api-token or export SPEARHEAD_API_TOKEN.")
+        raise SystemExit("Missing API token. Set --api-token or export SPEARHEAD_API_TOKEN/SECURITY__API_TOKEN.")
     return token
 
 

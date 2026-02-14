@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import sqlite3
 
 from fastapi.testclient import TestClient
 
@@ -120,6 +121,79 @@ def test_v1_ingestion_and_queries(tmp_path, monkeypatch):
     search = client.get("/v1/queries/search", params={"q": "חבל"})
     assert search.status_code == 200
     assert search.json()["rows"]
+
+
+def test_v1_duplicate_reprocesses_when_normalized_missing(tmp_path):
+    db_path = tmp_path / "v1_duplicate_reprocess.db"
+    settings.storage.backend = "sqlite"
+    settings.security.api_token = None
+    settings.security.basic_user = None
+    settings.security.basic_pass = None
+
+    app = create_app(db_path=db_path)
+    client = TestClient(app)
+
+    first = client.post("/v1/ingestion/forms/events", json=_sample_event())
+    assert first.status_code == 200
+    assert first.json()["created"] is True
+    event_id = first.json()["event_id"]
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM normalized_responses_v2 WHERE event_id = ?", (event_id,))
+        conn.execute(
+            "UPDATE raw_form_events_v2 SET status = ?, error_detail = ? WHERE event_id = ?",
+            ("invalid", "legacy-parse-error", event_id),
+        )
+        conn.commit()
+
+    duplicate = client.post("/v1/ingestion/forms/events", json=_sample_event())
+    assert duplicate.status_code == 200
+    duplicate_body = duplicate.json()
+    assert duplicate_body["created"] is False
+    assert duplicate_body["event_id"] == event_id
+    assert duplicate_body["platoon_key"] == "Kfir"
+    assert duplicate_body["week_id"]
+
+    overview = client.get("/v1/metrics/overview")
+    assert overview.status_code == 200
+    assert overview.json()["reports"] == 1
+
+
+def test_v1_company_assets_duplicate_reprocesses_when_normalized_missing(tmp_path):
+    db_path = tmp_path / "v1_company_assets_duplicate_reprocess.db"
+    settings.storage.backend = "sqlite"
+    settings.security.api_token = None
+    settings.security.basic_user = None
+    settings.security.basic_pass = None
+
+    app = create_app(db_path=db_path)
+    client = TestClient(app)
+
+    payload = _company_assets_event(company="מחץ")
+    first = client.post("/v1/ingestion/forms/company-assets", json=payload)
+    assert first.status_code == 200
+    assert first.json()["created"] is True
+    event_id = first.json()["event_id"]
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM normalized_company_assets_v2 WHERE event_id = ?", (event_id,))
+        conn.execute(
+            "UPDATE raw_form_events_v2 SET status = ?, error_detail = ? WHERE event_id = ?",
+            ("invalid", "legacy-parse-error", event_id),
+        )
+        conn.commit()
+
+    duplicate = client.post("/v1/ingestion/forms/company-assets", json=payload)
+    assert duplicate.status_code == 200
+    body = duplicate.json()
+    assert body["created"] is False
+    assert body["event_id"] == event_id
+    assert body["company_key"] == "Mahatz"
+    assert body["week_id"]
+
+    assets = client.get("/v1/views/companies/Mahatz/assets", params={"week": body["week_id"]})
+    assert assets.status_code == 200
+    assert assets.json()["rows"]
 
 
 def test_v1_command_views(tmp_path):

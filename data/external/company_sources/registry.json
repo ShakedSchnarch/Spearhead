@@ -1,0 +1,40 @@
+{
+  "version": "2026-02-14",
+  "sources": [
+    {
+      "company": "Kfir",
+      "display_name_he": "כפיר",
+      "status": "active",
+      "ingestion": {
+        "kind": "matrix_sheet",
+        "sheet_id": "13P9dOUSIc5IiBrdPWSuTZ2LKnWO56aDU1lJ7okGENqw",
+        "latest_week_expected": "2026-W08",
+        "source_prefix": "kfir-matrix"
+      }
+    },
+    {
+      "company": "Mahatz",
+      "display_name_he": "מחץ",
+      "status": "ready",
+      "ingestion": {
+        "kind": "matrix_sheet",
+        "sheet_id": "1nmV6UlLIBCwuH0CakYfbW_KS-nh-ptMCQa3eJtKh39M",
+        "local_cache": "data/external/company_sources/mahatz_matrix.xlsx",
+        "latest_week_expected": "2026-W07",
+        "source_prefix": "mahatz-matrix-r1"
+      }
+    },
+    {
+      "company": "Sufa",
+      "display_name_he": "סופה",
+      "status": "ready",
+      "ingestion": {
+        "kind": "matrix_sheet",
+        "sheet_id": "1Ps16DAa8Hes2t8XmiCvQ4QcdSo0fHAPYrvHJtVzHyvA",
+        "local_cache": "data/external/company_sources/sufa_matrix.xlsx",
+        "latest_week_expected": "2026-W08",
+        "source_prefix": "sufa-matrix-r1"
+      }
+    }
+  ]
+}

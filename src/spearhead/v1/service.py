@@ -57,6 +57,39 @@ class ResponseIngestionServiceV2:
                     week_id = item["week_id"]
                     platoon_key = item["platoon_key"]
                     break
+            if week_id is None or platoon_key is None:
+                try:
+                    normalized = self.parser.parse(event)
+                    self.store.upsert_normalized(normalized)
+                    self.store.mark_event_status(event_id, status="processed")
+                    self.metrics.refresh_snapshots(week_id=normalized.week_id, platoon_key=normalized.platoon_key)
+                    return IngestionReportV2(
+                        event_id=event_id,
+                        created=False,
+                        schema_version=event.schema_version,
+                        source_id=event.source_id,
+                        week_id=normalized.week_id,
+                        platoon_key=normalized.platoon_key,
+                        unmapped_fields=normalized.unmapped_fields,
+                    )
+                except EventValidationError as exc:
+                    self.store.mark_event_status(event_id, status="invalid", error_detail=str(exc))
+                    self.store.insert_dlq(
+                        event_id=event_id,
+                        source_id=event.source_id,
+                        payload=event.payload,
+                        error_detail=str(exc),
+                    )
+                    raise
+                except Exception as exc:
+                    self.store.mark_event_status(event_id, status="failed", error_detail=str(exc))
+                    self.store.insert_dlq(
+                        event_id=event_id,
+                        source_id=event.source_id,
+                        payload=event.payload,
+                        error_detail=str(exc),
+                    )
+                    raise
             return IngestionReportV2(
                 event_id=event_id,
                 created=False,
@@ -121,6 +154,38 @@ class CompanyAssetIngestionServiceV2:
                     week_id = item["week_id"]
                     company_key = item["company_key"]
                     break
+            if week_id is None or company_key is None:
+                try:
+                    normalized = self.parser.parse(event)
+                    self.store.upsert_company_asset(normalized)
+                    self.store.mark_event_status(event_id, status="processed")
+                    return CompanyAssetIngestionReportV2(
+                        event_id=event_id,
+                        created=False,
+                        schema_version=event.schema_version,
+                        source_id=event.source_id,
+                        week_id=normalized.week_id,
+                        company_key=normalized.company_key,
+                        unmapped_fields=normalized.unmapped_fields,
+                    )
+                except EventValidationError as exc:
+                    self.store.mark_event_status(event_id, status="invalid", error_detail=str(exc))
+                    self.store.insert_dlq(
+                        event_id=event_id,
+                        source_id=event.source_id,
+                        payload=event.payload,
+                        error_detail=str(exc),
+                    )
+                    raise
+                except Exception as exc:
+                    self.store.mark_event_status(event_id, status="failed", error_detail=str(exc))
+                    self.store.insert_dlq(
+                        event_id=event_id,
+                        source_id=event.source_id,
+                        payload=event.payload,
+                        error_detail=str(exc),
+                    )
+                    raise
             return CompanyAssetIngestionReportV2(
                 event_id=event_id,
                 created=False,
