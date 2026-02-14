@@ -24,7 +24,8 @@ if rg -n '^(<<<<<<<|=======|>>>>>>>)' . >/tmp/spearhead_release_merge_markers.tx
 fi
 
 echo "[5/8] Ensure no TODO/FIXME in active runtime/docs"
-if rg -n 'TODO|FIXME|XXX|HACK' src frontend-app scripts docs --glob '!docs/archive/**' --glob '!scripts/release-check.sh' >/tmp/spearhead_release_todos.txt 2>/dev/null; then
+# Match only actionable markers (`TODO:`, `FIXME:`, etc.) and avoid prose mentions.
+if rg -n '\b(TODO|FIXME|XXX|HACK):' src frontend-app scripts docs --glob '!docs/archive/**' --glob '!scripts/release-check.sh' >/tmp/spearhead_release_todos.txt 2>/dev/null; then
   echo "Active TODO/FIXME markers found:"
   cat /tmp/spearhead_release_todos.txt
   exit 1
