@@ -24,7 +24,7 @@ class AnalyzerRegistry:
     def initialize_active(cls, config: dict = None) -> List[Analyzer]:
         """
         Instantiates all registered analyzers.
-        TODO: In future, filter based on 'active_analyzers' list in config.
+        Config currently supports threshold values for analyzers that require runtime tuning.
         """
         instances = []
         for name, cls in cls._analyzers.items():

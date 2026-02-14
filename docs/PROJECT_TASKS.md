@@ -11,8 +11,8 @@ Last updated: 2026-02-14
 
 | ID | Priority | Status | Scope | Task | Exit criteria |
 |---|---|---|---|---|---|
-| T-001 | P0 | In Progress | UI | Company dashboard polish (chart placement, click-through, RTL numeric rendering, clearer hierarchy) | Manual review passes requested UX checklist |
-| T-002 | P0 | In Progress | UI | Battalion dashboard comparison polish (cards + trends + critical gaps visualization) | Commander can compare companies in one screen without ambiguity |
+| T-001 | P0 | In Review | UI | Company dashboard polish (chart placement, click-through, RTL numeric rendering, clearer hierarchy) | Manual review passes requested UX checklist |
+| T-002 | P0 | In Review | UI | Battalion dashboard comparison polish (cards + trends + critical gaps visualization) | Commander can compare companies in one screen without ambiguity |
 | T-003 | P0 | In Progress | Forms | Finalize two production Google Forms (tank commander + company assets) | Forms are created in Google, linked Sheets IDs captured, ingestion verified |
 | T-004 | P0 | Pending | Data | Connect Mahatz + Sufa weekly sources to ingestion flow | Both companies appear in weekly battalion views with real data |
 | T-005 | P1 | In Progress | AI | Add battalion AI analysis block with offline-safe fallback and optional remote provider | Dashboard shows deterministic fallback and optional remote AI output |
@@ -27,4 +27,4 @@ Last updated: 2026-02-14
 | C-001 | 2026-02-14 | Added standards-driven model for item standards and company-assets grouping via `config/operational_standards.yaml` |
 | C-002 | 2026-02-14 | Added tank drawer full inventory table and report-status badge per tank card |
 | C-003 | 2026-02-14 | Added battalion/company trend foundations (including weekly readiness) |
-
+| C-004 | 2026-02-14 | Compact dashboard layout pass: denser chart grid, side-by-side operational blocks, collapsible detailed tables |

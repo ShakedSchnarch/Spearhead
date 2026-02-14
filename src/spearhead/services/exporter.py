@@ -41,15 +41,8 @@ class ExcelExporter:
         return path
 
     def export_battalion(self, week: Optional[str] = None) -> Path:
-        # Legacy fallback or future implementation
-        # For now, keep simpler logic or raise NotImplemented if Builder not ready for Battalion?
-        # Let's keep a minimal legacy-like implementation if possible or just rely on analytics for now?
-        # User asked for "Files like the old ones". 
-        # The Battalion file was aggregated. 
-        # Plan: Refactor Battalion export later. Focus on Platoon (Tactical) first.
-        # But we need basic functionality to pass tests/API calls.
-        # I'll preserve the logic but wrap it cleanly or mark TODO.
-        # Let's preserve the old logic for Battalion for safety, but using `self.analytics` which we kept.
+        # Keep battalion export as an aggregated compatibility snapshot.
+        # Platoon export remains the primary command report path.
         
         week_label = week or self.analytics.latest_week()
         if not week_label:
